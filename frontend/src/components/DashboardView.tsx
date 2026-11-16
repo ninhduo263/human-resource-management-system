@@ -152,7 +152,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </Text>
         </div>
 
-        <Space className="no-print">
+        <Space className="no-print w-full sm:w-auto flex-wrap">
           <Button icon={<DownloadOutlined />} onClick={handleExportOverview}>
             Xuất CSV
           </Button>
@@ -368,6 +368,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           dataSource={activeEmployees.slice(0, 5)}
           pagination={false}
           size="middle"
+          scroll={{ x: 600 }}
         />
       </Card>
     </div>

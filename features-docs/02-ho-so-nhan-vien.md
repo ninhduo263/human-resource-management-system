@@ -44,3 +44,28 @@
 ### Tự sinh mã nhân viên
 
 `POST /api/employees` tự cấp mã dạng `NV001` nối tiếp số lớn nhất hiện có, không nhận mã nhập tay. `nextBusinessId` trong `backend/src/utils/business-id.ts` khóa theo loại mã trong transaction trước khi cấp; tạo đồng thời không trùng mã. API trả `id` thực tế; mã cũ được giữ nguyên. Theo điều chỉnh mới nhất, mã không hiển thị trên frontend (kể cả form, chi tiết, thông báo, bộ chọn và báo cáo); dùng tên và email để nhận diện. Các số chỉ mục nghiệp vụ được bỏ khỏi nhãn giao diện.
+
+### Nâng cấp Giao diện Responsive Đa thiết bị (Mobile, Tablet, Fold, Smart Devices)
+
+- **Bảng danh sách hồ sơ (`Table`)**: Thêm cấu hình `scroll={{ x: 800 }}` và hỗ trợ vuốt chạm mượt mà trên di động (`-webkit-overflow-scrolling: touch`), giúp xem đầy đủ các cột mà không làm méo hay vỡ bảng trên điện thoại và thiết bị gập.
+- **Thanh công cụ & Bộ lọc đa tiêu chí**:
+  - Hàng nút hành động ("Xuất danh sách", "Thêm nhân viên") hỗ trợ tự động xuống dòng trên màn hình hẹp (`Space flex-wrap`).
+  - Ô tìm kiếm và các bộ lọc Phòng ban, Trạng thái chuyển sang dạng co giãn thích ứng fluid (`className="w-full xs:w-48 sm:w-56"`, `className="w-full xs:w-44 sm:w-48"`), không bị tràn chiều ngang màn hình.
+- **Hộp thoại Chi tiết hồ sơ (`Modal`)**:
+  - Sử dụng `Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}`: cố định 2 cột cân đối trên màn hình lớn và 1 cột trên điện thoại, không bị nhảy sang 3 cột làm méo thông tin.
+  - Vùng nút chân trang (Đóng, Lưu trữ, Khôi phục, Chỉnh sửa) sử dụng `<Space wrap>` để không bị đẩy lệch ra ngoài màn hình.
+- **Form Thêm mới & Chỉnh sửa hồ sơ**:
+  - Lưới thông tin sử dụng `grid grid-cols-1 sm:grid-cols-2 gap-x-4` tối ưu cho cả thao tác nhập liệu bàn phím máy tính lẫn bàn phím ảo trên điện thoại.
+  - Modal điều chỉnh thông tin liên hệ cá nhân (`selfContactModal`) co giãn linh hoạt 100% chiều rộng trên di động.
+
+## Cập nhật ngày 16/11/2026 — Hồ sơ nhân viên
+
+- **Trạng thái do hợp đồng quyết định**: hợp đồng hiện hành loại *Thử việc* → `Thử việc`, loại khác → `Đang làm việc` (hàm `syncEmployeeStatuses`, chạy sau mỗi thay đổi hợp đồng và trong job theo ngày). Khi **sửa** hồ sơ không còn nhập tay trạng thái (API bỏ qua trường `status`); chỉ chọn trạng thái ban đầu lúc **thêm** hồ sơ.
+- **Khóa lạc quan**: cột `employees.version` tăng mỗi lần sửa; `PUT /api/employees/:id` nhận `version` và trả `409` nếu hồ sơ đã bị người khác sửa. Giao diện gửi kèm `version`.
+- **Đồng bộ tên đăng nhập**: khi đổi email (HR sửa hoặc nhân viên tự cập nhật liên hệ), tài khoản tạo theo email đổi tên đăng nhập theo, trong cùng transaction.
+- **Kiểm tra dữ liệu**: nhân viên phải đủ **15 tuổi** tại ngày vào làm; số điện thoại dạng `0xxxxxxxxx` hoặc `+84xxxxxxxxx`; dùng chung bộ kiểm tra email/điện thoại (`assertContact`).
+- **Cảnh báo trùng hồ sơ**: thêm hồ sơ trùng *họ tên + ngày sinh* hoặc *số điện thoại* trả `409`; giao diện hỏi xác nhận rồi gửi lại với `confirm_duplicate: true`.
+- **Lưu trữ / khôi phục** chạy trong transaction có khóa dòng:
+  - Lưu trữ chặn khi còn hợp đồng hiệu lực, đơn nghỉ chờ duyệt hoặc quyết định công tác chờ hiệu lực; khóa tài khoản (`users.active = 0`), hủy phiên, gỡ vai trò trưởng phòng.
+  - Khôi phục tính lại trạng thái từ hợp đồng; **tài khoản không tự mở lại** — quản trị viên mở lại tường minh ở mục Tài khoản.
+- Chức vụ điều hành (Giám đốc) nay xác định bằng cờ `positions.is_executive` thay vì so sánh chuỗi tên.

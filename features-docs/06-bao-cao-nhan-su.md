@@ -32,3 +32,24 @@
 ## 4. Hướng dẫn Sửa đổi / Bảo trì sau này
 - **Thêm loại báo cáo thứ 5 hoặc thêm cột vào báo cáo**: Chỉnh sửa hàm `buildReportData()` và hằng số `REPORT_LABELS` trong `frontend/src/components/ReportsView.tsx`.
 - **Chỉnh sửa định dạng khi in ấn / xuất PDF**: Sửa các quy tắc `@media print` trong `frontend/src/index.css`.
+
+## 5. Cập nhật ngày 16/11/2026 — Nâng cấp Giao diện Responsive Đa thiết bị (Mobile, Tablet, Fold, Smart Devices)
+
+- **Bộ lọc Báo cáo đa chiều**:
+  - Hộp chọn loại báo cáo và phòng ban chuyển sang dạng fluid (`className="w-full sm:w-64"`, `className="w-full sm:w-52"`).
+  - Khoảng thời gian lọc (`Từ ngày` – `Đến ngày`) tự động căn chỉnh ngang/dọc linh hoạt theo bề rộng màn hình.
+  - Nút "Đặt lại bộ lọc", "In / Lưu PDF" và "Tải báo cáo CSV" hỗ trợ wrap tự động (`Space flex-wrap`).
+- **Thẻ Tóm tắt Số liệu Thống kê (`Card`)**:
+  - Sử dụng `Col xs={24} sm={8}`: trên điện thoại hiển thị 1 cột thẻ trực quan, trên tablet và desktop dàn đều 3 cột (Số lượng bản ghi, Phạm vi phòng ban, Ngày lập báo cáo).
+- **Bảng Dữ liệu Báo cáo (`Table`)**:
+  - Bổ sung cấu hình `scroll={{ x: 800 }}` đảm bảo các báo cáo có nhiều cột (như Biến động, Hợp đồng, Nghỉ phép) cuộn ngang mượt mà mà không làm méo cỡ chữ hoặc vỡ bố cục trên màn hình nhỏ.
+  - Phân trang gọn gàng tự căn giữa trên mobile.
+- **In ấn & Xuất file**:
+  - Tiếp tục hỗ trợ in ấn tối ưu qua `@media print`, ẩn toàn bộ các thanh điều hướng (Sider, Header, Bottom Navigation, nút thao tác) để tạo bản in PDF chuẩn chỉnh.
+
+## Cập nhật ngày 16/11/2026
+
+- **Báo cáo biến động nhân sự** chỉ liệt kê quyết định công tác `Hiệu lực` (bỏ qua quyết định `Chờ hiệu lực` và `Đã hủy`).
+- **Báo cáo hợp đồng** hiển thị thêm trạng thái `Đã hủy bỏ`; thẻ màu và bộ lọc ở màn hình Hợp đồng đã bổ sung trạng thái này.
+- Số ngày nghỉ trong báo cáo nghỉ phép nay là **ngày làm việc** (không còn tính cả cuối tuần/ngày lễ) và quỹ phép dùng quy tắc mặc định mới ở tài liệu 05.
+- Báo cáo vẫn tính ở frontend từ `GET /api/state`; xuất báo cáo từ máy chủ có phân trang chưa được làm.

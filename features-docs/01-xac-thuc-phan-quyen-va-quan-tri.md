@@ -54,3 +54,34 @@
 `LoginView.tsx` sử dụng các lớp CSS `login-*` trong `index.css`: màn hình hai cột với phần giới thiệu xanh rừng, tiêu đề lớn, minh họa đội ngũ bằng HTML/CSS và form trên nền sáng. Dưới 901 px chuyển thành một cột, ẩn phần minh họa. Minh họa có `aria-hidden`, không chứa dữ liệu nhân viên hoặc số liệu thực. Giữ API đăng nhập và chọn tài khoản mẫu; bổ sung autocomplete và trạng thái nút vai trò. Đã kiểm tra đăng nhập và không tràn ngang ở 1440/768/390 px.
 
 Nhận diện mới nhất của phần giới thiệu: **Nhân sự.**, biểu tượng **16**, dòng **NHÓM 16 · KẾT NỐI ĐỂ PHÁT TRIỂN**. Chân trang ghi **Cùng đội ngũ, tạo giá trị.** và **Nhóm 16 · Quản lý nhân sự**.
+
+### Nâng cấp Giao diện Responsive Đa thiết bị (Mobile, Tablet, Fold, Smart Devices)
+
+Hệ thống được tối ưu hóa toàn diện để tương thích linh hoạt trên mọi kích thước màn hình và thiết bị:
+- **Khung điều hướng thích ứng (Adaptive Navigation)**:
+  - Trên Desktop/Laptop ($\ge 1024\text{px}$): Giữ nguyên `Sider` cố định bên trái hỗ trợ thu gọn tiện lợi.
+  - Trên Mobile, Tablet và Foldable Phone ($< 1024\text{px}$): Ẩn Sider cố định, thay bằng **Menu trượt (Drawer)** của Ant Design mở qua nút hamburger ở Header. Drawer tích hợp sẵn danh mục tính năng, thông tin tài khoản người dùng và nút Đăng xuất nhanh.
+  - Bổ sung **Thanh điều hướng dưới đáy (Bottom Navigation Bar)** cố định ở chân màn hình di động cho các trang thường dùng: *Tổng quan, Hồ sơ, Phòng ban, Nghỉ phép (kèm Badge đỏ đếm đơn chờ duyệt) và nút Thêm (mở Drawer)*.
+- **Tối ưu thiết bị gập (Foldable Devices - Galaxy Z Fold, Pixel Fold)**:
+  - Hỗ trợ màn hình ngoài siêu hẹp ($\le 360\text{px}$): Lưới nút chọn tài khoản mẫu tự động chuyển sang 2 cột hoặc 1 cột; font chữ tiêu đề tự động co giãn (`clamp`).
+  - Hỗ trợ màn hình trong khi mở rộng ($700\text{px} - 880\text{px}$) với bố cục co giãn mượt mà.
+- **Vùng an toàn cảm ứng (Safe Area Insets & Touch Optimizations)**:
+  - Khai báo biến CSS `--sat`, `--sab`, `--sal`, `--sar` dựa trên `env(safe-area-inset-*)` để thanh bottom bar và nội dung không bị che khuất bởi tai thỏ, Dynamic Island hay thanh cử chỉ vuốt của iOS/Android.
+  - Bổ sung meta tag PWA/Web App trong `index.html`: `viewport-fit=cover`, `mobile-web-app-capable`.
+- **Header & Tìm kiếm**: Ô tìm kiếm co giãn linh hoạt (`xs:w-36 sm:w-56 md:w-72`), các trường văn bản phụ tự ẩn trên màn hình nhỏ để tránh tràn giao diện.
+- **Màn hình Tổng quan (`DashboardView.tsx`)**: Bảng nhân sự hỗ trợ cuộn ngang cảm ứng `scroll={{ x: 600 }}` và thanh nút thao tác `Space flex-wrap`.
+- **Màn hình Cài đặt & Quản trị (`SettingsView.tsx`)**: Bảng người dùng (`scroll={{ x: 650 }}`) và bảng nhật ký (`scroll={{ x: 750 }}`) hỗ trợ cuộn ngang; thông tin tài khoản cá nhân dùng `Descriptions column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}`.
+
+## Cập nhật ngày 16/11/2026 — Bảo mật, tài khoản và nhật ký
+
+- **Giới hạn đăng nhập** lưu trong bảng `login_attempts` (không mất khi khởi động lại): khóa 10 phút sau **8 lần sai theo tài khoản** hoặc **40 lần sai theo IP**.
+- **Cookie phiên** `SameSite=Strict`, thêm `Secure` khi `COOKIE_SECURE=true` hoặc request qua HTTPS. Thêm header `Content-Security-Policy`, `Cross-Origin-Resource-Policy`, và `Strict-Transport-Security` khi chạy HTTPS. `TRUST_PROXY=true` để lấy IP thật phía sau nginx.
+- **Tài khoản** (`users.routes.ts`):
+  - `POST /api/users/:id/reset-password` (admin): sinh mật khẩu ngẫu nhiên, hiển thị **một lần**, hủy mọi phiên của tài khoản.
+  - `PUT /api/users/:id/role` (admin): đổi vai trò, hủy phiên; không tự đổi vai trò của chính mình; đồng bộ `departments.head_id`.
+  - Mỗi nhân viên chỉ có **một** tài khoản (`UNIQUE(employee_id)`); mở lại tài khoản của hồ sơ đã nghỉ/lưu trữ bị chặn.
+  - Giao diện **Quản trị → Tài khoản** có đổi vai trò trực tiếp và nút **Đặt lại mật khẩu**.
+  - *Chưa làm theo yêu cầu*: bắt đổi mật khẩu ở lần đăng nhập đầu.
+- **Nhật ký** (`audit_log`): thêm `details` (JSON giá trị trước/sau) và `ip`; ghi trong cùng transaction với thay đổi. `GET /api/audit?limit&offset&q` (admin) trả nhật ký có phân trang và tìm kiếm; `GET /api/state` vẫn trả 100 bản ghi gần nhất cho màn hình hiện tại.
+- **`GET /api/state`**: lọc phạm vi dữ liệu theo vai trò **ngay trong SQL** (không đọc toàn bảng rồi lọc bằng JS); quỹ phép gộp bằng một truy vấn. Mỗi đơn nghỉ phép có cờ `can_review` do máy chủ tính theo vai trò, phòng ban và tuyến duyệt; giao diện dùng cờ này thay vì tự suy luận.
+- **Chưa làm**: tách `GET /api/state` thành API phân trang theo từng màn hình (cần viết lại phần lớn frontend).

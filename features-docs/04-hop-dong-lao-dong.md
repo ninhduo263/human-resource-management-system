@@ -45,3 +45,24 @@
 ### Tự sinh mã hợp đồng
 
 `POST /api/contracts` tự cấp mã dạng `HD001` nối tiếp số lớn nhất hiện có, bỏ qua mã nhập tay. Cấp mã, lưu hợp đồng và nhật ký trong cùng transaction; khóa theo loại mã để tránh trùng khi tạo đồng thời. API trả mã thực tế; frontend không hiển thị mã trên form, danh sách, chi tiết, thông báo, phụ lục hoặc báo cáo. Giao diện dùng tên nhân viên, loại và thời hạn hợp đồng, bỏ số chỉ mục nghiệp vụ trên các nhãn. Giữ nguyên mã và lịch sử hợp đồng cũ.
+
+### Nâng cấp Giao diện Responsive Đa thiết bị (Mobile, Tablet, Fold, Smart Devices)
+
+- **Bảng hợp đồng lao động (`Table`)**: Thêm `scroll={{ x: 850 }}` cho phép xem mượt mà trên màn hình nhỏ mà không bị co cụm các cột Nhân viên, Loại hợp đồng, Thời hạn, Mức lương/tháng, Trạng thái và Thao tác.
+- **Bộ lọc & Tabs linh hoạt**:
+  - Hàng nút hành động ("Xuất CSV", "Lập hợp đồng") hỗ trợ wrap (`Space className="no-print w-full sm:w-auto flex-wrap"`).
+  - Các ô lọc tìm kiếm theo tên, phòng ban và trạng thái co giãn tự động dạng fluid (`className="w-full xs:w-48 sm:w-56"`, `className="w-full xs:w-44 sm:w-48"`).
+- **Hộp thoại Chi tiết hợp đồng (`Modal`)**:
+  - `Descriptions bordered size="small" column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}`: cố định 2 cột hiển thị cân đối trên tablet/desktop và 1 cột trên điện thoại, giữ nhãn và giá trị luôn rõ ràng trên 1 dòng.
+  - Vùng nút chân trang chứa các hành động quan trọng (Điều chỉnh lương, Chấm dứt HĐ, Gia hạn HĐ) được bọc trong `<Space wrap>` để không bị che khuất hoặc tràn viền màn hình cảm ứng.
+- **Form Lập hợp đồng & Phụ lục**: Bố cục 2 cột trên desktop và 1 cột trên điện thoại (`grid grid-cols-1 sm:grid-cols-2`), hỗ trợ nhập liệu dễ dàng trên thiết bị di động.
+
+## Cập nhật ngày 16/11/2026 — Nghiệp vụ hợp đồng
+
+- **Áp quy định lao động** (`LABOR_RULES` trong `contracts.routes.ts`): thử việc tối đa **60 ngày** và chỉ **một lần**; hợp đồng xác định thời hạn tối đa **36 tháng**; ký mới hoặc gia hạn hợp đồng xác định thời hạn tối đa **2 lần**, sau đó phải ký không xác định thời hạn; hợp đồng thử việc không gia hạn.
+- **Lập hợp đồng** nay nằm trong transaction có khóa dòng nhân viên (hết race khi kiểm tra trùng thời gian); có thêm `contract_number` (số hợp đồng, tùy chọn).
+- **Ký hợp đồng chính thức** — `POST /api/contracts/:id/convert`: từ hợp đồng thử việc, rút ngắn thử việc đến ngày trước khi hợp đồng mới bắt đầu và tạo hợp đồng chính thức trong một transaction. Giao diện: nút **Ký chính thức** trong chi tiết hợp đồng thử việc.
+- **Phụ lục lương có ngày hiệu lực** — `POST /api/contracts/:id/salary` nhận `effective_date` tùy chọn: bằng hoặc trước hôm nay thì áp dụng ngay (ghi bù), trong tương lai (tối đa 12 tháng) thì lưu phụ lục `applied = false` và job theo ngày áp dụng khi đến hạn. Mỗi hợp đồng chỉ có một phụ lục lương chờ hiệu lực.
+- **Chấm dứt hợp đồng** — `POST /api/contracts/:id/terminate`: thêm `termination_type` (`Hết hạn hợp đồng`, `Người lao động xin nghỉ`, `Doanh nghiệp chấm dứt`, `Thỏa thuận chấm dứt`); cho **hẹn ngày trong tương lai** (tối đa 6 tháng, không sau ngày hết hạn). Hợp đồng vẫn `Hiệu lực` đến ngày hẹn, rồi job theo ngày chốt: đổi trạng thái hợp đồng, chuyển nhân viên `Đã nghỉ việc` nếu không còn hợp đồng nào khác, thu hồi phiên đăng nhập.
+- **Hủy bỏ hợp đồng nhập sai** — `POST /api/contracts/:id/void` (kèm lý do): hợp đồng chuyển `Đã hủy bỏ`, vẫn giữ để truy vết và bị loại khỏi kiểm tra trùng/trạng thái nhân viên. Giao diện: nút **Hủy bỏ HĐ**.
+- Trạng thái hợp đồng hiển thị có thêm `Đã hủy bỏ` (bộ lọc, màu thẻ). Trạng thái lưu trong DB vẫn là `Hiệu lực` cho đến khi chấm dứt/hủy; `Hết hạn`, `Chưa hiệu lực` được tính khi đọc.

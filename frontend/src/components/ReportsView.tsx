@@ -78,6 +78,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
           'Ngày hiệu lực',
         ],
         rows: state.assignments
+          .filter((a) => (a.status ?? 'Hiệu lực') === 'Hiệu lực')
           .filter((a) => matchRecord(a.employee_id, a.effective_date))
           .map((a) => [
             empName(a.employee_id),
@@ -198,7 +199,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
           </Text>
         </div>
 
-        <Space className="no-print">
+        <Space className="no-print w-full sm:w-auto flex-wrap">
           <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
             In / Lưu PDF
           </Button>
@@ -214,11 +215,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
 
       {/* Filters */}
       <Card bordered={false} className="shadow-xs no-print">
-        <Space wrap size="middle">
+        <Space wrap size="middle" className="w-full">
           <Select
             value={reportType}
             onChange={(val) => setReportType(val as ReportType)}
-            style={{ width: 250 }}
+            className="w-full sm:w-64"
             options={Object.entries(REPORT_LABELS).map(([id, label]) => ({
               value: id,
               label,
@@ -228,7 +229,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
           <Select
             value={reportDept}
             onChange={setReportDept}
-            style={{ width: 190 }}
+            className="w-full sm:w-52"
             options={[
               { value: '', label: 'Tất cả phòng ban' },
               ...state.departments.map((d) => ({
@@ -238,8 +239,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
             ]}
           />
 
-          <Space>
-            <Text type="secondary" className="text-xs">
+          <Space className="w-full sm:w-auto justify-between">
+            <Text type="secondary" className="text-xs shrink-0">
               Từ ngày:
             </Text>
             <Input
@@ -252,12 +253,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
                 }
                 setReportFrom(e.target.value);
               }}
-              style={{ width: 155 }}
+              style={{ width: 140 }}
             />
           </Space>
 
-          <Space>
-            <Text type="secondary" className="text-xs">
+          <Space className="w-full sm:w-auto justify-between">
+            <Text type="secondary" className="text-xs shrink-0">
               Đến ngày:
             </Text>
             <Input
@@ -274,7 +275,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
                 }
                 setReportTo(e.target.value);
               }}
-              style={{ width: 155 }}
+              style={{ width: 140 }}
             />
           </Space>
 
@@ -333,6 +334,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
           dataSource={tableData}
           pagination={{ pageSize: 12, showSizeChanger: false }}
           size="middle"
+          scroll={{ x: 800 }}
         />
       </Card>
     </div>

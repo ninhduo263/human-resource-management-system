@@ -14,6 +14,8 @@ import {
   Avatar,
   Space,
   Popconfirm,
+  Select,
+  Switch,
   Alert,
   Typography,
 } from 'antd';
@@ -77,7 +79,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
     if (item) {
       deptForm.setFieldsValue(item);
     } else {
-      deptForm.setFieldsValue({ founded_date: state.today, description: '' });
+      deptForm.setFieldsValue({ founded_date: state.today, description: '', active: true });
     }
     setDeptModal({ open: true, item });
   };
@@ -88,7 +90,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
     if (item) {
       posForm.setFieldsValue(item);
     } else {
-      posForm.setFieldsValue({ level: 2, description: '' });
+      posForm.setFieldsValue({ level: 2, description: '', active: true, is_executive: false });
     }
     setPosModal({ open: true, item });
   };
@@ -100,7 +102,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
       if (deptModal.item) {
         await apiRequest(
           `/api/departments/${encodeURIComponent(deptModal.item.id)}`,
-          values,
+          { ...values, head_id: values.head_id ?? null },
           'PUT'
         );
         notify('Đã cập nhật phòng ban.');
@@ -231,7 +233,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
           </Text>
         </div>
 
-        <Space className="no-print">
+        <Space className="no-print w-full sm:w-auto flex-wrap">
           {canAssign(state.user.role) && (
             <Button
               icon={<SwapOutlined />}
@@ -346,6 +348,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
             dataSource={state.positions}
             pagination={false}
             size="middle"
+            scroll={{ x: 650 }}
           />
         </Card>
       )}
@@ -382,6 +385,26 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
           <Form.Item name="description" label="Mô tả chức năng">
             <Input.TextArea rows={3} />
           </Form.Item>
+          {deptModal.item && (
+            <>
+              <Form.Item name="head_id" label="Trưởng phòng">
+                <Select
+                  allowClear
+                  placeholder="Chưa có trưởng phòng"
+                  options={state.employees
+                    .filter(
+                      (e) =>
+                        e.department_id === deptModal.item!.id &&
+                        ['Đang làm việc', 'Thử việc'].includes(e.status)
+                    )
+                    .map((e) => ({ value: e.id, label: `${e.name} (${e.id})` }))}
+                />
+              </Form.Item>
+              <Form.Item name="active" label="Đang sử dụng" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </>
+          )}
 
           <div className="flex items-center justify-between pt-2">
             {deptModal.item ? (
@@ -424,13 +447,11 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
           {formError && (
             <Alert type="error" showIcon message={formError} className="mb-4" />
           )}
-          <Form.Item
-            name="id"
-            label="Mã chức vụ"
-            rules={[{ required: true, message: 'Nhập mã chức vụ' }]}
-          >
-            <Input disabled={!!posModal.item} placeholder="VD: CV06" />
-          </Form.Item>
+          {posModal.item && (
+            <Form.Item name="id" label="Mã chức vụ">
+              <Input disabled />
+            </Form.Item>
+          )}
           <Form.Item
             name="name"
             label="Tên chức vụ"
@@ -448,6 +469,33 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
           <Form.Item name="description" label="Mô tả">
             <Input.TextArea rows={3} />
           </Form.Item>
+          <Form.Item
+            name="is_executive"
+            label="Chức vụ điều hành (không thuộc phòng ban)"
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          <Form.Item
+            name="default_role"
+            label="Vai trò tài khoản mặc định"
+            extra="Khi bổ nhiệm vào chức vụ này, vai trò tài khoản tự đồng bộ theo."
+          >
+            <Select
+              allowClear
+              placeholder="Giữ nguyên vai trò hiện tại"
+              options={[
+                { value: 'employee', label: 'Nhân viên' },
+                { value: 'manager', label: 'Trưởng phòng' },
+                { value: 'director', label: 'Giám đốc' },
+              ]}
+            />
+          </Form.Item>
+          {posModal.item && (
+            <Form.Item name="active" label="Đang sử dụng" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          )}
 
           <div className="flex items-center justify-between pt-2">
             {posModal.item ? (

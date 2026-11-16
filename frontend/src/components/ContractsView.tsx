@@ -63,6 +63,8 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
   const [detailContract, setDetailContract] = useState<Contract | null>(null);
   const [extendTarget, setExtendTarget] = useState<Contract | null>(null);
   const [terminateTarget, setTerminateTarget] = useState<Contract | null>(null);
+  const [convertTarget, setConvertTarget] = useState<Contract | null>(null);
+  const [convertType, setConvertType] = useState<string>('Xác định thời hạn');
   const [salaryTarget, setSalaryTarget] = useState<Contract | null>(null);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -70,6 +72,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
   const [createForm] = Form.useForm();
   const [extendForm] = Form.useForm();
   const [terminateForm] = Form.useForm();
+  const [convertForm] = Form.useForm();
   const [salaryForm] = Form.useForm();
 
   const emp = (id: string) => state.employees.find((e) => e.id === id);
@@ -162,6 +165,40 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
       setFormError(err.message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleConvertContract = async (values: Record<string, any>) => {
+    if (!convertTarget) return;
+    setFormError('');
+    setSubmitting(true);
+    try {
+      await apiRequest(
+        `/api/contracts/${encodeURIComponent(convertTarget.id)}/convert`,
+        { ...values, end_date: values.type === 'Không xác định thời hạn' ? null : values.end_date },
+        'POST'
+      );
+      setConvertTarget(null);
+      setDetailContract(null);
+      notify('Đã ký hợp đồng chính thức; hợp đồng thử việc được kết thúc trước ngày hiệu lực.');
+      await onRefresh();
+    } catch (err: any) {
+      setFormError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleVoidContract = async (c: Contract) => {
+    const reason = window.prompt('Lý do hủy bỏ hợp đồng (hợp đồng nhập sai, vẫn được giữ lại để truy vết):');
+    if (!reason || !reason.trim()) return;
+    try {
+      await apiRequest(`/api/contracts/${encodeURIComponent(c.id)}/void`, { reason: reason.trim() }, 'POST');
+      setDetailContract(null);
+      notify('Đã hủy bỏ hợp đồng.');
+      await onRefresh();
+    } catch (err: any) {
+      notify(err.message, true);
     }
   };
 
@@ -286,7 +323,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
           </Text>
         </div>
 
-        <Space className="no-print">
+        <Space className="no-print w-full sm:w-auto flex-wrap">
           <Button icon={<DownloadOutlined />} onClick={handleExport}>
             Xuất CSV
           </Button>
@@ -323,19 +360,19 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             ]}
           />
 
-          <Space wrap>
+          <Space wrap className="w-full lg:w-auto">
             <Input
               prefix={<SearchOutlined className="text-slate-400" />}
               placeholder="Tìm nhân viên..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               allowClear
-              style={{ width: 200 }}
+              className="w-full xs:w-48 sm:w-56"
             />
             <Select
               value={deptFilter}
               onChange={setDeptFilter}
-              style={{ width: 170 }}
+              className="w-full xs:w-44 sm:w-48"
               options={[
                 { value: '', label: 'Tất cả phòng ban' },
                 ...state.departments.map((d) => ({
@@ -347,7 +384,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             <Select
               value={statusFilter}
               onChange={setStatusFilter}
-              style={{ width: 170 }}
+              className="w-full xs:w-40 sm:w-44"
               options={[
                 { value: '', label: 'Tất cả trạng thái' },
                 ...[
@@ -356,6 +393,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
                   'Hết hạn',
                   'Chưa hiệu lực',
                   'Đã chấm dứt',
+                  'Đã hủy bỏ',
                 ].map((s) => ({ value: s, label: s })),
               ]}
             />
@@ -368,6 +406,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
           dataSource={filtered}
           pagination={{ pageSize: 8, showSizeChanger: false }}
           size="middle"
+          scroll={{ x: 850 }}
         />
       </Card>
 
@@ -488,8 +527,29 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             <Space wrap>
               <Button onClick={() => setDetailContract(null)}>Đóng</Button>
               {canEdit(state.user.role) &&
-                detailContract.status !== 'Đã chấm dứt' && (
+                detailContract.status !== 'Đã chấm dứt' &&
+                detailContract.status !== 'Đã hủy bỏ' && (
                   <>
+                    {detailContract.type === 'Thử việc' && (
+                      <Button
+                        onClick={() => {
+                          setFormError('');
+                          setConvertType('Xác định thời hạn');
+                          convertForm.resetFields();
+                          convertForm.setFieldsValue({
+                            type: 'Xác định thời hạn',
+                            start_date: state.today,
+                            salary: detailContract.salary,
+                          });
+                          setConvertTarget(detailContract);
+                        }}
+                      >
+                        Ký chính thức
+                      </Button>
+                    )}
+                    <Button danger type="dashed" onClick={() => handleVoidContract(detailContract)}>
+                      Hủy bỏ HĐ
+                    </Button>
                     <Button icon={<DollarOutlined />} onClick={() => {
                       setFormError('');
                       salaryForm.resetFields();
@@ -533,7 +593,11 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
       >
         {detailContract && (
           <div className="space-y-4">
-            <Descriptions bordered size="small" column={2}>
+            <Descriptions
+              bordered
+              size="small"
+              column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
+            >
               <Descriptions.Item label="Trạng thái">
                 <Tag
                   color={getAntTagColor(
@@ -676,10 +740,13 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
         onCancel={() => setSalaryTarget(null)}>
         {salaryTarget && <Form name="salaryContract" form={salaryForm} layout="vertical" onFinish={handleSalaryChange}>
           <Alert type="info" showIcon className="mb-4" message={`Lương hiện tại: ${formatMoney(salaryTarget.salary)}`}
-            description="Mức lương được cập nhật ngay sau khi lưu. Phụ lục lưu ngày lập, lương cũ, lương mới và lý do." />
+            description="Mặc định áp dụng ngay. Chọn ngày hiệu lực trong tương lai để hẹn áp dụng, hoặc ngày trong quá khứ để ghi bù. Phụ lục lưu lương cũ, lương mới và lý do." />
           {formError && <Alert type="error" showIcon message={formError} className="mb-4" />}
           <Form.Item name="salary" label="Mức lương mới / tháng (VND)" rules={[{ required: true, message: 'Nhập mức lương mới' }]}>
             <InputNumber min={1} max={100000000000} className="w-full" />
+          </Form.Item>
+          <Form.Item name="effective_date" label="Ngày hiệu lực (tùy chọn)">
+            <Input type="date" />
           </Form.Item>
           <Form.Item name="reason" label="Lý do điều chỉnh lương" rules={[{ required: true, message: 'Nhập lý do điều chỉnh' }]}>
             <Input.TextArea rows={3} />
@@ -689,6 +756,50 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             <Button type="primary" htmlType="submit" loading={submitting}>Lưu phụ lục và cập nhật lương</Button>
           </div>
         </Form>}
+      </Modal>
+
+      {/* Modal Ký hợp đồng chính thức (từ thử việc) */}
+      <Modal
+        open={!!convertTarget}
+        title="Ký hợp đồng chính thức"
+        footer={null}
+        onCancel={() => setConvertTarget(null)}
+      >
+        {convertTarget && (
+          <Form name="convertContract" form={convertForm} layout="vertical" onFinish={handleConvertContract}>
+            <Alert
+              type="info"
+              showIcon
+              className="mb-4"
+              message="Hợp đồng thử việc tự kết thúc vào ngày trước khi hợp đồng chính thức bắt đầu."
+            />
+            {formError && <Alert type="error" showIcon message={formError} className="mb-4" />}
+            <Form.Item name="type" label="Loại hợp đồng" rules={[{ required: true }]}>
+              <Select
+                onChange={(v) => setConvertType(v)}
+                options={[
+                  { value: 'Xác định thời hạn', label: 'Xác định thời hạn' },
+                  { value: 'Không xác định thời hạn', label: 'Không xác định thời hạn' },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="start_date" label="Ngày bắt đầu" rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}>
+              <Input type="date" />
+            </Form.Item>
+            {convertType === 'Xác định thời hạn' && (
+              <Form.Item name="end_date" label="Ngày kết thúc" rules={[{ required: true, message: 'Chọn ngày kết thúc' }]}>
+                <Input type="date" />
+              </Form.Item>
+            )}
+            <Form.Item name="salary" label="Mức lương / tháng (VND)" rules={[{ required: true, message: 'Nhập mức lương' }]}>
+              <InputNumber min={1} max={100000000000} className="w-full" />
+            </Form.Item>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setConvertTarget(null)}>Hủy</Button>
+              <Button type="primary" htmlType="submit" loading={submitting}>Ký hợp đồng chính thức</Button>
+            </div>
+          </Form>
+        )}
       </Modal>
 
       {/* Modal Chấm dứt Hợp đồng */}
@@ -724,7 +835,21 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               label="Ngày chấm dứt"
               rules={[{ required: true, message: 'Chọn ngày chấm dứt' }]}
             >
-              <Input type="date" max={state.today} />
+              <Input type="date" />
+            </Form.Item>
+            <Form.Item
+              name="termination_type"
+              label="Hình thức chấm dứt"
+              initialValue="Thỏa thuận chấm dứt"
+            >
+              <Select
+                options={[
+                  'Hết hạn hợp đồng',
+                  'Người lao động xin nghỉ',
+                  'Doanh nghiệp chấm dứt',
+                  'Thỏa thuận chấm dứt',
+                ].map((v) => ({ value: v, label: v }))}
+              />
             </Form.Item>
             <Form.Item
               name="reason"

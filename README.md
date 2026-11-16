@@ -27,15 +27,15 @@ docker-compose up --build -d
 
 ## 2. Tài khoản Mẫu (5 Vai trò theo DFD)
 
-Mật khẩu chung ban đầu: **`Demo@12345`** (có thể chọn nhanh ngay trên màn hình đăng nhập):
+Mật khẩu chung ban đầu: **`Demo@12345`** (có thể chọn nhanh ngay trên màn hình đăng nhập; mật khẩu `admin` đổi được bằng biến `ADMIN_PASSWORD`):
 
 | Tên đăng nhập | Vai trò | Nhân viên liên kết | Phạm vi & Quyền hạn chính |
 | :--- | :--- | :--- | :--- |
 | `admin` | Quản trị viên | `NV001` - Nguyễn Minh Anh | Toàn quyền hệ thống, duyệt nghỉ phép, quản lý tài khoản & nhật ký |
-| `nhansu` | Cán bộ nhân sự | `NV009` - Nguyễn Khánh Vy | Quản lý hồ sơ, phòng ban/chức vụ, hợp đồng, công tác, quỹ phép, báo cáo |
-| `truongphong` | Trưởng phòng | `NV002` - Trần Quốc Bảo | Xem nhân sự trong phòng Công nghệ (ẩn lương người khác), duyệt phép trong phòng |
+| `nhansu` | Cán bộ nhân sự | `NV009` - Nguyễn Khánh Vy | Quản lý hồ sơ, phòng ban/chức vụ, hợp đồng, công tác, quỹ phép, ngày lễ, báo cáo; duyệt phép phòng chưa có trưởng phòng và giám đốc |
+| `truongphong` | Trưởng phòng | `NV002` - Trần Quốc Bảo | Xem nhân sự trong phòng Công nghệ (ẩn lương người khác), duyệt phép nhân viên cùng phòng |
 | `nhanvien` | Nhân viên | `NV003` - Lê Hoàng Nam | Xem thông tin cá nhân, cập nhật liên hệ, nộp/hủy đơn nghỉ phép của mình |
-| `giamdoc` | Ban giám đốc | `NV010` - Trần Hải Đăng | Xem dữ liệu toàn tổ chức, 4 loại báo cáo, ghi nhận quyết định công tác |
+| `giamdoc` | Ban giám đốc | `NV010` - Trần Hải Đăng | Xem dữ liệu toàn tổ chức, 4 loại báo cáo, ghi nhận quyết định công tác; duyệt phép trưởng phòng và phòng chưa có trưởng phòng |
 
 ---
 
@@ -142,3 +142,53 @@ PostgreSQL của URL kiểm thử cần quyền tạo database. Bộ kiểm th�
 - Thay logo chữ PeopleOps bằng **Nhân sự.**, biểu tượng **16** và dòng **NHÓM 16 · KẾT NỐI ĐỂ PHÁT TRIỂN**.
 - Thay câu ở chân trang bằng **Cùng đội ngũ, tạo giá trị.**; dòng bản quyền ghi **Nhóm 16 · Quản lý nhân sự**.
 - Đồng bộ biểu tượng trong thẻ minh họa thành `16.` và điều chỉnh kiểu chữ logo. Frontend biên dịch thành công.
+
+### 16/11/2026 — Dọn thư mục runtime theo yêu cầu
+
+- Đã dừng frontend, backend và PostgreSQL riêng; xóa toàn bộ dữ liệu database, log, công cụ kiểm tra và ảnh trong `../.peopleops-runtime/`. Mã nguồn dự án được giữ nguyên.
+- Đã xóa hoàn toàn thư mục runtime sau khi terminal PowerShell không còn giữ thư mục; đã xác nhận thư mục không còn tồn tại và mã nguồn dự án vẫn còn nguyên.
+- Database cục bộ cổng 5433 đã bị xóa; hướng dẫn chạy lại với database đã khởi tạo ở phần nhật ký trước không còn áp dụng. Có thể khởi tạo hệ thống mới bằng cấu hình Docker ở đầu README.
+
+### 16/11/2026 — Nâng cấp giao diện Responsive đa thiết bị (Mobile, Tablet, Fold, Smart Devices)
+
+- **Cấu trúc điều hướng thích ứng (Adaptive Navigation)**:
+  - Desktop / Laptop ($\ge 1024\text{px}$): Giữ nguyên Sider cố định bên trái hỗ trợ thu gọn tiện lợi.
+  - Mobile, Tablet & Foldable Phone ($< 1024\text{px}$): Ẩn Sider cố định, thay bằng **Menu trượt (Drawer)** của Ant Design mở qua nút hamburger tại Header. Drawer tích hợp sẵn danh mục tính năng, thông tin người dùng và nút Đăng xuất nhanh.
+  - Bổ sung **Thanh điều hướng dưới đáy (Bottom Navigation Bar)** cố định ở chân màn hình cho thiết bị di động: truy cập nhanh *Tổng quan, Hồ sơ, Phòng ban, Nghỉ phép (kèm Badge đỏ đếm đơn chờ duyệt) và nút Thêm (mở Drawer)*.
+- **Tối ưu thiết bị gập (Foldables - Galaxy Z Fold, Pixel Fold, Surface Duo)**:
+  - Màn hình ngoài siêu hẹp ($\le 360\text{px}$): Lưới nút chọn tài khoản mẫu trang đăng nhập tự co giãn 1–2 cột; font chữ tiêu đề tự co giãn (`clamp`).
+  - Màn hình trong khi mở rộng ($700\text{px} - 880\text{px}$) hiển thị thoáng đãng, chuyển tiếp mượt mà.
+- **Vùng an toàn cảm ứng (Safe Area Insets & Smart Devices)**:
+  - Tích hợp biến CSS `--sat`, `--sab`, `--sal`, `--sar` dựa trên `env(safe-area-inset-*)` để bottom bar và nội dung không bị che khuất bởi tai thỏ, Dynamic Island hay thanh cử chỉ vuốt của iOS/Android.
+  - Khai báo meta tag PWA/Web App trong `index.html`: `viewport-fit=cover`, `mobile-web-app-capable`.
+- **Bảng dữ liệu & Hộp thoại chi tiết**:
+  - 100% các bảng dữ liệu trên 8 phân hệ đều được trang bị cuộn ngang cảm ứng (`scroll={{ x: ... }}`) và touch-scroll mượt mà.
+  - Tất cả hộp thoại xem chi tiết chuyển sang `Descriptions column={{ xs: 1, sm: 2 }}` (tự thu về 1 cột trên điện thoại và mở 2 cột trên tablet/desktop).
+- **Cập nhật tài liệu kỹ thuật**: Đã đồng bộ chi tiết toàn bộ các tính năng và cải tiến responsive vào từng file tài liệu `00` đến `06` và `README.md` trong `features-docs/`.
+
+### 16/11/2026 — Nâng cấp nghiệp vụ, nền dữ liệu và bảo mật
+
+**Nền dữ liệu và vận hành**
+- Ngày chuyển sang `DATE`, tiền sang `NUMERIC(15,2)` bằng migration có đánh số (`backend/src/db/migrations.ts`). Migration đổi kiểu **không hoàn tác được — hãy sao lưu database trước khi nâng cấp dữ liệu thật**.
+- `GET /api/state` lọc phạm vi dữ liệu trong SQL; nhật ký ghi giá trị trước/sau và IP; thêm `GET /api/audit` phân trang.
+- Job theo ngày chốt hợp đồng chấm dứt đã hẹn, phụ lục lương và quyết định công tác đến hạn.
+- Docker Compose: cổng DB/backend chỉ mở trên `127.0.0.1`; biến mới `TRUST_PROXY`, `COOKIE_SECURE`, `ADMIN_PASSWORD` (xem `.env.example`).
+
+**Nghiệp vụ**
+- Hồ sơ: trạng thái nhân viên suy từ hợp đồng; khóa lạc quan `version`; cảnh báo trùng hồ sơ; đồng bộ tên đăng nhập theo email; lưu trữ khóa tài khoản, khôi phục không tự mở lại tài khoản.
+- Hợp đồng: giới hạn thử việc 60 ngày/một lần, xác định thời hạn tối đa 36 tháng và 2 lần ký/gia hạn; ký chính thức từ thử việc; hủy bỏ hợp đồng nhập sai; hẹn ngày chấm dứt và loại chấm dứt; phụ lục lương có ngày hiệu lực.
+- Công tác: quyết định hiệu lực trong tương lai (`Chờ hiệu lực`), hủy/hoàn tác; vai trò và trưởng phòng tự đồng bộ theo chức vụ.
+- Nghỉ phép: tính theo ngày làm việc (bảng ngày lễ `holidays`), đơn qua năm tự tách, HR nhập đơn lùi ngày, hủy đơn đã duyệt khi chưa đến ngày nghỉ, tuyến duyệt trưởng phòng → giám đốc/HR, khóa dòng khi duyệt, quỹ phép mặc định theo thâm niên.
+- Danh mục: chức vụ mã tự sinh, cờ điều hành, vai trò mặc định, ngừng sử dụng; phòng ban có trưởng phòng.
+- Tài khoản: đặt lại mật khẩu, đổi vai trò, một nhân viên một tài khoản; giới hạn đăng nhập lưu trong DB.
+
+**Trạng thái kiểm tra**
+- Backend và frontend **biên dịch TypeScript thành công**.
+- Bộ kiểm thử `backend/tests/workflows.test.mjs` đã được cập nhật và bổ sung kịch bản cho các tính năng trên (ngày làm việc, tuyến duyệt, luật hợp đồng, chấm dứt hẹn ngày, công tác chờ hiệu lực, đặt lại mật khẩu, khóa lạc quan, giới hạn đăng nhập). **Các kiểm thử này chưa được chạy** vì môi trường chưa có PostgreSQL/Docker; cần chạy `npm test` với `TEST_DATABASE_URL` trước khi dùng thật.
+
+**Chưa làm**
+- Bắt đổi mật khẩu ở lần đăng nhập đầu (theo yêu cầu, để sau).
+- Tách `GET /api/state` thành API phân trang theo từng màn hình; màn hình quản lý ngày lễ; tự động chuyển phép sang năm sau.
+- Các chức năng mở rộng (chấm công, lương, bảo hiểm, tuyển dụng, đánh giá...) — để sau.
+
+Các tài liệu `features-docs/00`–`06` đã được cập nhật theo thay đổi này.

@@ -78,10 +78,20 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
   const leaveTypeName = (id: string) =>
     state.leaveTypes.find((t) => t.id === id)?.name || id;
 
-  const canReviewLeave = (l: LeaveRequest) =>
-    ['admin', 'manager'].includes(state.user.role) &&
-    l.employee_id !== state.user.employee_id &&
-    l.status === 'Chờ duyệt';
+  // Quyền duyệt do máy chủ quyết định theo vai trò, phòng ban và tuyến duyệt.
+  const canReviewLeave = (l: LeaveRequest) => l.can_review === true;
+
+  // Đơn chờ duyệt: chủ đơn hoặc HR/admin hủy được; đơn đã duyệt: chỉ khi chưa đến ngày nghỉ.
+  const canCancelLeave = (l: LeaveRequest) => {
+    const privileged = ['admin', 'hr'].includes(state.user.role);
+    const owner = l.employee_id === state.user.employee_id;
+    if (!owner && !privileged) return false;
+    if (l.status === 'Chờ duyệt') return true;
+    if (l.status === 'Đã duyệt') {
+      return privileged ? l.end_date >= state.today : l.start_date > state.today;
+    }
+    return false;
+  };
 
   const filteredRequests = state.leaves.filter(
     (l) =>
@@ -103,7 +113,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
     );
   });
 
-  const isSelfOnly = ['employee', 'manager'].includes(state.user.role);
+  const isSelfOnly = ['employee', 'manager', 'director'].includes(state.user.role);
 
   const handleOpenCreate = () => {
     setFormError('');
@@ -416,7 +426,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
           </Text>
         </div>
 
-        <Space className="no-print">
+        <Space className="no-print w-full sm:w-auto flex-wrap">
           <Button icon={<DownloadOutlined />} onClick={handleExport}>
             Xuất CSV
           </Button>
@@ -455,12 +465,12 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
             ]}
           />
 
-          <Space wrap>
+          <Space wrap className="w-full lg:w-auto">
             {tab === 'balances' && (
               <Select
                 value={selectedYear}
                 onChange={setSelectedYear}
-                style={{ width: 120 }}
+                className="w-full xs:w-28"
                 options={availableYears.map((y) => ({
                   value: y,
                   label: `Năm ${y}`,
@@ -474,13 +484,13 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               allowClear
-              style={{ width: 200 }}
+              className="w-full xs:w-48 sm:w-56"
             />
 
             <Select
               value={deptFilter}
               onChange={setDeptFilter}
-              style={{ width: 170 }}
+              className="w-full xs:w-44 sm:w-48"
               options={[
                 { value: '', label: 'Tất cả phòng ban' },
                 ...state.departments.map((d) => ({
@@ -494,7 +504,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               <Select
                 value={statusFilter}
                 onChange={setStatusFilter}
-                style={{ width: 160 }}
+                className="w-full xs:w-40 sm:w-44"
                 options={[
                   { value: '', label: 'Tất cả trạng thái' },
                   ...['Chờ duyệt', 'Đã duyệt', 'Từ chối', 'Đã hủy'].map(
@@ -513,6 +523,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
             dataSource={filteredRequests}
             pagination={{ pageSize: 8, showSizeChanger: false }}
             size="middle"
+            scroll={{ x: 800 }}
           />
         ) : (
           <Table
@@ -521,6 +532,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
             dataSource={filteredBalances}
             pagination={{ pageSize: 8, showSizeChanger: false }}
             size="middle"
+            scroll={{ x: 750 }}
           />
         )}
       </Card>
@@ -531,6 +543,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         title="Đăng ký nghỉ phép"
         onCancel={() => setCreateOpen(false)}
         footer={null}
+        width={560}
       >
         <Form
           form={leaveForm}
@@ -587,14 +600,14 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               label="Từ ngày"
               rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}
             >
-              <Input type="date" min={state.today} />
+              <Input type="date" min={['admin', 'hr'].includes(state.user.role) ? undefined : state.today} />
             </Form.Item>
             <Form.Item
               name="end_date"
               label="Đến ngày"
               rules={[{ required: true, message: 'Chọn ngày kết thúc' }]}
             >
-              <Input type="date" min={state.today} />
+              <Input type="date" min={['admin', 'hr'].includes(state.user.role) ? undefined : state.today} />
             </Form.Item>
           </div>
 
@@ -620,13 +633,12 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         open={!!detailLeave}
         title="Chi tiết đơn nghỉ phép"
         onCancel={() => setDetailLeave(null)}
+        width={640}
         footer={
           detailLeave && (
-            <Space>
+            <Space wrap>
               <Button onClick={() => setDetailLeave(null)}>Đóng</Button>
-              {detailLeave.status === 'Chờ duyệt' &&
-                (detailLeave.employee_id === state.user.employee_id ||
-                  canEdit(state.user.role)) && (
+              {canCancelLeave(detailLeave) && (
                   <Popconfirm
                     title="Hủy đơn nghỉ phép này?"
                     onConfirm={() => handleCancelLeave(detailLeave)}
@@ -668,7 +680,11 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         }
       >
         {detailLeave && (
-          <Descriptions bordered size="small" column={2}>
+          <Descriptions
+            bordered
+            size="small"
+            column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
+          >
             <Descriptions.Item label="Mã đơn">
               <Text code>{detailLeave.id}</Text>
             </Descriptions.Item>
@@ -724,6 +740,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         }
         onCancel={() => setReviewModal(null)}
         footer={null}
+        width={520}
       >
         {reviewModal && (
           <Form form={reviewForm} layout="vertical" onFinish={handleReviewSubmit}>
@@ -781,6 +798,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         title="Điều chỉnh tổng quỹ phép năm"
         onCancel={() => setBalanceModal(null)}
         footer={null}
+        width={520}
       >
         {balanceModal && (
           <Form form={balanceForm} layout="vertical" onFinish={handleSaveBalance}>

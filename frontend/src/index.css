@@ -76,7 +76,109 @@
   .login-form-card .login-form-title.ant-typography { font-size: 27px; }
   .login-form-security { margin-top: 28px; }
 }
-@media (max-width: 400px) { .login-story { padding: 24px; } .login-story h1 { font-size: 34px; } .login-eyebrow { font-size: 8px; letter-spacing: 1px; } .login-desktop-break { display: none; } .login-form-panel { padding: 32px 24px; } .login-form-card .login-form-title.ant-typography { font-size: 25px; } }
+@media (max-width: 480px) {
+  .login-demo-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .login-story { padding: 20px; }
+  .login-story h1 { font-size: 30px; letter-spacing: -0.8px; margin: 10px 0; }
+  .login-eyebrow { font-size: 8px; letter-spacing: 1px; }
+  .login-desktop-break { display: none; }
+  .login-form-panel { padding: 24px 16px; }
+  .login-form-card .login-form-title.ant-typography { font-size: 22px; }
+}
+
+@media (max-width: 320px) {
+  .login-demo-grid { grid-template-columns: 1fr; }
+  .login-form-card .login-form-title.ant-typography { font-size: 20px; }
+}
+
+/* Mobile, Foldable, Tablet & Smart Device Optimizations */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+  touch-action: manipulation;
+}
+
+/* Touch-friendly scrolling for tables */
+.ant-table-wrapper .ant-table-body,
+.ant-table-wrapper .ant-table-content {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Descriptions styling for clean layout without letter wrapping */
+.ant-descriptions-bordered .ant-descriptions-item-label {
+  font-weight: 550;
+  color: #475569;
+  background-color: #f8fafc;
+  white-space: nowrap;
+}
+
+.ant-descriptions-bordered .ant-descriptions-item-content {
+  color: #0f172a;
+  word-break: normal;
+}
+
+/* Responsive Table & Modal Polish for Mobile Screens */
+@media (max-width: 768px) {
+  .ant-table-pagination {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    margin: 12px 0 !important;
+  }
+  .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 8px auto !important;
+    padding-bottom: 8px !important;
+  }
+  .ant-modal .ant-modal-content {
+    padding: 16px !important;
+    border-radius: 12px !important;
+  }
+  .ant-descriptions .ant-descriptions-item-label,
+  .ant-descriptions .ant-descriptions-item-content {
+    padding: 8px 10px !important;
+  }
+  .ant-card .ant-card-body {
+    padding: 14px !important;
+  }
+  .ant-card .ant-card-head {
+    padding: 0 14px !important;
+    min-height: 44px !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .ant-descriptions-bordered .ant-descriptions-item-label {
+    white-space: normal !important;
+  }
+}
+
+/* Fold Screen & Compact Phone Polish */
+@media (max-width: 380px) {
+  .ant-card .ant-card-body {
+    padding: 10px !important;
+  }
+  .ant-card .ant-card-head {
+    padding: 0 10px !important;
+    font-size: 13px !important;
+  }
+  .ant-card-head-title {
+    font-size: 13px !important;
+  }
+}
+
+/* Safe area padding for bottom bar on iOS / Android gesture bar */
+.mobile-safe-bottom {
+  padding-bottom: calc(0.5rem + var(--sab));
+}
 
 @media print {
   .no-print {

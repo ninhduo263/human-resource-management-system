@@ -128,6 +128,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           ...values,
           department_id: editingEmp.department_id,
           position_id: editingEmp.position_id,
+          version: editingEmp.version,
         };
         await apiRequest(
           `/api/employees/${encodeURIComponent(editingEmp.id)}`,
@@ -143,7 +144,32 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
       setFormOpen(false);
       await onRefresh();
     } catch (err: any) {
-      setFormError(err.message);
+      if (!editingEmp && err.status === 409 && /trùng hồ sơ/.test(err.message)) {
+        // Nghi trùng hồ sơ: cho người dùng xác nhận rồi mới tạo mới.
+        Modal.confirm({
+          title: 'Có thể trùng hồ sơ',
+          content: err.message,
+          okText: 'Vẫn tạo mới',
+          cancelText: 'Quay lại',
+          onOk: async () => {
+            try {
+              const result = await apiRequest(
+                '/api/employees',
+                { ...values, department_id: isDirector ? null : values.department_id, confirm_duplicate: true },
+                'POST'
+              );
+              setCreatedAccount(result.account);
+              notify('Đã thêm nhân viên và tạo tài khoản đăng nhập bằng email.');
+              setFormOpen(false);
+              await onRefresh();
+            } catch (e: any) {
+              setFormError(e.message);
+            }
+          },
+        });
+      } else {
+        setFormError(err.message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -156,7 +182,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     try {
       await apiRequest(
         `/api/employees/${encodeURIComponent(selfContactModal.id)}`,
-        { ...values, self_contact: true },
+        { ...values, self_contact: true, version: state.employees.find((x) => x.id === selfContactModal.id)?.version },
         'PUT'
       );
       notify('Đã cập nhật thông tin liên hệ cá nhân.');
@@ -333,7 +359,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           </Text>
         </div>
 
-        <Space className="no-print">
+        <Space className="no-print w-full sm:w-auto flex-wrap">
           <Button icon={<DownloadOutlined />} onClick={handleExport}>
             Xuất danh sách
           </Button>
@@ -374,19 +400,19 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             ]}
           />
 
-          <Space wrap>
+          <Space wrap className="w-full lg:w-auto">
             <Input
               prefix={<SearchOutlined className="text-slate-400" />}
               placeholder="Tìm tên, email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               allowClear
-              style={{ width: 220 }}
+              className="w-full xs:w-48 sm:w-56"
             />
             <Select
               value={deptFilter}
               onChange={setDeptFilter}
-              style={{ width: 180 }}
+              className="w-full xs:w-44 sm:w-48"
               options={[
                 { value: '', label: 'Tất cả phòng ban' },
                 ...state.departments.map((d) => ({
@@ -399,7 +425,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
               <Select
                 value={statusFilter}
                 onChange={setStatusFilter}
-                style={{ width: 160 }}
+                className="w-full xs:w-40 sm:w-44"
                 options={[
                   { value: '', label: 'Tất cả trạng thái' },
                   { value: 'Đang làm việc', label: 'Đang làm việc' },
@@ -416,6 +442,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           dataSource={filtered}
           pagination={{ pageSize: 8, showSizeChanger: false }}
           size="middle"
+          scroll={{ x: 800 }}
         />
       </Card>
 
@@ -427,7 +454,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         width={760}
         footer={
           detailEmp && (
-            <Space>
+            <Space wrap>
               <Button onClick={() => setDetailEmp(null)}>Đóng</Button>
               {canEdit(state.user.role) &&
                 (detailEmp.status === 'Đã lưu trữ' ? (
@@ -490,7 +517,11 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
               </div>
             </div>
 
-            <Descriptions bordered size="small" column={2}>
+            <Descriptions
+              bordered
+              size="small"
+              column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
+            >
               <Descriptions.Item label="Ngày sinh">
                 {formatDate(detailEmp.birth_date)}
               </Descriptions.Item>
@@ -669,18 +700,21 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
               <Input type="date" />
             </Form.Item>
 
-            <Form.Item
-              name="status"
-              label="Trạng thái"
-              rules={[{ required: true }]}
-            >
-              <Select
-                options={[
-                  { value: 'Đang làm việc', label: 'Đang làm việc' },
-                  { value: 'Thử việc', label: 'Thử việc' },
-                ]}
-              />
-            </Form.Item>
+            {/* Khi sửa hồ sơ, trạng thái do hợp đồng quyết định nên không cho nhập tay. */}
+            {!editingEmp && (
+              <Form.Item
+                name="status"
+                label="Trạng thái ban đầu"
+                rules={[{ required: true }]}
+              >
+                <Select
+                  options={[
+                    { value: 'Đang làm việc', label: 'Đang làm việc' },
+                    { value: 'Thử việc', label: 'Thử việc' },
+                  ]}
+                />
+              </Form.Item>
+            )}
 
             {!editingEmp && (
               <Form.Item name="role" label="Vai trò tài khoản" rules={[{ required: true }]}>

@@ -14,6 +14,8 @@ export interface Department {
   name: string;
   description: string;
   founded_date: string;
+  head_id?: string | null;
+  active?: boolean;
 }
 
 export interface Position {
@@ -21,6 +23,9 @@ export interface Position {
   name: string;
   description: string;
   level: number;
+  is_executive?: boolean;
+  default_role?: string | null;
+  active?: boolean;
 }
 
 export interface Employee {
@@ -36,6 +41,7 @@ export interface Employee {
   archived_date: string | null;
   department_id: string | null;
   position_id: string;
+  version?: number;
 }
 
 export interface Contract {
@@ -48,6 +54,8 @@ export interface Contract {
   status: string;
   terminated_date: string | null;
   termination_reason: string | null;
+  termination_type?: string | null;
+  contract_number?: string | null;
 }
 
 export interface ContractExtension {
@@ -61,6 +69,8 @@ export interface ContractExtension {
   old_salary: number | null;
   new_salary: number | null;
   reason: string;
+  effective_date?: string | null;
+  applied?: boolean;
 }
 
 export interface Decision {
@@ -84,6 +94,8 @@ export interface Assignment {
   new_position_id: string;
   effective_date: string;
   reason: string;
+  status?: 'Chờ hiệu lực' | 'Hiệu lực' | 'Đã hủy';
+  cancel_reason?: string | null;
 }
 
 export interface LeaveType {
@@ -107,6 +119,7 @@ export interface LeaveRequest {
   approver_name?: string | null;
   approved_date: string | null;
   review_note: string | null;
+  can_review?: boolean;
 }
 
 export interface LeaveBalance {
@@ -133,6 +146,8 @@ export interface AuditEntry {
   action: string;
   target: string;
   created_at: string;
+  details?: Record<string, unknown> | null;
+  ip?: string | null;
 }
 
 export interface AppState {
