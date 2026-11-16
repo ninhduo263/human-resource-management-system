@@ -102,7 +102,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     {
       title: 'Nhân viên liên kết',
       key: 'employee',
-      render: (_: unknown, u: UserAccount) => `${u.name} (${u.employee_id})`,
+      render: (_: unknown, u: UserAccount) => u.name,
     },
     {
       title: 'Vai trò',
@@ -168,7 +168,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       title: 'Đối tượng',
       dataIndex: 'target',
       key: 'target',
-      render: (t: string) => <Text code>{t}</Text>,
+      render: (t: string) => {
+        const employee = state.employees.find((e) => e.id === t);
+        const department = state.departments.find((d) => d.id === t);
+        const contract = state.contracts.find((c) => c.id === t);
+        return <Text>{employee?.name || department?.name || (contract
+          ? `Hợp đồng của ${state.employees.find((e) => e.id === contract.employee_id)?.name || 'nhân viên'}`
+          : /^(NV|PB|HD)\d+$/.test(t) ? 'Bản ghi' : t)}</Text>;
+      },
     },
   ];
 
@@ -210,7 +217,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 userForm.setFieldsValue({
                   role: 'employee',
                   employee_id: state.employees.find(
-                    (e) => e.status !== 'Đã lưu trữ'
+                    (e) => ['Đang làm việc', 'Thử việc'].includes(e.status)
                   )?.id,
                 });
                 setAddUserOpen(true);
@@ -230,9 +237,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </Descriptions.Item>
             <Descriptions.Item label="Tên đăng nhập">
               <Text code>{state.user.username}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Mã nhân viên">
-              <Text code>{state.user.employee_id}</Text>
             </Descriptions.Item>
             <Descriptions.Item label="Vai trò">
               <Tag color="processing">{ROLE_NAMES[state.user.role]}</Tag>
@@ -337,10 +341,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           >
             <Select
               options={state.employees
-                .filter((e) => e.status !== 'Đã lưu trữ')
+                .filter((e) => ['Đang làm việc', 'Thử việc'].includes(e.status))
                 .map((e) => ({
                   value: e.id,
-                  label: `${e.id} - ${e.name}`,
+                  label: `${e.name} (${e.email})`,
                 }))}
             />
           </Form.Item>

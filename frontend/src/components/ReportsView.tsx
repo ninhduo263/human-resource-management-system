@@ -35,10 +35,10 @@ interface ReportsViewProps {
 type ReportType = 'personnel' | 'movements' | 'contracts' | 'leaves';
 
 const REPORT_LABELS: Record<ReportType, string> = {
-  personnel: '5.1 Thống kê nhân sự',
-  movements: '5.2 Báo cáo biến động nhân sự',
-  contracts: '5.3 Báo cáo hợp đồng lao động',
-  leaves: '5.4 Báo cáo nghỉ phép',
+  personnel: 'Thống kê nhân sự',
+  movements: 'Báo cáo biến động nhân sự',
+  contracts: 'Báo cáo hợp đồng lao động',
+  leaves: 'Báo cáo nghỉ phép',
 };
 
 export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
@@ -49,8 +49,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
 
   const emp = (id: string) => state.employees.find((e) => e.id === id);
   const empName = (id: string) => emp(id)?.name || id;
-  const deptName = (id: string) =>
-    state.departments.find((d) => d.id === id)?.name || id;
+  const deptName = (id: string | null) =>
+    state.departments.find((d) => d.id === id)?.name || id || 'Không thuộc phòng ban';
   const posName = (id: string) =>
     state.positions.find((p) => p.id === id)?.name || id;
 
@@ -93,7 +93,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
     if (reportType === 'contracts') {
       return {
         headers: [
-          'Mã hợp đồng',
           'Nhân viên',
           'Loại hợp đồng',
           'Ngày bắt đầu',
@@ -104,7 +103,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
         rows: state.contracts
           .filter((c) => matchRecord(c.employee_id, c.start_date))
           .map((c) => [
-            c.id,
             empName(c.employee_id),
             c.type,
             c.start_date,
@@ -143,7 +141,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
 
     return {
       headers: [
-        'Mã nhân viên',
         'Họ tên',
         'Giới tính',
         'Phòng ban',
@@ -154,7 +151,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
       rows: state.employees
         .filter((e) => matchRecord(e.id, e.join_date))
         .map((e) => [
-          e.id,
           e.name,
           e.gender,
           deptName(e.department_id),
@@ -194,14 +190,11 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Text className="text-xs font-bold uppercase tracking-wider text-[#12584b]">
-            PHÂN HỆ 5.0 · BFD 5.1 – 5.4
-          </Text>
           <Title level={3} style={{ margin: '4px 0' }}>
             Báo cáo nhân sự
           </Title>
           <Text type="secondary">
-            Tổng hợp dữ liệu từ các kho D1–D5 phục vụ Ban giám đốc & Cán bộ nhân sự.
+            Tổng hợp thông tin nhân sự, hợp đồng, công tác và nghỉ phép.
           </Text>
         </div>
 

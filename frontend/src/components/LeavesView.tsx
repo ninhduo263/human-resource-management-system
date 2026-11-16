@@ -73,8 +73,8 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
   const [balanceForm] = Form.useForm();
 
   const emp = (id: string) => state.employees.find((e) => e.id === id);
-  const deptName = (id: string) =>
-    state.departments.find((d) => d.id === id)?.name || id;
+  const deptName = (id: string | null) =>
+    state.departments.find((d) => d.id === id)?.name || id || 'Không thuộc phòng ban';
   const leaveTypeName = (id: string) =>
     state.leaveTypes.find((t) => t.id === id)?.name || id;
 
@@ -98,7 +98,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
     return (
       b.year === selectedYear &&
       e &&
-      e.status !== 'Đã lưu trữ' &&
+      ['Đang làm việc', 'Thử việc'].includes(e.status) &&
       matchEmployeeQuery(e, search, deptFilter)
     );
   });
@@ -212,7 +212,6 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
       downloadCsv(
         `peopleops-leave-balances-${selectedYear}.csv`,
         [
-          'Mã NV',
           'Nhân viên',
           'Phòng ban',
           'Năm',
@@ -223,8 +222,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         filteredBalances.map((b) => {
           const e = emp(b.employee_id);
           return [
-            b.employee_id,
-            e?.name || b.employee_id,
+            e?.name || 'Nhân viên',
             e ? deptName(e.department_id) : '',
             b.year,
             b.total,
@@ -248,7 +246,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         ],
         filteredRequests.map((l) => [
           l.id,
-          emp(l.employee_id)?.name || l.employee_id,
+          emp(l.employee_id)?.name || 'Nhân viên',
           leaveTypeName(l.type_id),
           l.start_date,
           l.end_date,
@@ -273,7 +271,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
             </Avatar>
             <div>
               <div className="font-semibold text-slate-900">
-                {e?.name || l.employee_id}
+                {e?.name || 'Nhân viên'}
               </div>
               <div className="text-xs text-slate-400">{l.id}</div>
             </div>
@@ -325,7 +323,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
           icon={<EyeOutlined />}
           onClick={() => setDetailLeave(l)}
         >
-          {canReviewLeave(l) ? 'Xử lý duyệt (4.3)' : 'Chi tiết'}
+          {canReviewLeave(l) ? 'Xử lý duyệt' : 'Chi tiết'}
         </Button>
       ),
     },
@@ -344,7 +342,6 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
             </Avatar>
             <div>
               <div className="font-semibold text-slate-900">{e.name}</div>
-              <div className="text-xs text-slate-400">{e.id}</div>
             </div>
           </Space>
         );
@@ -411,14 +408,11 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Text className="text-xs font-bold uppercase tracking-wider text-[#12584b]">
-            PHÂN HỆ 4.0 · BFD 4.2 – 4.4
-          </Text>
           <Title level={3} style={{ margin: '4px 0' }}>
             Đăng ký, Duyệt & Theo dõi Nghỉ phép
           </Title>
           <Text type="secondary">
-            Đăng ký nghỉ phép (4.2), phê duyệt đơn (4.3) và theo dõi quỹ phép năm (4.4) (Kho D5).
+            Đăng ký nghỉ phép, phê duyệt đơn và theo dõi quỹ phép năm.
           </Text>
         </div>
 
@@ -432,7 +426,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               icon={<PlusOutlined />}
               onClick={handleOpenCreate}
             >
-              Đăng ký nghỉ phép (4.2)
+              Đăng ký nghỉ phép
             </Button>
           )}
         </Space>
@@ -456,7 +450,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               },
               {
                 key: 'balances',
-                label: `Quỹ phép năm ${selectedYear} (4.4)`,
+                label: `Quỹ phép năm ${selectedYear}`,
               },
             ]}
           />
@@ -531,10 +525,10 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         )}
       </Card>
 
-      {/* Modal Đăng ký nghỉ phép (4.2) */}
+      {/* Modal Đăng ký nghỉ phép */}
       <Modal
         open={createOpen}
-        title="Đăng ký nghỉ phép (4.2)"
+        title="Đăng ký nghỉ phép"
         onCancel={() => setCreateOpen(false)}
         footer={null}
       >
@@ -553,7 +547,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               type="info"
               showIcon
               className="mb-4"
-              message={`Người đăng ký: ${state.user.name} (${state.user.employee_id})`}
+              message={`Người đăng ký: ${state.user.name}`}
             />
           ) : (
             <Form.Item
@@ -563,10 +557,10 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
             >
               <Select
                 options={state.employees
-                  .filter((e) => e.status !== 'Đã lưu trữ')
+                  .filter((e) => ['Đang làm việc', 'Thử việc'].includes(e.status))
                   .map((e) => ({
                     value: e.id,
-                    label: `${e.id} - ${e.name}`,
+                    label: `${e.name} (${e.email})`,
                   }))}
               />
             </Form.Item>
@@ -665,7 +659,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
                       setReviewModal({ leave: detailLeave, approve: true });
                     }}
                   >
-                    Duyệt đơn (4.3)
+                    Duyệt đơn
                   </Button>
                 </>
               )}
@@ -685,7 +679,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
             </Descriptions.Item>
             <Descriptions.Item label="Nhân viên">
               <strong>
-                {emp(detailLeave.employee_id)?.name || detailLeave.employee_id}
+                {emp(detailLeave.employee_id)?.name || 'Nhân viên'}
               </strong>
             </Descriptions.Item>
             <Descriptions.Item label="Loại nghỉ">
@@ -720,13 +714,13 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         )}
       </Modal>
 
-      {/* Modal Duyệt / Từ chối (4.3) */}
+      {/* Modal Duyệt / Từ chối */}
       <Modal
         open={!!reviewModal}
         title={
           reviewModal?.approve
-            ? 'Phê duyệt đơn nghỉ phép (4.3)'
-            : 'Từ chối đơn nghỉ phép (4.3)'
+            ? 'Phê duyệt đơn nghỉ phép'
+            : 'Từ chối đơn nghỉ phép'
         }
         onCancel={() => setReviewModal(null)}
         footer={null}
@@ -781,10 +775,10 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         )}
       </Modal>
 
-      {/* Modal Điều chỉnh Quỹ phép năm (4.4) */}
+      {/* Modal Điều chỉnh Quỹ phép năm */}
       <Modal
         open={!!balanceModal}
-        title="Điều chỉnh tổng quỹ phép năm (4.4)"
+        title="Điều chỉnh tổng quỹ phép năm"
         onCancel={() => setBalanceModal(null)}
         footer={null}
       >
@@ -795,7 +789,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               showIcon
               className="mb-4"
               message={`Nhân viên: ${
-                emp(balanceModal.employee_id)?.name || balanceModal.employee_id
+                emp(balanceModal.employee_id)?.name || 'Nhân viên'
               } · Đã nghỉ: ${balanceModal.used} ngày. Tổng ngày phép mới không được nhỏ hơn số ngày đã sử dụng.`}
             />
             {formError && (

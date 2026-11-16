@@ -54,7 +54,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   const activeEmployees = state.employees.filter(
-    (e) => e.status !== 'Đã lưu trữ'
+    (e) => ['Đang làm việc', 'Thử việc'].includes(e.status)
   );
   const [selectedEmpId, setSelectedEmpId] = useState(
     activeEmployees[0]?.id || ''
@@ -69,8 +69,8 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
   const [reason, setReason] = useState('');
 
   const emp = (id: string) => state.employees.find((e) => e.id === id);
-  const deptName = (id: string) =>
-    state.departments.find((d) => d.id === id)?.name || id;
+  const deptName = (id: string | null) =>
+    state.departments.find((d) => d.id === id)?.name || id || 'Không thuộc phòng ban';
   const posName = (id: string) =>
     state.positions.find((p) => p.id === id)?.name || id;
 
@@ -160,7 +160,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
         'Số quyết định',
       ],
       filtered.map((a) => [
-        emp(a.employee_id)?.name || a.employee_id,
+        emp(a.employee_id)?.name || 'Nhân viên',
         a.type,
         deptName(a.old_department_id),
         deptName(a.new_department_id),
@@ -186,9 +186,8 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
             </Avatar>
             <div>
               <div className="font-semibold text-slate-900">
-                {e?.name || a.employee_id}
+                {e?.name || 'Nhân viên'}
               </div>
-              <div className="text-xs text-slate-400">{a.employee_id}</div>
             </div>
           </Space>
         );
@@ -258,14 +257,11 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Text className="text-xs font-bold uppercase tracking-wider text-[#12584b]">
-            PHÂN HỆ 2.0 & 4.0 · BFD 2.3, 2.4 & 4.1
-          </Text>
           <Title level={3} style={{ margin: '4px 0' }}>
             Quá trình công tác & Quyết định
           </Title>
           <Text type="secondary">
-            Lưu vết điều chuyển phòng ban (2.3), bổ nhiệm chức vụ (2.4) và quyết định nhân sự 1–N (4.1) (Kho D4).
+            Lưu vết điều chuyển phòng ban, bổ nhiệm chức vụ và quyết định nhân sự 1–N.
           </Text>
         </div>
 
@@ -279,7 +275,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
               icon={<PlusOutlined />}
               onClick={handleOpenForm}
             >
-              Ghi nhận công tác (4.1)
+              Ghi nhận công tác
             </Button>
           )}
         </Space>
@@ -327,10 +323,10 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
         />
       </Card>
 
-      {/* Modal Ghi nhận công tác (4.1) */}
+      {/* Modal Ghi nhận công tác */}
       <Modal
         open={formOpen}
-        title="Ghi nhận quá trình công tác & Quyết định (4.1)"
+        title="Ghi nhận quá trình công tác & Quyết định"
         onCancel={() => setFormOpen(false)}
         footer={null}
         width={680}
@@ -369,14 +365,14 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                   setSelectedEmpId(id);
                   const target = emp(id);
                   if (target) {
-                    setNewDeptId(target.department_id);
+                    setNewDeptId(target.department_id || state.departments[0]?.id || '');
                     setNewPosId(target.position_id);
                   }
                 }}
                 className="w-full"
                 options={activeEmployees.map((e) => ({
                   value: e.id,
-                  label: `${e.id} - ${e.name} (Hiện tại: ${deptName(
+                  label: `${e.name} (${e.email}) (Hiện tại: ${deptName(
                     e.department_id
                   )} · ${posName(e.position_id)})`,
                 }))}
@@ -554,7 +550,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                   <Card key={a.id} size="small">
                     <div className="flex justify-between text-xs">
                       <strong>
-                        {emp(a.employee_id)?.name || a.employee_id}
+                        {emp(a.employee_id)?.name || 'Nhân viên'}
                       </strong>
                       <Text type="secondary">
                         {deptName(a.old_department_id)} →{' '}

@@ -31,3 +31,16 @@
   2. Bổ sung validate và câu lệnh `INSERT`/`UPDATE` trong `backend/src/routes/employees.routes.ts`.
   3. Thêm input vào form trong `frontend/src/components/EmployeesView.tsx`.
   4. Cập nhật lại mục 3 trong file `02-ho-so-nhan-vien.md` này.
+
+## 5. Cập nhật ngày 16/11/2026
+
+- `POST /api/employees` nhận thêm `role` và tạo đồng thời hồ sơ, quỹ phép, tài khoản trong một transaction. `users.username` bằng email nhân viên; mật khẩu ngẫu nhiên được băm bằng `scrypt` trước khi lưu.
+- Phản hồi tạo mới có `account: { username, password, role }`. UI hiển thị email và mật khẩu ban đầu trong hộp thoại có nút sao chép sau khi lưu thành công. Mật khẩu rõ không xuất hiện trong `/api/state` hoặc nhật ký.
+- Form thêm mới có vai trò tài khoản. Chọn vai trò Giám đốc hoặc chức vụ Giám đốc sẽ ẩn phòng ban; backend lưu `department_id = NULL` kể cả khi request gửi kèm phòng ban. Nhân viên thông thường vẫn phải có phòng ban.
+- Nhân sự được cấp tài khoản khi tạo hồ sơ; chỉ quản trị viên được tạo vai trò `admin`.
+- Bổ sung trạng thái và tab **Đã nghỉ việc**. Nhân viên nghỉ việc không được tính vào danh sách đang làm, không đăng nhập và không được chọn để tạo công tác, hợp đồng hoặc nghỉ phép mới. Vẫn có thể xem lịch sử và lưu trữ hồ sơ.
+- Hợp đồng chấm dứt sẽ cập nhật trạng thái nhân viên trong cùng transaction; xem quy tắc chi tiết ở tài liệu hợp đồng.
+
+### Tự sinh mã nhân viên
+
+`POST /api/employees` tự cấp mã dạng `NV001` nối tiếp số lớn nhất hiện có, không nhận mã nhập tay. `nextBusinessId` trong `backend/src/utils/business-id.ts` khóa theo loại mã trong transaction trước khi cấp; tạo đồng thời không trùng mã. API trả `id` thực tế; mã cũ được giữ nguyên. Theo điều chỉnh mới nhất, mã không hiển thị trên frontend (kể cả form, chi tiết, thông báo, bộ chọn và báo cáo); dùng tên và email để nhận diện. Các số chỉ mục nghiệp vụ được bỏ khỏi nhãn giao diện.

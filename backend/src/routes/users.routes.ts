@@ -18,9 +18,9 @@ usersRouter.post('/', async (req, res, next) => {
     const u = req.user!;
     requireRole(u, ['admin']);
 
-    const username = text(req.body, 'username', 50);
-    if (!/^[a-zA-Z0-9_.-]{3,50}$/.test(username)) {
-      fail('Tên đăng nhập cần 3–50 ký tự chữ, số, dấu gạch.');
+    const username = text(req.body, 'username', 150);
+    if (!/^[a-zA-Z0-9_.-]{3,50}$/.test(username) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(username)) {
+      fail('Tên đăng nhập cần là email hợp lệ hoặc 3–50 ký tự chữ, số, dấu gạch.');
     }
 
     const empId = text(req.body, 'employee_id');

@@ -31,3 +31,7 @@
 ## 4. Hướng dẫn Sửa đổi / Bảo trì sau này
 - **Thay đổi thang cấp bậc chức vụ**: Sửa ràng buộc `CHECK (level BETWEEN 1 AND 10)` trong `backend/src/db/schema.sql` và hàm `numeric(b, 'level', 1, 10)` trong `backend/src/routes/catalogs.routes.ts`.
 - **Giao diện Phòng ban / Chức vụ**: Chỉnh sửa trực tiếp trong `frontend/src/components/DepartmentsView.tsx`.
+
+## 5. Cập nhật ngày 16/11/2026
+
+`POST /api/departments` tự cấp mã `PB07`… nối tiếp số lớn nhất đang có, không cần nhập mã. Cấp mã, lưu và ghi nhật ký trong cùng transaction với khóa chống trùng khi tạo đồng thời. API trả HTTP 201 kèm `id`. Mã phòng ban không hiển thị trên biểu mẫu hoặc thẻ phòng ban; giao diện dùng tên. Bỏ các số chỉ mục nghiệp vụ trên giao diện. Mã chức vụ giữ theo cơ chế hiện có.

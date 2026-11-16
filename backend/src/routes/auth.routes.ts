@@ -36,7 +36,7 @@ authRouter.post('/login', async (req, res, next) => {
       `SELECT u.*
        FROM users u
        JOIN employees e ON e.id = u.employee_id
-       WHERE u.username = $1 AND u.active = 1 AND e.status != 'Đã lưu trữ'`,
+       WHERE u.username = $1 AND u.active = 1 AND e.status NOT IN ('Đã lưu trữ', 'Đã nghỉ việc')`,
       [username]
     );
 
@@ -202,7 +202,14 @@ export async function buildScopedState(u: SessionUser) {
   const departments = await db.all('SELECT * FROM departments ORDER BY id');
   const positions = await db.all('SELECT * FROM positions ORDER BY level DESC, id ASC');
   const rawExtensions = await db.all('SELECT * FROM extensions ORDER BY sequence DESC');
-  const extensions = rawExtensions.filter((x) => contractIds.has(x.contract_id));
+  const extensions = rawExtensions.filter((x) => contractIds.has(x.contract_id)).map((x) => {
+    const contract = contracts.find((c) => c.id === x.contract_id)!;
+    const canViewSalary = fullAccess || contract.employee_id === u.employee_id;
+    return { ...x,
+      old_salary: canViewSalary && x.old_salary != null ? Number(x.old_salary) : null,
+      new_salary: canViewSalary && x.new_salary != null ? Number(x.new_salary) : null,
+    };
+  });
 
   const rawDecisions = await db.all('SELECT * FROM decisions ORDER BY effective_date DESC');
   const decisions = fullAccess

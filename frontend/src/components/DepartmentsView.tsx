@@ -68,7 +68,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
   const [posForm] = Form.useForm();
 
   const activeEmployees = state.employees.filter(
-    (e) => e.status !== 'Đã lưu trữ'
+    (e) => ['Đang làm việc', 'Thử việc'].includes(e.status)
   );
 
   const openDeptModal = (item: Department | null) => {
@@ -223,14 +223,11 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Text className="text-xs font-bold uppercase tracking-wider text-[#12584b]">
-            PHÂN HỆ 2.0 · BFD 2.1 – 2.4
-          </Text>
           <Title level={3} style={{ margin: '4px 0' }}>
             Phòng ban & Chức vụ
           </Title>
           <Text type="secondary">
-            Quản lý cơ cấu phòng ban (2.1), danh mục chức vụ (2.2), phân bổ (2.3) và bổ nhiệm (2.4) (Kho D2).
+            Quản lý cơ cấu phòng ban, danh mục chức vụ, phân bổ và bổ nhiệm.
           </Text>
         </div>
 
@@ -240,7 +237,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
               icon={<SwapOutlined />}
               onClick={() => onNavigate('assignments')}
             >
-              Phân bổ / Bổ nhiệm (2.3 & 2.4)
+              Phân bổ / Bổ nhiệm
             </Button>
           )}
           {canEdit(state.user.role) && (
@@ -252,8 +249,8 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
               }
             >
               {tab === 'departments'
-                ? 'Thêm phòng ban (2.1)'
-                : 'Thêm chức vụ (2.2)'}
+                ? 'Thêm phòng ban'
+                : 'Thêm chức vụ'}
             </Button>
           )}
         </Space>
@@ -291,7 +288,6 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
                       <span>{d.name}</span>
                     </Space>
                   }
-                  extra={<Tag>{d.id}</Tag>}
                   actions={[
                     <Button
                       key="view"
@@ -359,8 +355,8 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
         open={deptModal.open}
         title={
           deptModal.item
-            ? 'Chỉnh sửa phòng ban (2.1)'
-            : 'Thêm phòng ban mới (2.1)'
+            ? 'Chỉnh sửa phòng ban'
+            : 'Thêm phòng ban mới'
         }
         onCancel={() => setDeptModal({ open: false, item: null })}
         footer={null}
@@ -369,13 +365,6 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
           {formError && (
             <Alert type="error" showIcon message={formError} className="mb-4" />
           )}
-          <Form.Item
-            name="id"
-            label="Mã phòng ban"
-            rules={[{ required: true, message: 'Nhập mã phòng ban' }]}
-          >
-            <Input disabled={!!deptModal.item} placeholder="VD: PB07" />
-          </Form.Item>
           <Form.Item
             name="name"
             label="Tên phòng ban"
@@ -426,7 +415,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
       <Modal
         open={posModal.open}
         title={
-          posModal.item ? 'Chỉnh sửa chức vụ (2.2)' : 'Thêm chức vụ mới (2.2)'
+          posModal.item ? 'Chỉnh sửa chức vụ' : 'Thêm chức vụ mới'
         }
         onCancel={() => setPosModal({ open: false, item: null })}
         footer={null}

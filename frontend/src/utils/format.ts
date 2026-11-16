@@ -59,7 +59,7 @@ export function getAntTagColor(status: string): string {
   if (['Chờ duyệt', 'Thử việc', 'Sắp hết hạn', 'Chưa hiệu lực'].includes(status)) {
     return 'warning';
   }
-  if (['Từ chối', 'Hết hạn', 'Đã chấm dứt'].includes(status)) {
+  if (['Từ chối', 'Hết hạn', 'Đã chấm dứt', 'Đã nghỉ việc'].includes(status)) {
     return 'error';
   }
   if (['Đã lưu trữ', 'Đã hủy'].includes(status)) {

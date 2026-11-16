@@ -39,3 +39,18 @@
 ## 5. Hướng dẫn Sửa đổi / Bảo trì sau này
 - **Thay đổi thời gian hết hạn phiên**: Sửa hằng số `8 * 3600_000` và `Max-Age=28800` trong `backend/src/routes/auth.routes.ts`.
 - **Thay đổi quy tắc lọc dữ liệu hoặc ẩn lương**: Chỉnh sửa hàm `canViewEmployee` trong `backend/src/middleware/auth.ts` và hàm `buildScopedState` trong `backend/src/routes/auth.routes.ts`.
+
+## 6. Cập nhật ngày 16/11/2026
+
+- Khi thêm hồ sơ, hệ thống tự tạo tài khoản với tên đăng nhập bằng email và hiển thị mật khẩu ban đầu một lần trên UI. Tài khoản mẫu cũ vẫn dùng tên đăng nhập hiện có.
+- `users.username` hỗ trợ tối đa 150 ký tự; API tạo tài khoản quản trị chấp nhận email hoặc tên đăng nhập kiểu cũ.
+- Cán bộ nhân sự có thể cấp tài khoản đi kèm hồ sơ mới với vai trò ngoài `admin`; việc quản trị tài khoản riêng vẫn chỉ dành cho `admin`.
+- Nhân viên **Đã nghỉ việc** hoặc **Đã lưu trữ** không đăng nhập được. Khi chấm dứt hợp đồng cuối cùng đang hiệu lực, các phiên cũ được thu hồi.
+- Giám đốc có thể không thuộc phòng ban (`department_id = NULL`). Trưởng phòng không có phòng ban chỉ xem được hồ sơ của chính mình, không được xem hoặc duyệt phép của người khác có phòng ban rỗng.
+- Trưởng phòng không được xem lương cũ/mới trong phụ lục của người khác; quy tắc xem lương áp dụng cả hợp đồng và phụ lục.
+
+### Thiết kế lại trang đăng nhập
+
+`LoginView.tsx` sử dụng các lớp CSS `login-*` trong `index.css`: màn hình hai cột với phần giới thiệu xanh rừng, tiêu đề lớn, minh họa đội ngũ bằng HTML/CSS và form trên nền sáng. Dưới 901 px chuyển thành một cột, ẩn phần minh họa. Minh họa có `aria-hidden`, không chứa dữ liệu nhân viên hoặc số liệu thực. Giữ API đăng nhập và chọn tài khoản mẫu; bổ sung autocomplete và trạng thái nút vai trò. Đã kiểm tra đăng nhập và không tràn ngang ở 1440/768/390 px.
+
+Nhận diện mới nhất của phần giới thiệu: **Nhân sự.**, biểu tượng **16**, dòng **NHÓM 16 · KẾT NỐI ĐỂ PHÁT TRIỂN**. Chân trang ghi **Cùng đội ngũ, tạo giá trị.** và **Nhóm 16 · Quản lý nhân sự**.

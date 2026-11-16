@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { db, auditLog } from '../db/pool.js';
+import { db, auditLog, withTransaction } from '../db/pool.js';
+import { nextBusinessId } from '../utils/business-id.js';
 import { existsInTable, requireAuth, requireRole } from '../middleware/auth.js';
 import { date, fail, numeric, optional, text } from '../utils/validation.js';
 
@@ -14,20 +15,20 @@ catalogsRouter.post('/departments', async (req, res, next) => {
     requireRole(u, ['admin', 'hr']);
 
     const b = req.body;
-    const rid = text(b, 'id', 25);
-    if (!/^[A-Za-z0-9_-]+$/.test(rid)) {
-      fail('Mã danh mục không hợp lệ.');
-    }
     const name = text(b, 'name', 120);
     const description = optional(b, 'description');
     const founded = date(b, 'founded_date');
 
-    await db.run(
+    const rid = await withTransaction(async (tx) => {
+      const rid = await nextBusinessId(tx, 'departments');
+      await tx.run(
       'INSERT INTO departments(id, name, description, founded_date) VALUES($1, $2, $3, $4)',
       [rid, name, description, founded]
     );
-    await auditLog(db, u.id, 'Cập nhật danh mục', rid);
-    res.json({ ok: true });
+      await auditLog(tx, u.id, 'Cập nhật danh mục', rid);
+      return rid;
+    });
+    res.status(201).json({ ok: true, id: rid });
   } catch (err) {
     next(err);
   }

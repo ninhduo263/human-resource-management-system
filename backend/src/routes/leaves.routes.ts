@@ -126,7 +126,7 @@ leavesRouter.post('/leaves/:id/review', async (req, res, next) => {
     if (e.id === u.employee_id) {
       fail('Không được tự duyệt đơn nghỉ phép.');
     }
-    if (u.role === 'manager' && e.department_id !== u.department_id) {
+    if (u.role === 'manager' && (!u.department_id || e.department_id !== u.department_id)) {
       fail('Chỉ được duyệt đơn trong phòng ban của bạn.', 403);
     }
 

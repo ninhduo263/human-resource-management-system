@@ -35,3 +35,10 @@ Thiết lập môi trường container hóa với **Docker Compose** gồm 3 d�
 ## 4. Hướng dẫn Chỉnh sửa / Mở rộng sau này
 - **Thêm cột hoặc bảng mới**: Sửa trực tiếp trong `backend/src/db/schema.sql`. Khi khởi động lại container `backend`, hàm `initSchema()` trong `pool.ts` sẽ thực thi script này.
 - **Thay đổi dữ liệu khởi tạo (Seed)**: Sửa trong `backend/src/db/seed.ts`. Lưu ý hàm `seedDatabase()` chỉ chạy khi bảng `departments` đang trống để không ghi đè dữ liệu đang dùng. Muốn reset toàn bộ DB về mặc định: chạy `docker compose down -v && docker compose up -d`.
+
+## 5. Cập nhật ngày 16/11/2026
+
+- `schema.sql` có các lệnh `ALTER TABLE` để cập nhật database hiện có khi backend khởi động, giữ dữ liệu cũ: trạng thái **Đã nghỉ việc**, phòng ban nhân viên có thể `NULL`, phòng ban cũ trong công tác có thể `NULL`, tên đăng nhập dài 150 ký tự và các trường phụ lục lương.
+- `audit_log.target` mở rộng lên 250 ký tự để ghi được tài khoản email dài.
+- `npm run build` ở backend tự sao chép `schema.sql` sang `dist/db/schema.sql` sau khi biên dịch.
+- `npm test` ở backend chạy kiểm thử HTTP và PostgreSQL trên database tạm do bộ kiểm thử tự tạo. Cần đặt `TEST_DATABASE_URL` tới PostgreSQL với quyền tạo database; database được chỉ định trong URL không bị sửa dữ liệu bởi bộ kiểm thử.

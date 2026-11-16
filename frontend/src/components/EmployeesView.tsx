@@ -38,6 +38,7 @@ import {
   getContractStatus,
   getInitials,
   matchEmployeeQuery,
+  ROLE_NAMES,
 } from '../utils/format';
 
 const { Title, Text } = Typography;
@@ -57,7 +58,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   onRefresh,
   notify,
 }) => {
-  const [tab, setTab] = useState<'active' | 'archived'>('active');
+  const [tab, setTab] = useState<'active' | 'departed' | 'archived'>('active');
   const [search, setSearch] = useState(initialSearch);
   const [deptFilter, setDeptFilter] = useState(initialDeptFilter);
   const [statusFilter, setStatusFilter] = useState('');
@@ -68,18 +69,26 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   const [selfContactModal, setSelfContactModal] = useState<Employee | null>(null);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [createdAccount, setCreatedAccount] = useState<{ username: string; password: string } | null>(null);
 
   const [empForm] = Form.useForm();
   const [contactForm] = Form.useForm();
+  const selectedRole = Form.useWatch('role', empForm);
+  const selectedPosition = Form.useWatch('position_id', empForm);
+  const accountEmail = Form.useWatch('email', empForm);
+  const isDirector = selectedRole === 'director' ||
+    state.positions.find((p) => p.id === selectedPosition)?.name === 'Giám đốc' ||
+    (!!editingEmp && editingEmp.department_id === null);
 
-  const deptName = (id: string) =>
-    state.departments.find((d) => d.id === id)?.name || id;
+  const deptName = (id: string | null) =>
+    state.departments.find((d) => d.id === id)?.name || id || 'Không thuộc phòng ban';
   const posName = (id: string) =>
     state.positions.find((p) => p.id === id)?.name || id;
 
   const filtered = state.employees.filter((e) => {
     const matchTab =
-      tab === 'archived' ? e.status === 'Đã lưu trữ' : e.status !== 'Đã lưu trữ';
+      tab === 'archived' ? e.status === 'Đã lưu trữ' : tab === 'departed'
+        ? e.status === 'Đã nghỉ việc' : ['Đang làm việc', 'Thử việc'].includes(e.status);
     const matchStatus = !statusFilter || e.status === statusFilter;
     return matchTab && matchStatus && matchEmployeeQuery(e, search, deptFilter);
   });
@@ -94,6 +103,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
       status: 'Đang làm việc',
       department_id: state.departments[0]?.id,
       position_id: 'CV01',
+      role: 'employee',
     });
     setFormOpen(true);
   };
@@ -102,6 +112,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     setDetailEmp(null);
     setEditingEmp(emp);
     setFormError('');
+    empForm.resetFields();
     empForm.setFieldsValue({
       ...emp,
     });
@@ -125,8 +136,9 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         );
         notify('Đã cập nhật hồ sơ nhân viên.');
       } else {
-        await apiRequest('/api/employees', values, 'POST');
-        notify('Đã thêm hồ sơ nhân viên mới.');
+        const result = await apiRequest('/api/employees', { ...values, department_id: isDirector ? null : values.department_id }, 'POST');
+        setCreatedAccount(result.account);
+        notify('Đã thêm nhân viên và tạo tài khoản đăng nhập bằng email.');
       }
       setFormOpen(false);
       await onRefresh();
@@ -191,7 +203,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     downloadCsv(
       `peopleops-employees-${state.today}.csv`,
       [
-        'Mã NV',
         'Họ tên',
         'Ngày sinh',
         'Giới tính',
@@ -203,7 +214,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         'Trạng thái',
       ],
       filtered.map((e) => [
-        e.id,
         e.name,
         e.birth_date,
         e.gender,
@@ -234,12 +244,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           </div>
         </Space>
       ),
-    },
-    {
-      title: 'Mã NV',
-      dataIndex: 'id',
-      key: 'id',
-      render: (id: string) => <Text code>{id}</Text>,
     },
     {
       title: 'Phòng ban',
@@ -281,7 +285,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           >
             Chi tiết
           </Button>
-          {canEdit(state.user.role) && e.status !== 'Đã lưu trữ' && (
+          {canEdit(state.user.role) && ['Đang làm việc', 'Thử việc'].includes(e.status) && (
             <Button
               size="small"
               type="text"
@@ -321,14 +325,11 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Text className="text-xs font-bold uppercase tracking-wider text-[#12584b]">
-            PHÂN HỆ 1.0 · BFD 1.1 – 1.4
-          </Text>
           <Title level={3} style={{ margin: '4px 0' }}>
             Hồ sơ nhân viên
           </Title>
           <Text type="secondary">
-            Thêm mới, cập nhật, tra cứu đa tiêu chí và lưu trữ hồ sơ nhân sự (Kho D1).
+            Thêm mới, cập nhật, tra cứu đa tiêu chí và lưu trữ hồ sơ nhân sự.
           </Text>
         </div>
 
@@ -342,7 +343,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
               icon={<PlusOutlined />}
               onClick={handleOpenAdd}
             >
-              Thêm nhân viên (1.1)
+              Thêm nhân viên
             </Button>
           )}
         </Space>
@@ -352,13 +353,17 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
           <Tabs
             activeKey={tab}
-            onChange={(k) => setTab(k as 'active' | 'archived')}
+            onChange={(k) => { setTab(k as typeof tab); setStatusFilter(''); }}
             items={[
               {
                 key: 'active',
                 label: `Đang làm việc (${
-                  state.employees.filter((e) => e.status !== 'Đã lưu trữ').length
+                  state.employees.filter((e) => ['Đang làm việc', 'Thử việc'].includes(e.status)).length
                 })`,
+              },
+              {
+                key: 'departed',
+                label: `Đã nghỉ việc (${state.employees.filter((e) => e.status === 'Đã nghỉ việc').length})`,
               },
               {
                 key: 'archived',
@@ -372,7 +377,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           <Space wrap>
             <Input
               prefix={<SearchOutlined className="text-slate-400" />}
-              placeholder="Tìm tên, mã NV, email..."
+              placeholder="Tìm tên, email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               allowClear
@@ -414,10 +419,10 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         />
       </Card>
 
-      {/* Modal Chi tiết Hồ sơ (1.3 / 1.4) */}
+      {/* Modal Chi tiết Hồ sơ */}
       <Modal
         open={!!detailEmp}
-        title="Chi tiết hồ sơ nhân viên (1.3)"
+        title="Chi tiết hồ sơ nhân viên"
         onCancel={() => setDetailEmp(null)}
         width={760}
         footer={
@@ -431,7 +436,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                     icon={<RollbackOutlined />}
                     onClick={() => handleRestore(detailEmp)}
                   >
-                    Khôi phục hồ sơ (1.4)
+                    Khôi phục hồ sơ
                   </Button>
                 ) : (
                   <>
@@ -443,15 +448,16 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                       cancelText="Hủy"
                     >
                       <Button danger icon={<InboxOutlined />}>
-                        Lưu trữ hồ sơ (1.4)
+                        Lưu trữ hồ sơ
                       </Button>
                     </Popconfirm>
                     <Button
                       type="primary"
+                      disabled={detailEmp.status === 'Đã nghỉ việc'}
                       icon={<EditOutlined />}
                       onClick={() => handleOpenEdit(detailEmp)}
                     >
-                      Chỉnh sửa (1.2)
+                      Chỉnh sửa
                     </Button>
                   </>
                 ))}
@@ -473,7 +479,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                   {detailEmp.name}
                 </Title>
                 <Text type="secondary">
-                  Mã NV: <strong>{detailEmp.id}</strong> ·{' '}
                   {posName(detailEmp.position_id)} ·{' '}
                   {deptName(detailEmp.department_id)}
                 </Text>
@@ -521,7 +526,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                   <Card key={c.id} size="small">
                     <div className="flex items-center justify-between">
                       <div>
-                        <strong>{c.id}</strong> · {c.type}
+                        {c.type}
                         <div className="text-xs text-slate-500">
                           {formatDate(c.start_date)} → {formatDate(c.end_date)}
                         </div>
@@ -567,19 +572,20 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         )}
       </Modal>
 
-      {/* Modal Thêm / Sửa Hồ sơ (1.1 & 1.2) */}
+      {/* Modal Thêm / Sửa Hồ sơ */}
       <Modal
         open={formOpen}
         title={
           editingEmp
-            ? 'Cập nhật hồ sơ nhân viên (1.2)'
-            : 'Thêm hồ sơ nhân viên mới (1.1)'
+            ? 'Cập nhật hồ sơ nhân viên'
+            : 'Thêm hồ sơ nhân viên mới'
         }
         onCancel={() => setFormOpen(false)}
         footer={null}
         width={680}
       >
         <Form
+          name="employeeProfile"
           form={empForm}
           layout="vertical"
           onFinish={handleSaveEmployee}
@@ -591,8 +597,8 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             className="mb-4"
             message={
               editingEmp
-                ? 'Để thay đổi Phòng ban hoặc Chức vụ, vui lòng dùng chức năng Quá trình công tác (4.1) để lưu kèm Quyết định.'
-                : 'Hồ sơ mới được cấp tự động quỹ phép mặc định 12 ngày cho năm hiện tại.'
+                ? 'Để thay đổi Phòng ban hoặc Chức vụ, vui lòng dùng chức năng Quá trình công tác để lưu kèm Quyết định.'
+                : 'Email là tên đăng nhập. Mật khẩu được tạo tự động và hiển thị sau khi lưu. Hồ sơ mới được cấp 12 ngày phép cho năm hiện tại.'
             }
           />
 
@@ -606,13 +612,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-            <Form.Item
-              name="id"
-              label="Mã nhân viên"
-              rules={[{ required: true, message: 'Nhập mã nhân viên' }]}
-            >
-              <Input disabled={!!editingEmp} placeholder="VD: NV013" />
-            </Form.Item>
 
             <Form.Item
               name="name"
@@ -683,10 +682,30 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
               />
             </Form.Item>
 
-            <Form.Item
+            {!editingEmp && (
+              <Form.Item name="role" label="Vai trò tài khoản" rules={[{ required: true }]}>
+                <Select
+                  options={Object.entries(ROLE_NAMES).filter(([role]) => role !== 'admin' || state.user.role === 'admin')
+                    .map(([value, label]) => ({ value, label }))}
+                  onChange={(role) => {
+                    if (role === 'director') {
+                      empForm.setFieldsValue({ department_id: undefined,
+                        position_id: state.positions.find((p) => p.name === 'Giám đốc')?.id || selectedPosition });
+                    } else {
+                      empForm.setFieldsValue({ department_id: state.departments[0]?.id,
+                        ...(state.positions.find((p) => p.id === selectedPosition)?.name === 'Giám đốc'
+                          ? { position_id: state.positions.find((p) => p.name !== 'Giám đốc')?.id } : {}) });
+                    }
+                  }}
+                />
+              </Form.Item>
+            )}
+
+            {!isDirector && <Form.Item
               name="department_id"
               label="Phòng ban"
               rules={[{ required: true }]}
+              preserve={false}
             >
               <Select
                 disabled={!!editingEmp}
@@ -695,7 +714,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                   label: d.name,
                 }))}
               />
-            </Form.Item>
+            </Form.Item>}
 
             <Form.Item
               name="position_id"
@@ -704,6 +723,13 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             >
               <Select
                 disabled={!!editingEmp}
+                onChange={(positionId) => {
+                  if (state.positions.find((p) => p.id === positionId)?.name === 'Giám đốc') {
+                    empForm.setFieldsValue({ role: 'director', department_id: undefined });
+                  } else if (selectedRole === 'director') {
+                    empForm.setFieldsValue({ role: 'employee', department_id: state.departments[0]?.id });
+                  }
+                }}
                 options={state.positions.map((p) => ({
                   value: p.id,
                   label: p.name,
@@ -720,6 +746,10 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             </Form.Item>
           </div>
 
+          {!editingEmp && <Alert type="info" className="mb-4" showIcon
+            message={`Tài khoản đăng nhập: ${accountEmail || '(nhập email nhân viên)'}`}
+            description={isDirector ? 'Giám đốc không thuộc phòng ban. Mật khẩu sẽ hiển thị sau khi tạo thành công.' : 'Mật khẩu sẽ hiển thị sau khi tạo thành công.'} />}
+
           <div className="flex justify-end gap-2 pt-2">
             <Button onClick={() => setFormOpen(false)}>Đóng</Button>
             <Button type="primary" htmlType="submit" loading={submitting}>
@@ -729,14 +759,27 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         </Form>
       </Modal>
 
+      <Modal open={!!createdAccount} title="Đã tạo tài khoản nhân viên" footer={<Button type="primary" onClick={() => setCreatedAccount(null)}>Đã lưu thông tin</Button>}
+        onCancel={() => setCreatedAccount(null)}>
+        {createdAccount && <>
+          <Alert type="success" showIcon message="Gửi thông tin này cho nhân viên để đăng nhập." className="mb-4" />
+          <Descriptions bordered column={1}>
+            <Descriptions.Item label="Tài khoản (email)"><Text copyable>{createdAccount.username}</Text></Descriptions.Item>
+            <Descriptions.Item label="Mật khẩu ban đầu"><Text copyable>{createdAccount.password}</Text></Descriptions.Item>
+          </Descriptions>
+          <p className="mt-3">Hãy lưu mật khẩu trước khi đóng. Nhân viên có thể đổi mật khẩu sau khi đăng nhập.</p>
+        </>}
+      </Modal>
+
       {/* Modal Nhân viên tự cập nhật thông tin liên hệ cá nhân (DFD 1.2) */}
       <Modal
         open={!!selfContactModal}
-        title="Cập nhật thông tin liên hệ cá nhân (1.2)"
+        title="Cập nhật thông tin liên hệ cá nhân"
         onCancel={() => setSelfContactModal(null)}
         footer={null}
       >
         <Form
+          name="employeeContact"
           form={contactForm}
           layout="vertical"
           onFinish={handleSaveSelfContact}

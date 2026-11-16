@@ -6,7 +6,7 @@ export interface SessionUser {
   role: UserRole;
   employee_id: string;
   name: string;
-  department_id: string;
+  department_id: string | null;
 }
 
 export interface Department {
@@ -32,9 +32,9 @@ export interface Employee {
   phone: string;
   email: string;
   join_date: string;
-  status: 'Đang làm việc' | 'Thử việc' | 'Đã lưu trữ';
+  status: 'Đang làm việc' | 'Thử việc' | 'Đã nghỉ việc' | 'Đã lưu trữ';
   archived_date: string | null;
-  department_id: string;
+  department_id: string | null;
   position_id: string;
 }
 
@@ -56,7 +56,10 @@ export interface ContractExtension {
   sequence: number;
   created_date: string;
   old_end_date: string | null;
-  new_end_date: string;
+  new_end_date: string | null;
+  amendment_type: string;
+  old_salary: number | null;
+  new_salary: number | null;
   reason: string;
 }
 
@@ -75,7 +78,7 @@ export interface Assignment {
   employee_id: string;
   decision_id: string;
   type: 'Điều chuyển' | 'Bổ nhiệm' | 'Điều chuyển và bổ nhiệm';
-  old_department_id: string;
+  old_department_id: string | null;
   new_department_id: string;
   old_position_id: string;
   new_position_id: string;

@@ -140,29 +140,29 @@ export const App: React.FC = () => {
     {
       key: 'employees',
       icon: <TeamOutlined />,
-      label: '1.0 Hồ sơ nhân viên',
+      label: 'Hồ sơ nhân viên',
     },
     {
       key: 'departments',
       icon: <BankOutlined />,
-      label: '2.0 Phòng ban & Chức vụ',
+      label: 'Phòng ban & Chức vụ',
     },
     {
       key: 'contracts',
       icon: <FileTextOutlined />,
-      label: '3.0 Hợp đồng lao động',
+      label: 'Hợp đồng lao động',
     },
     {
       key: 'assignments',
       icon: <AuditOutlined />,
-      label: '4.1 Quá trình công tác',
+      label: 'Quá trình công tác',
     },
     {
       key: 'leaves',
       icon: <CalendarOutlined />,
       label: (
         <span className="flex items-center justify-between">
-          <span>4.2–4.4 Nghỉ phép</span>
+          <span>Nghỉ phép</span>
           {pendingLeavesCount > 0 && (
             <Badge count={pendingLeavesCount} size="small" />
           )}
@@ -172,7 +172,7 @@ export const App: React.FC = () => {
     {
       key: 'reports',
       icon: <BarChartOutlined />,
-      label: '5.0 Báo cáo nhân sự',
+      label: 'Báo cáo nhân sự',
     },
     {
       key: 'settings',
