@@ -7,11 +7,19 @@ import { contractsRouter } from './routes/contracts.routes.js';
 import { assignmentsRouter } from './routes/assignments.routes.js';
 import { leavesRouter } from './routes/leaves.routes.js';
 import { fail } from './utils/validation.js';
+import { requestContext } from './utils/http.js';
 
 export function createExpressApp() {
   const app = express();
 
   app.disable('x-powered-by');
+  // Chỉ tin X-Forwarded-For khi đứng sau reverse proxy trong mạng nội bộ (nginx của docker-compose).
+  if (process.env.TRUST_PROXY === 'true') app.set('trust proxy', 'uniquelocal');
+
+  // Gắn IP cho từng request để nhật ký kiểm toán ghi lại.
+  app.use((req: Request, _res: Response, next: NextFunction) => {
+    requestContext.run({ ip: req.ip || req.socket.remoteAddress || 'unknown' }, next);
+  });
 
   // Security headers
   app.use((_req: Request, res: Response, next: NextFunction) => {
@@ -19,12 +27,17 @@ export function createExpressApp() {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Referrer-Policy', 'same-origin');
     res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+    if (process.env.COOKIE_SECURE === 'true' || _req.secure || _req.headers['x-forwarded-proto'] === 'https') {
+      res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
     next();
   });
 
   // Origin check for state-changing requests
   app.use((req: Request, _res: Response, next: NextFunction) => {
-    if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
       const origin = req.headers.origin;
       const host = req.headers.host;
       if (origin && host) {

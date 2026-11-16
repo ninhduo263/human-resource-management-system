@@ -11,7 +11,7 @@ export interface SessionUser {
   role: UserRole;
   employee_id: string;
   name: string;
-  department_id: string;
+  department_id: string | null;
 }
 
 declare global {
@@ -45,7 +45,7 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
        WHERE s.token_hash = $1
          AND s.expires > $2
          AND u.active = 1
-         AND e.status != 'Đã lưu trữ'`,
+         AND e.status NOT IN ('Đã lưu trữ', 'Đã nghỉ việc')`,
       [sha256(token), Date.now()]
     );
     if (!user) {
@@ -66,11 +66,11 @@ export function requireRole(u: SessionUser, roles: UserRole[]): void {
 
 export function canViewEmployee(
   u: SessionUser,
-  emp: { id: string; department_id: string }
+  emp: { id: string; department_id: string | null }
 ): boolean {
   return (
     ['admin', 'hr', 'director'].includes(u.role) ||
-    (u.role === 'manager' && emp.department_id === u.department_id) ||
+    (u.role === 'manager' && u.department_id !== null && emp.department_id === u.department_id) ||
     emp.id === u.employee_id
   );
 }
@@ -107,6 +107,9 @@ export async function requireActiveEmployee(executor: DbExecutor, id: string): P
   const emp = await existsInTable<any>(executor, 'employees', id);
   if (emp.status === 'Đã lưu trữ') {
     fail('Hồ sơ nhân viên đã lưu trữ.');
+  }
+  if (emp.status === 'Đã nghỉ việc') {
+    fail('Nhân viên đã nghỉ việc.');
   }
   return emp;
 }

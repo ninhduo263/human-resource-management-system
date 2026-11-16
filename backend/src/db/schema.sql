@@ -30,9 +30,9 @@ CREATE TABLE IF NOT EXISTS employees (
   phone VARCHAR(20) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
   join_date VARCHAR(10) NOT NULL,
-  status VARCHAR(30) NOT NULL CHECK (status IN ('Đang làm việc', 'Thử việc', 'Đã lưu trữ')),
+  status VARCHAR(30) NOT NULL CHECK (status IN ('Đang làm việc', 'Thử việc', 'Đã nghỉ việc', 'Đã lưu trữ')),
   archived_date VARCHAR(10),
-  department_id VARCHAR(25) NOT NULL REFERENCES departments(id) ON DELETE RESTRICT,
+  department_id VARCHAR(25) REFERENCES departments(id) ON DELETE RESTRICT,
   position_id VARCHAR(25) NOT NULL REFERENCES positions(id) ON DELETE RESTRICT
 );
 
@@ -56,7 +56,10 @@ CREATE TABLE IF NOT EXISTS extensions (
   sequence INTEGER NOT NULL,
   created_date VARCHAR(10) NOT NULL,
   old_end_date VARCHAR(10),
-  new_end_date VARCHAR(10) NOT NULL,
+  new_end_date VARCHAR(10),
+  amendment_type VARCHAR(40) NOT NULL DEFAULT 'Gia hạn',
+  old_salary DOUBLE PRECISION,
+  new_salary DOUBLE PRECISION,
   reason TEXT NOT NULL,
   UNIQUE (contract_id, sequence)
 );
@@ -78,7 +81,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
   decision_id VARCHAR(30) NOT NULL REFERENCES decisions(id) ON DELETE RESTRICT,
   type VARCHAR(40) NOT NULL CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Điều chuyển và bổ nhiệm')),
-  old_department_id VARCHAR(25) NOT NULL REFERENCES departments(id) ON DELETE RESTRICT,
+  old_department_id VARCHAR(25) REFERENCES departments(id) ON DELETE RESTRICT,
   new_department_id VARCHAR(25) NOT NULL REFERENCES departments(id) ON DELETE RESTRICT,
   old_position_id VARCHAR(25) NOT NULL REFERENCES positions(id) ON DELETE RESTRICT,
   new_position_id VARCHAR(25) NOT NULL REFERENCES positions(id) ON DELETE RESTRICT,
@@ -121,7 +124,7 @@ CREATE TABLE IF NOT EXISTS leave_balances (
 -- Bảng hệ thống 1: users (Tài khoản & Phân quyền)
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(30) PRIMARY KEY,
-  username VARCHAR(50) NOT NULL UNIQUE,
+  username VARCHAR(150) NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'hr', 'manager', 'employee', 'director')),
   employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
@@ -150,28 +153,17 @@ CREATE INDEX IF NOT EXISTS idx_leave_employee ON leave_requests(employee_id, sta
 CREATE INDEX IF NOT EXISTS idx_contract_employee ON contracts(employee_id);
 CREATE INDEX IF NOT EXISTS idx_assignments_employee ON assignments(employee_id);
 
--- View v_songayphep: Hiển thị đầy đủ 5 cột như trên ERD (MaNV, Nam, TongSoNgayPhep, SoNgayDaNghi, SoNgayConLai)
-CREATE OR REPLACE VIEW v_songayphep AS
-SELECT
-  lb.employee_id AS "MaNV",
-  lb.year AS "Nam",
-  lb.total AS "TongSoNgayPhep",
-  COALESCE((
-    SELECT SUM(lr.days)
-    FROM leave_requests lr
-    JOIN leave_types lt ON lt.id = lr.type_id
-    WHERE lr.employee_id = lb.employee_id
-      AND lr.status = 'Đã duyệt'
-      AND lt.deduct_annual = 1
-      AND CAST(SUBSTRING(lr.start_date FROM 1 FOR 4) AS INTEGER) = lb.year
-  ), 0) AS "SoNgayDaNghi",
-  lb.total - COALESCE((
-    SELECT SUM(lr.days)
-    FROM leave_requests lr
-    JOIN leave_types lt ON lt.id = lr.type_id
-    WHERE lr.employee_id = lb.employee_id
-      AND lr.status = 'Đã duyệt'
-      AND lt.deduct_annual = 1
-      AND CAST(SUBSTRING(lr.start_date FROM 1 FOR 4) AS INTEGER) = lb.year
-  ), 0) AS "SoNgayConLai"
-FROM leave_balances lb;
+-- (View v_songayphep được tạo trong db/migrations.ts vì phụ thuộc kiểu dữ liệu cột ngày.)
+
+-- Cập nhật tương thích cho database đã được khởi tạo trước đây.
+ALTER TABLE employees DROP CONSTRAINT IF EXISTS employees_status_check;
+ALTER TABLE employees ADD CONSTRAINT employees_status_check
+  CHECK (status IN ('Đang làm việc', 'Thử việc', 'Đã nghỉ việc', 'Đã lưu trữ'));
+ALTER TABLE employees ALTER COLUMN department_id DROP NOT NULL;
+ALTER TABLE assignments ALTER COLUMN old_department_id DROP NOT NULL;
+ALTER TABLE users ALTER COLUMN username TYPE VARCHAR(150);
+ALTER TABLE audit_log ALTER COLUMN target TYPE VARCHAR(250);
+ALTER TABLE extensions ALTER COLUMN new_end_date DROP NOT NULL;
+ALTER TABLE extensions ADD COLUMN IF NOT EXISTS amendment_type VARCHAR(40) NOT NULL DEFAULT 'Gia hạn';
+ALTER TABLE extensions ADD COLUMN IF NOT EXISTS old_salary DOUBLE PRECISION;
+ALTER TABLE extensions ADD COLUMN IF NOT EXISTS new_salary DOUBLE PRECISION;

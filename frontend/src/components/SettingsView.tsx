@@ -92,6 +92,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
+  const handleResetPassword = async (u: UserAccount) => {
+    try {
+      const result = await apiRequest(
+        `/api/users/${encodeURIComponent(u.id)}/reset-password`,
+        {},
+        'POST'
+      );
+      Modal.info({
+        title: `Mật khẩu mới của "${u.username}"`,
+        content: (
+          <div>
+            <p>Chỉ hiển thị một lần. Hãy gửi cho người dùng qua kênh an toàn.</p>
+            <Text code copyable>{result.password}</Text>
+          </div>
+        ),
+      });
+      await onRefresh();
+    } catch (err: any) {
+      notify(err.message, true);
+    }
+  };
+
+  const handleChangeRole = async (u: UserAccount, role: UserRole) => {
+    try {
+      await apiRequest(`/api/users/${encodeURIComponent(u.id)}/role`, { role }, 'PUT');
+      notify('Đã đổi vai trò; người dùng cần đăng nhập lại.');
+      await onRefresh();
+    } catch (err: any) {
+      notify(err.message, true);
+    }
+  };
+
   const userColumns = [
     {
       title: 'Tên đăng nhập',
@@ -102,13 +134,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     {
       title: 'Nhân viên liên kết',
       key: 'employee',
-      render: (_: unknown, u: UserAccount) => `${u.name} (${u.employee_id})`,
+      render: (_: unknown, u: UserAccount) => u.name,
     },
     {
       title: 'Vai trò',
       dataIndex: 'role',
       key: 'role',
-      render: (r: UserRole) => <Tag color="processing">{ROLE_NAMES[r]}</Tag>,
+      render: (r: UserRole, u: UserAccount) =>
+        u.id === state.user.id ? (
+          <Tag color="processing">{ROLE_NAMES[r]}</Tag>
+        ) : (
+          <Select
+            size="small"
+            value={r}
+            style={{ width: 160 }}
+            onChange={(role) => handleChangeRole(u, role as UserRole)}
+            options={Object.entries(ROLE_NAMES).map(([value, label]) => ({ value, label }))}
+          />
+        ),
     },
     {
       title: 'Trạng thái',
@@ -126,6 +169,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       align: 'right' as const,
       render: (_: unknown, u: UserAccount) =>
         u.id !== state.user.id ? (
+          <Space size={0}>
+          <Popconfirm
+            title={`Đặt lại mật khẩu cho "${u.username}"? Mọi phiên đăng nhập của họ sẽ bị đăng xuất.`}
+            onConfirm={() => handleResetPassword(u)}
+            okText="Đặt lại"
+            cancelText="Hủy"
+          >
+            <Button size="small" type="link" icon={<KeyOutlined />}>
+              Đặt lại mật khẩu
+            </Button>
+          </Popconfirm>
           <Popconfirm
             title={`${u.active ? 'Khóa' : 'Mở khóa'} tài khoản "${u.username}"?`}
             onConfirm={() => handleToggleUser(u.id)}
@@ -141,6 +195,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {u.active ? 'Khóa tài khoản' : 'Mở khóa'}
             </Button>
           </Popconfirm>
+          </Space>
         ) : null,
     },
   ];
@@ -168,7 +223,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       title: 'Đối tượng',
       dataIndex: 'target',
       key: 'target',
-      render: (t: string) => <Text code>{t}</Text>,
+      render: (t: string) => {
+        const employee = state.employees.find((e) => e.id === t);
+        const department = state.departments.find((d) => d.id === t);
+        const contract = state.contracts.find((c) => c.id === t);
+        return <Text>{employee?.name || department?.name || (contract
+          ? `Hợp đồng của ${state.employees.find((e) => e.id === contract.employee_id)?.name || 'nhân viên'}`
+          : /^(NV|PB|HD)\d+$/.test(t) ? 'Bản ghi' : t)}</Text>;
+      },
     },
   ];
 
@@ -189,7 +251,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </Text>
         </div>
 
-        <Space>
+        <Space className="no-print w-full sm:w-auto flex-wrap">
           <Button
             icon={<KeyOutlined />}
             onClick={() => {
@@ -210,7 +272,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 userForm.setFieldsValue({
                   role: 'employee',
                   employee_id: state.employees.find(
-                    (e) => e.status !== 'Đã lưu trữ'
+                    (e) => ['Đang làm việc', 'Thử việc'].includes(e.status)
                   )?.id,
                 });
                 setAddUserOpen(true);
@@ -224,15 +286,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
       {state.user.role !== 'admin' ? (
         <Card bordered={false} className="shadow-xs">
-          <Descriptions title="Thông tin tài khoản cá nhân" bordered column={2}>
+          <Descriptions
+            title="Thông tin tài khoản cá nhân"
+            bordered
+            column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
+          >
             <Descriptions.Item label="Họ và tên">
               <strong>{state.user.name}</strong>
             </Descriptions.Item>
             <Descriptions.Item label="Tên đăng nhập">
               <Text code>{state.user.username}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Mã nhân viên">
-              <Text code>{state.user.employee_id}</Text>
             </Descriptions.Item>
             <Descriptions.Item label="Vai trò">
               <Tag color="processing">{ROLE_NAMES[state.user.role]}</Tag>
@@ -263,6 +326,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               dataSource={state.users}
               pagination={false}
               size="middle"
+              scroll={{ x: 650 }}
             />
           ) : (
             <Table
@@ -271,6 +335,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               dataSource={state.audit}
               pagination={{ pageSize: 10, showSizeChanger: false }}
               size="middle"
+              scroll={{ x: 750 }}
             />
           )}
         </Card>
@@ -337,10 +402,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           >
             <Select
               options={state.employees
-                .filter((e) => e.status !== 'Đã lưu trữ')
+                .filter((e) => ['Đang làm việc', 'Thử việc'].includes(e.status))
                 .map((e) => ({
                   value: e.id,
-                  label: `${e.id} - ${e.name}`,
+                  label: `${e.name} (${e.email})`,
                 }))}
             />
           </Form.Item>

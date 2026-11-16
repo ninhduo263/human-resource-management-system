@@ -46,7 +46,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigate,
 }) => {
   const activeEmployees = state.employees.filter(
-    (e) => e.status !== 'Đã lưu trữ'
+    (e) => ['Đang làm việc', 'Thử việc'].includes(e.status)
   );
   const pendingLeaves = state.leaves.filter((l) => l.status === 'Chờ duyệt');
   const expiringContracts = state.contracts.filter(
@@ -56,8 +56,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     (e) => e.join_date.slice(0, 7) === state.today.slice(0, 7)
   );
 
-  const deptName = (id: string) =>
-    state.departments.find((d) => d.id === id)?.name || id;
+  const deptName = (id: string | null) =>
+    state.departments.find((d) => d.id === id)?.name || id || 'Không thuộc phòng ban';
   const posName = (id: string) =>
     state.positions.find((p) => p.id === id)?.name || id;
   const empName = (id: string) =>
@@ -74,7 +74,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     downloadCsv(
       `peopleops-nhan-su-${state.today}.csv`,
       [
-        'Mã nhân viên',
         'Họ tên',
         'Ngày sinh',
         'Giới tính',
@@ -86,7 +85,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         'Trạng thái',
       ],
       activeEmployees.map((e) => [
-        e.id,
         e.name,
         e.birth_date,
         e.gender,
@@ -115,12 +113,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </Space>
       ),
-    },
-    {
-      title: 'Mã NV',
-      dataIndex: 'id',
-      key: 'id',
-      render: (id: string) => <Text code>{id}</Text>,
     },
     {
       title: 'Phòng ban',
@@ -160,7 +152,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </Text>
         </div>
 
-        <Space className="no-print">
+        <Space className="no-print w-full sm:w-auto flex-wrap">
           <Button icon={<DownloadOutlined />} onClick={handleExportOverview}>
             Xuất CSV
           </Button>
@@ -276,7 +268,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <div className="flex justify-between text-xs mb-1">
                       <span>
                         <strong>{d.name}</strong>{' '}
-                        <Text type="secondary">({d.id})</Text>
                       </span>
                       <Text strong>{count} nhân viên</Text>
                     </div>
@@ -295,7 +286,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <Col xs={24} lg={10}>
           <Card
-            title="Cảnh báo & Nhắc việc (3.4 / 4.3)"
+            title="Cảnh báo & Nhắc việc"
             bordered={false}
             className="shadow-xs h-full"
           >
@@ -308,7 +299,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   message={
                     <div className="flex items-center justify-between">
                       <strong>
-                        Hợp đồng {c.id} còn{' '}
+                        Hợp đồng còn{' '}
                         {daysUntil(c.end_date!, state.today)} ngày
                       </strong>
                       <Button
@@ -377,6 +368,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           dataSource={activeEmployees.slice(0, 5)}
           pagination={false}
           size="middle"
+          scroll={{ x: 600 }}
         />
       </Card>
     </div>

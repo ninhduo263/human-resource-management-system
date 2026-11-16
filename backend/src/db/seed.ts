@@ -1,8 +1,25 @@
 import { db, withTransaction } from './pool.js';
 import { passwordHash } from '../utils/crypto.js';
-import { today, shift, calendarDays } from '../utils/validation.js';
+import { today, shift, countWorkingDays, nextWorkingDay } from '../utils/validation.js';
+
+async function seedHolidays(): Promise<void> {
+  const any = await db.one<{ n: string }>('SELECT COUNT(*) AS n FROM holidays');
+  if (any && Number(any.n) > 0) return;
+  const year = Number(today().slice(0, 4));
+  for (const y of [year - 1, year, year + 1]) {
+    for (const [md, name] of [
+      ['01-01', 'Tết Dương lịch'],
+      ['04-30', 'Ngày Giải phóng miền Nam'],
+      ['05-01', 'Ngày Quốc tế Lao động'],
+      ['09-02', 'Quốc khánh'],
+    ]) {
+      await db.run('INSERT INTO holidays(day, name) VALUES($1, $2) ON CONFLICT DO NOTHING', [`${y}-${md}`, name]);
+    }
+  }
+}
 
 export async function seedDatabase(): Promise<void> {
+  await seedHolidays();
   const existing = await db.one<{ n: string }>('SELECT COUNT(*) AS n FROM departments');
   if (existing && Number(existing.n) > 0) {
     return;
@@ -28,18 +45,19 @@ export async function seedDatabase(): Promise<void> {
       );
     }
 
-    const positions: [string, string, number][] = [
-      ['CV01', 'Chuyên viên', 2],
-      ['CV02', 'Trưởng phòng', 5],
-      ['CV03', 'Thực tập sinh', 1],
-      ['CV04', 'Giám đốc', 8],
-      ['CV05', 'Phó phòng', 4],
+    // [mã, tên, cấp bậc, là chức vụ điều hành, vai trò mặc định]
+    const positions: [string, string, number, boolean, string | null][] = [
+      ['CV01', 'Chuyên viên', 2, false, 'employee'],
+      ['CV02', 'Trưởng phòng', 5, false, 'manager'],
+      ['CV03', 'Thực tập sinh', 1, false, 'employee'],
+      ['CV04', 'Giám đốc', 8, true, 'director'],
+      ['CV05', 'Phó phòng', 4, false, null],
     ];
 
-    for (const [id, name, level] of positions) {
+    for (const [id, name, level, executive, defaultRole] of positions) {
       await tx.run(
-        'INSERT INTO positions(id, name, description, level) VALUES($1, $2, $3, $4)',
-        [id, name, '', level]
+        'INSERT INTO positions(id, name, description, level, is_executive, default_role) VALUES($1, $2, $3, $4, $5, $6)',
+        [id, name, '', level, executive, defaultRole]
       );
     }
 
@@ -125,11 +143,14 @@ export async function seedDatabase(): Promise<void> {
       );
     }
 
+    const workDay = (offset: number) => nextWorkingDay(shift(date, offset));
+    const secondDay = (first: string) => nextWorkingDay(shift(first, 1));
+    const first = workDay(2);
     const leaves: [string, string, string, string, string, string, string][] = [
-      ['NP001', 'NV003', 'LP01', shift(date, 2), shift(date, 3), 'Giải quyết việc gia đình', 'Chờ duyệt'],
-      ['NP002', 'NV004', 'LP01', shift(date, 7), shift(date, 7), 'Việc cá nhân', 'Chờ duyệt'],
-      ['NP003', 'NV009', 'LP02', shift(date, 1), shift(date, 1), 'Khám sức khỏe', 'Chờ duyệt'],
-      ['NP004', 'NV006', 'LP01', shift(date, -10), shift(date, -9), 'Nghỉ phép theo kế hoạch', 'Đã duyệt'],
+      ['NP001', 'NV003', 'LP01', first, secondDay(first), 'Giải quyết việc gia đình', 'Chờ duyệt'],
+      ['NP002', 'NV004', 'LP01', workDay(9), workDay(9), 'Việc cá nhân', 'Chờ duyệt'],
+      ['NP003', 'NV009', 'LP02', workDay(1), workDay(1), 'Khám sức khỏe', 'Chờ duyệt'],
+      ['NP004', 'NV006', 'LP01', workDay(-12), workDay(-12), 'Nghỉ phép theo kế hoạch', 'Đã duyệt'],
     ];
 
     for (const [id, empId, typeId, start, end, reason, status] of leaves) {
@@ -143,7 +164,7 @@ export async function seedDatabase(): Promise<void> {
           status === 'Đã duyệt' ? shift(start, -1) : date,
           start,
           end,
-          calendarDays(start, end),
+          countWorkingDays(start, end),
           reason,
           status,
           status === 'Đã duyệt' ? 'NV002' : null,
@@ -164,9 +185,14 @@ export async function seedDatabase(): Promise<void> {
       const [username, role, empId] = roles[i];
       await tx.run(
         'INSERT INTO users(id, username, password_hash, role, employee_id, active) VALUES($1, $2, $3, $4, $5, 1)',
-        [`U${i + 1}`, username, passwordHash('Demo@12345'), role, empId]
+        [`U${i + 1}`, username, passwordHash(role === 'admin' ? process.env.ADMIN_PASSWORD || 'Demo@12345' : 'Demo@12345'), role, empId]
       );
     }
+
+    await tx.run(
+      `UPDATE departments d SET head_id = e.id
+       FROM employees e WHERE e.department_id = d.id AND e.position_id = 'CV02'`
+    );
 
     await tx.run(
       `INSERT INTO decisions(id, number, type, signed_date, effective_date, signer, content)

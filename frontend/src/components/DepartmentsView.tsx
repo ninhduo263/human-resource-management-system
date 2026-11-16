@@ -14,6 +14,8 @@ import {
   Avatar,
   Space,
   Popconfirm,
+  Select,
+  Switch,
   Alert,
   Typography,
 } from 'antd';
@@ -68,7 +70,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
   const [posForm] = Form.useForm();
 
   const activeEmployees = state.employees.filter(
-    (e) => e.status !== 'Đã lưu trữ'
+    (e) => ['Đang làm việc', 'Thử việc'].includes(e.status)
   );
 
   const openDeptModal = (item: Department | null) => {
@@ -77,7 +79,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
     if (item) {
       deptForm.setFieldsValue(item);
     } else {
-      deptForm.setFieldsValue({ founded_date: state.today, description: '' });
+      deptForm.setFieldsValue({ founded_date: state.today, description: '', active: true });
     }
     setDeptModal({ open: true, item });
   };
@@ -88,7 +90,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
     if (item) {
       posForm.setFieldsValue(item);
     } else {
-      posForm.setFieldsValue({ level: 2, description: '' });
+      posForm.setFieldsValue({ level: 2, description: '', active: true, is_executive: false });
     }
     setPosModal({ open: true, item });
   };
@@ -100,7 +102,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
       if (deptModal.item) {
         await apiRequest(
           `/api/departments/${encodeURIComponent(deptModal.item.id)}`,
-          values,
+          { ...values, head_id: values.head_id ?? null },
           'PUT'
         );
         notify('Đã cập nhật phòng ban.');
@@ -223,24 +225,21 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Text className="text-xs font-bold uppercase tracking-wider text-[#12584b]">
-            PHÂN HỆ 2.0 · BFD 2.1 – 2.4
-          </Text>
           <Title level={3} style={{ margin: '4px 0' }}>
             Phòng ban & Chức vụ
           </Title>
           <Text type="secondary">
-            Quản lý cơ cấu phòng ban (2.1), danh mục chức vụ (2.2), phân bổ (2.3) và bổ nhiệm (2.4) (Kho D2).
+            Quản lý cơ cấu phòng ban, danh mục chức vụ, phân bổ và bổ nhiệm.
           </Text>
         </div>
 
-        <Space className="no-print">
+        <Space className="no-print w-full sm:w-auto flex-wrap">
           {canAssign(state.user.role) && (
             <Button
               icon={<SwapOutlined />}
               onClick={() => onNavigate('assignments')}
             >
-              Phân bổ / Bổ nhiệm (2.3 & 2.4)
+              Phân bổ / Bổ nhiệm
             </Button>
           )}
           {canEdit(state.user.role) && (
@@ -252,8 +251,8 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
               }
             >
               {tab === 'departments'
-                ? 'Thêm phòng ban (2.1)'
-                : 'Thêm chức vụ (2.2)'}
+                ? 'Thêm phòng ban'
+                : 'Thêm chức vụ'}
             </Button>
           )}
         </Space>
@@ -291,7 +290,6 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
                       <span>{d.name}</span>
                     </Space>
                   }
-                  extra={<Tag>{d.id}</Tag>}
                   actions={[
                     <Button
                       key="view"
@@ -350,6 +348,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
             dataSource={state.positions}
             pagination={false}
             size="middle"
+            scroll={{ x: 650 }}
           />
         </Card>
       )}
@@ -359,8 +358,8 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
         open={deptModal.open}
         title={
           deptModal.item
-            ? 'Chỉnh sửa phòng ban (2.1)'
-            : 'Thêm phòng ban mới (2.1)'
+            ? 'Chỉnh sửa phòng ban'
+            : 'Thêm phòng ban mới'
         }
         onCancel={() => setDeptModal({ open: false, item: null })}
         footer={null}
@@ -369,13 +368,6 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
           {formError && (
             <Alert type="error" showIcon message={formError} className="mb-4" />
           )}
-          <Form.Item
-            name="id"
-            label="Mã phòng ban"
-            rules={[{ required: true, message: 'Nhập mã phòng ban' }]}
-          >
-            <Input disabled={!!deptModal.item} placeholder="VD: PB07" />
-          </Form.Item>
           <Form.Item
             name="name"
             label="Tên phòng ban"
@@ -393,6 +385,26 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
           <Form.Item name="description" label="Mô tả chức năng">
             <Input.TextArea rows={3} />
           </Form.Item>
+          {deptModal.item && (
+            <>
+              <Form.Item name="head_id" label="Trưởng phòng">
+                <Select
+                  allowClear
+                  placeholder="Chưa có trưởng phòng"
+                  options={state.employees
+                    .filter(
+                      (e) =>
+                        e.department_id === deptModal.item!.id &&
+                        ['Đang làm việc', 'Thử việc'].includes(e.status)
+                    )
+                    .map((e) => ({ value: e.id, label: `${e.name} (${e.id})` }))}
+                />
+              </Form.Item>
+              <Form.Item name="active" label="Đang sử dụng" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </>
+          )}
 
           <div className="flex items-center justify-between pt-2">
             {deptModal.item ? (
@@ -426,7 +438,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
       <Modal
         open={posModal.open}
         title={
-          posModal.item ? 'Chỉnh sửa chức vụ (2.2)' : 'Thêm chức vụ mới (2.2)'
+          posModal.item ? 'Chỉnh sửa chức vụ' : 'Thêm chức vụ mới'
         }
         onCancel={() => setPosModal({ open: false, item: null })}
         footer={null}
@@ -435,13 +447,11 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
           {formError && (
             <Alert type="error" showIcon message={formError} className="mb-4" />
           )}
-          <Form.Item
-            name="id"
-            label="Mã chức vụ"
-            rules={[{ required: true, message: 'Nhập mã chức vụ' }]}
-          >
-            <Input disabled={!!posModal.item} placeholder="VD: CV06" />
-          </Form.Item>
+          {posModal.item && (
+            <Form.Item name="id" label="Mã chức vụ">
+              <Input disabled />
+            </Form.Item>
+          )}
           <Form.Item
             name="name"
             label="Tên chức vụ"
@@ -459,6 +469,33 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
           <Form.Item name="description" label="Mô tả">
             <Input.TextArea rows={3} />
           </Form.Item>
+          <Form.Item
+            name="is_executive"
+            label="Chức vụ điều hành (không thuộc phòng ban)"
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          <Form.Item
+            name="default_role"
+            label="Vai trò tài khoản mặc định"
+            extra="Khi bổ nhiệm vào chức vụ này, vai trò tài khoản tự đồng bộ theo."
+          >
+            <Select
+              allowClear
+              placeholder="Giữ nguyên vai trò hiện tại"
+              options={[
+                { value: 'employee', label: 'Nhân viên' },
+                { value: 'manager', label: 'Trưởng phòng' },
+                { value: 'director', label: 'Giám đốc' },
+              ]}
+            />
+          </Form.Item>
+          {posModal.item && (
+            <Form.Item name="active" label="Đang sử dụng" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+          )}
 
           <div className="flex items-center justify-between pt-2">
             {posModal.item ? (
