@@ -15,7 +15,7 @@
 - **Backend**:
   - `backend/src/routes/contracts.routes.ts`
   - `backend/src/routes/auth.routes.ts` (Xử lý trạng thái hiệu lực và ẩn lương `salary` theo vai trò)
-- **Frontend**: `frontend/src/components/ContractsView.tsx`
+- **Frontend (Ant Design)**: `frontend/src/components/ContractsView.tsx` (Sử dụng `Table`, `Tabs`, `Modal`, `Form`, `InputNumber`, `Descriptions`, `Tag` của `antd`)
 - **Database**: Bảng `contracts` và `extensions` trong `backend/src/db/schema.sql`
 
 ## 3. Danh sách API Endpoints & Quy tắc Nghiệp vụ

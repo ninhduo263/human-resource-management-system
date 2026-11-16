@@ -1,4 +1,4 @@
-import { Pool, PoolClient, QueryResultRow } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,25 +12,25 @@ export const pool = new Pool({
 });
 
 export interface DbExecutor {
-  query<T extends QueryResultRow = any>(sql: string, params?: any[]): Promise<{ rows: T[]; rowCount: number | null }>;
-  one<T extends QueryResultRow = any>(sql: string, params?: any[]): Promise<T | undefined>;
-  all<T extends QueryResultRow = any>(sql: string, params?: any[]): Promise<T[]>;
+  query<T = any>(sql: string, params?: any[]): Promise<{ rows: T[]; rowCount: number | null }>;
+  one<T = any>(sql: string, params?: any[]): Promise<T | undefined>;
+  all<T = any>(sql: string, params?: any[]): Promise<T[]>;
   run(sql: string, params?: any[]): Promise<void>;
 }
 
 function wrapExecutor(clientOrPool: Pool | PoolClient): DbExecutor {
   return {
-    async query<T extends QueryResultRow = any>(sql: string, params: any[] = []) {
-      const res = await clientOrPool.query<T>(sql, params);
-      return { rows: res.rows, rowCount: res.rowCount };
+    async query<T = any>(sql: string, params: any[] = []) {
+      const res = await clientOrPool.query(sql, params);
+      return { rows: res.rows as T[], rowCount: res.rowCount };
     },
-    async one<T extends QueryResultRow = any>(sql: string, params: any[] = []) {
-      const res = await clientOrPool.query<T>(sql, params);
-      return res.rows[0];
+    async one<T = any>(sql: string, params: any[] = []) {
+      const res = await clientOrPool.query(sql, params);
+      return res.rows[0] as T | undefined;
     },
-    async all<T extends QueryResultRow = any>(sql: string, params: any[] = []) {
-      const res = await clientOrPool.query<T>(sql, params);
-      return res.rows;
+    async all<T = any>(sql: string, params: any[] = []) {
+      const res = await clientOrPool.query(sql, params);
+      return res.rows as T[];
     },
     async run(sql: string, params: any[] = []) {
       await clientOrPool.query(sql, params);

@@ -9,10 +9,11 @@
   - `backend/src/middleware/auth.ts`: Xác thực cookie `hr_session`, hàm `requireAuth`, `requireRole`, `canViewEmployee`.
   - `backend/src/routes/auth.routes.ts`: Đăng nhập (`POST /api/login`), đăng xuất (`POST /api/logout`), đổi mật khẩu (`POST /api/password`), lấy dữ liệu tổng thể theo phạm vi quyền (`GET /api/state`).
   - `backend/src/routes/users.routes.ts`: Tạo tài khoản (`POST /api/users`), khóa/mở khóa tài khoản (`POST /api/users/:id/toggle`).
-- **Frontend**:
-  - `frontend/src/components/LoginView.tsx`: Trang đăng nhập và chọn nhanh 5 tài khoản mẫu.
-  - `frontend/src/components/DashboardView.tsx`: Màn hình Tổng quan thống kê, biểu đồ phân bổ phòng ban, cảnh báo hợp đồng sắp hết hạn (30 ngày) và đơn chờ duyệt.
-  - `frontend/src/components/SettingsView.tsx`: Màn hình Quản trị tài khoản, đổi mật khẩu và xem Nhật ký hoạt động (`audit_log`).
+- **Frontend (Ant Design `antd` + `@ant-design/icons`)**:
+  - `frontend/src/App.tsx`: Bố cục `ConfigProvider` (tiếng Việt `viVN`, theme `#12584b`), `Layout`, `Sider`, `Header`, `Menu`, `Badge`, `message`.
+  - `frontend/src/components/LoginView.tsx`: Trang đăng nhập sử dụng `Card`, `Form`, `Input`, `Input.Password`, `Button`, `Alert`, `Tag` và chọn nhanh 5 tài khoản mẫu.
+  - `frontend/src/components/DashboardView.tsx`: Màn hình Tổng quan dùng `Row`, `Col`, `Card`, `Statistic`, `Progress`, `Alert`, `Table`, `Avatar`, `Tag`.
+  - `frontend/src/components/SettingsView.tsx`: Màn hình Quản trị tài khoản dùng `Tabs`, `Table`, `Modal`, `Form`, `Popconfirm`, `Descriptions`.
 
 ## 3. Danh sách API Endpoints
 

@@ -1,17 +1,38 @@
 import React, { useState } from 'react';
-import { Plus, Download, Search, FileText } from 'lucide-react';
-import { AppState, Decision } from '../types';
+import {
+  Card,
+  Table,
+  Tag,
+  Button,
+  Input,
+  Select,
+  Modal,
+  Space,
+  Avatar,
+  Descriptions,
+  Alert,
+  Typography,
+  Divider,
+} from 'antd';
+import {
+  PlusOutlined,
+  DownloadOutlined,
+  SearchOutlined,
+  FileTextOutlined,
+} from '@ant-design/icons';
+import { AppState, Assignment, Decision } from '../types';
 import { apiRequest } from '../api';
 import {
   canAssign,
   downloadCsv,
   formatDate,
-  getAvatarColor,
+  getAntTagColor,
+  getAvatarHex,
   getInitials,
-  getStatusBadgeClass,
   matchEmployeeQuery,
 } from '../utils/format';
-import { Modal } from './Modal';
+
+const { Title, Text } = Typography;
 
 interface AssignmentsViewProps {
   state: AppState;
@@ -26,14 +47,12 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
-  const [page, setPage] = useState(1);
 
   const [formOpen, setFormOpen] = useState(false);
   const [detailDecision, setDetailDecision] = useState<Decision | null>(null);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // State cho biểu mẫu ghi nhận công tác (hỗ trợ tái sử dụng Quyết định 1-N)
   const activeEmployees = state.employees.filter(
     (e) => e.status !== 'Đã lưu trữ'
   );
@@ -59,14 +78,6 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
     matchEmployeeQuery(emp(a.employee_id), search, deptFilter)
   );
 
-  const pageSize = 8;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const rows = filtered.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
   const handleOpenForm = () => {
     const first = activeEmployees[0];
     setSelectedEmpId(first?.id || '');
@@ -82,7 +93,6 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
     setFormOpen(true);
   };
 
-  // Tự động gợi ý loại biến động khi chọn Phòng ban mới / Chức vụ mới
   const updateSuggestedType = (empId: string, dId: string, pId: string) => {
     const e = emp(empId);
     if (!e) return;
@@ -106,7 +116,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
     setReason(d.content);
   };
 
-  const handleSaveAssignment = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSaveAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
     setSubmitting(true);
@@ -163,221 +173,188 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
     );
   };
 
+  const columns = [
+    {
+      title: 'Nhân viên',
+      key: 'employee',
+      render: (_: unknown, a: Assignment) => {
+        const e = emp(a.employee_id);
+        return (
+          <Space>
+            <Avatar style={{ backgroundColor: getAvatarHex(e?.id) }}>
+              {getInitials(e?.name)}
+            </Avatar>
+            <div>
+              <div className="font-semibold text-slate-900">
+                {e?.name || a.employee_id}
+              </div>
+              <div className="text-xs text-slate-400">{a.employee_id}</div>
+            </div>
+          </Space>
+        );
+      },
+    },
+    {
+      title: 'Loại biến động',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type: string) => <Tag color={getAntTagColor(type)}>{type}</Tag>,
+    },
+    {
+      title: 'Phòng ban (Cũ → Mới)',
+      key: 'dept',
+      render: (_: unknown, a: Assignment) => (
+        <span className="text-xs">
+          <Text type="secondary">{deptName(a.old_department_id)}</Text> →{' '}
+          <strong>{deptName(a.new_department_id)}</strong>
+        </span>
+      ),
+    },
+    {
+      title: 'Chức vụ (Cũ → Mới)',
+      key: 'pos',
+      render: (_: unknown, a: Assignment) => (
+        <span className="text-xs">
+          <Text type="secondary">{posName(a.old_position_id)}</Text> →{' '}
+          <strong>{posName(a.new_position_id)}</strong>
+        </span>
+      ),
+    },
+    {
+      title: 'Ngày hiệu lực',
+      dataIndex: 'effective_date',
+      key: 'effective_date',
+      render: (d: string) => formatDate(d),
+    },
+    {
+      title: 'Số quyết định',
+      key: 'decision',
+      render: (_: unknown, a: Assignment) => {
+        const dec = state.decisions.find((d) => d.id === a.decision_id);
+        return <Text code>{dec?.number || a.decision_id}</Text>;
+      },
+    },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      align: 'right' as const,
+      render: (_: unknown, a: Assignment) => {
+        const dec = state.decisions.find((d) => d.id === a.decision_id);
+        return dec ? (
+          <Button
+            size="small"
+            type="link"
+            icon={<FileTextOutlined />}
+            onClick={() => setDetailDecision(dec)}
+          >
+            Xem QĐ
+          </Button>
+        ) : null;
+      },
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-brand-600">
+          <Text className="text-xs font-bold uppercase tracking-wider text-[#12584b]">
             PHÂN HỆ 2.0 & 4.0 · BFD 2.3, 2.4 & 4.1
-          </p>
-          <h1 className="text-2xl font-bold text-slate-900">
+          </Text>
+          <Title level={3} style={{ margin: '4px 0' }}>
             Quá trình công tác & Quyết định
-          </h1>
-          <p className="text-sm text-slate-500">
+          </Title>
+          <Text type="secondary">
             Lưu vết điều chuyển phòng ban (2.3), bổ nhiệm chức vụ (2.4) và quyết định nhân sự 1–N (4.1) (Kho D4).
-          </p>
+          </Text>
         </div>
 
-        <div className="flex items-center gap-2.5 no-print">
-          <button
-            type="button"
-            onClick={handleExport}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
-          >
-            <Download className="h-4 w-4" />
-            <span>Xuất lịch sử</span>
-          </button>
+        <Space className="no-print">
+          <Button icon={<DownloadOutlined />} onClick={handleExport}>
+            Xuất lịch sử
+          </Button>
           {canAssign(state.user.role) && (
-            <button
-              type="button"
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
               onClick={handleOpenForm}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition"
             >
-              <Plus className="h-4 w-4" />
-              <span>Ghi nhận công tác (4.1)</span>
-            </button>
+              Ghi nhận công tác (4.1)
+            </Button>
           )}
-        </div>
+        </Space>
       </div>
 
-      {/* Info banner */}
-      <div className="rounded-2xl bg-brand-50 border border-brand-200 px-5 py-3.5 text-xs text-brand-800">
-        Mỗi thay đổi phòng ban hoặc chức vụ đều gắn với một <strong>Quyết định (QUYETDINH)</strong> và cập nhật đồng thời vào hồ sơ nhân viên trong cùng một giao dịch. Nhiều nhân viên có thể dùng chung một Quyết định (quan hệ 1–N).
-      </div>
+      <Alert
+        type="info"
+        showIcon
+        message="Mỗi thay đổi phòng ban hoặc chức vụ đều gắn với một Quyết định (QUYETDINH) và cập nhật đồng thời vào hồ sơ nhân viên trong cùng một giao dịch. Nhiều nhân viên có thể dùng chung một Quyết định (quan hệ 1–N)."
+      />
 
-      {/* Table */}
-      <section className="rounded-2xl bg-white border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <strong className="text-xs uppercase tracking-wider text-slate-500">
-            Lịch sử biến động nhân sự ({filtered.length})
-          </strong>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative">
-              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Tìm nhân viên..."
-                className="pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs w-52"
-              />
-            </div>
-            <select
+      <Card bordered={false} className="shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <Text strong>Lịch sử biến động nhân sự ({filtered.length})</Text>
+          <Space wrap>
+            <Input
+              prefix={<SearchOutlined className="text-slate-400" />}
+              placeholder="Tìm nhân viên..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              allowClear
+              style={{ width: 200 }}
+            />
+            <Select
               value={deptFilter}
-              onChange={(e) => {
-                setDeptFilter(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs"
-            >
-              <option value="">Tất cả phòng ban</option>
-              {state.departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
+              onChange={setDeptFilter}
+              style={{ width: 170 }}
+              options={[
+                { value: '', label: 'Tất cả phòng ban' },
+                ...state.departments.map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                })),
+              ]}
+            />
+          </Space>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-xs font-semibold text-slate-500 uppercase">
-                <th className="py-3 px-6">Nhân viên</th>
-                <th className="py-3 px-4">Loại biến động</th>
-                <th className="py-3 px-4">Phòng ban (Cũ → Mới)</th>
-                <th className="py-3 px-4">Chức vụ (Cũ → Mới)</th>
-                <th className="py-3 px-4">Ngày hiệu lực</th>
-                <th className="py-3 px-4">Số quyết định</th>
-                <th className="py-3 px-6 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-10 text-center text-sm text-slate-400">
-                    Chưa có lịch sử quá trình công tác.
-                  </td>
-                </tr>
-              ) : (
-                rows.map((a) => {
-                  const e = emp(a.employee_id);
-                  const dec = state.decisions.find(
-                    (d) => d.id === a.decision_id
-                  );
-                  return (
-                    <tr key={a.id} className="hover:bg-slate-50/80">
-                      <td className="py-3 px-6">
-                        <div className="flex items-center gap-2.5">
-                          <span
-                            className={`h-8 w-8 rounded-full border flex items-center justify-center text-xs font-bold ${getAvatarColor(
-                              e?.id
-                            )}`}
-                          >
-                            {getInitials(e?.name)}
-                          </span>
-                          <div>
-                            <div className="font-semibold text-slate-900 text-xs">
-                              {e?.name || a.employee_id}
-                            </div>
-                            <div className="text-[11px] text-slate-400">
-                              {a.employee_id}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(
-                            a.type
-                          )}`}
-                        >
-                          {a.type}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-xs text-slate-700">
-                        <span className="text-slate-400">
-                          {deptName(a.old_department_id)}
-                        </span>{' '}
-                        →{' '}
-                        <strong className="text-slate-900">
-                          {deptName(a.new_department_id)}
-                        </strong>
-                      </td>
-                      <td className="py-3 px-4 text-xs text-slate-700">
-                        <span className="text-slate-400">
-                          {posName(a.old_position_id)}
-                        </span>{' '}
-                        →{' '}
-                        <strong className="text-slate-900">
-                          {posName(a.new_position_id)}
-                        </strong>
-                      </td>
-                      <td className="py-3 px-4 text-xs text-slate-600">
-                        {formatDate(a.effective_date)}
-                      </td>
-                      <td className="py-3 px-4 font-mono text-xs font-semibold text-slate-800">
-                        {dec?.number || a.decision_id}
-                      </td>
-                      <td className="py-3 px-6 text-right">
-                        {dec && (
-                          <button
-                            type="button"
-                            onClick={() => setDetailDecision(dec)}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
-                          >
-                            <FileText className="h-3.5 w-3.5" />
-                            <span>Xem QĐ</span>
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={filtered}
+          pagination={{ pageSize: 8, showSizeChanger: false }}
+          size="middle"
+        />
+      </Card>
 
       {/* Modal Ghi nhận công tác (4.1) */}
       <Modal
         open={formOpen}
         title="Ghi nhận quá trình công tác & Quyết định (4.1)"
-        onClose={() => setFormOpen(false)}
-        wide
+        onCancel={() => setFormOpen(false)}
+        footer={null}
+        width={680}
       >
-        <form onSubmit={handleSaveAssignment} className="space-y-4">
+        <form onSubmit={handleSaveAssignment} className="space-y-4 mt-3">
           {formError && (
-            <div className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-2.5 text-xs text-rose-700">
-              {formError}
-            </div>
+            <Alert type="error" showIcon message={formError} />
           )}
 
           {state.decisions.length > 0 && (
-            <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <div className="text-xs font-semibold text-slate-700 mb-1.5">
                 Dùng chung Quyết định đã ban hành (Quan hệ ERD 1 Quyết định – Nhiều Quá trình công tác)
-              </label>
-              <select
-                onChange={(e) => handleSelectExistingDecision(e.target.value)}
-                defaultValue=""
-                className="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs bg-white"
-              >
-                <option value="">
-                  — Tạo quyết định mới hoặc chọn quyết định có sẵn để điền nhanh —
-                </option>
-                {state.decisions.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.number} · {d.type} · Ngày HL: {d.effective_date} (Người ký: {d.signer})
-                  </option>
-                ))}
-              </select>
+              </div>
+              <Select
+                className="w-full"
+                placeholder="— Tạo quyết định mới hoặc chọn quyết định có sẵn để điền nhanh —"
+                allowClear
+                onChange={(val) => val && handleSelectExistingDecision(val)}
+                options={state.decisions.map((d) => ({
+                  value: d.id,
+                  label: `${d.number} · ${d.type} · Ngày HL: ${d.effective_date} (Người ký: ${d.signer})`,
+                }))}
+              />
             </div>
           )}
 
@@ -386,10 +363,9 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Nhân viên *
               </label>
-              <select
+              <Select
                 value={selectedEmpId}
-                onChange={(e) => {
-                  const id = e.target.value;
+                onChange={(id) => {
                   setSelectedEmpId(id);
                   const target = emp(id);
                   if (target) {
@@ -397,86 +373,80 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                     setNewPosId(target.position_id);
                   }
                 }}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              >
-                {activeEmployees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.id} - {e.name} (Hiện tại: {deptName(e.department_id)} ·{' '}
-                    {posName(e.position_id)})
-                  </option>
-                ))}
-              </select>
+                className="w-full"
+                options={activeEmployees.map((e) => ({
+                  value: e.id,
+                  label: `${e.id} - ${e.name} (Hiện tại: ${deptName(
+                    e.department_id
+                  )} · ${posName(e.position_id)})`,
+                }))}
+              />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Phòng ban mới *
               </label>
-              <select
+              <Select
                 value={newDeptId}
-                onChange={(e) => {
-                  setNewDeptId(e.target.value);
-                  updateSuggestedType(selectedEmpId, e.target.value, newPosId);
+                onChange={(val) => {
+                  setNewDeptId(val);
+                  updateSuggestedType(selectedEmpId, val, newPosId);
                 }}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              >
-                {state.departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
+                className="w-full"
+                options={state.departments.map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                }))}
+              />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Chức vụ mới *
               </label>
-              <select
+              <Select
                 value={newPosId}
-                onChange={(e) => {
-                  setNewPosId(e.target.value);
-                  updateSuggestedType(selectedEmpId, newDeptId, e.target.value);
+                onChange={(val) => {
+                  setNewPosId(val);
+                  updateSuggestedType(selectedEmpId, newDeptId, val);
                 }}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              >
-                {state.positions.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                className="w-full"
+                options={state.positions.map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                }))}
+              />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Loại biến động *
               </label>
-              <select
+              <Select
                 value={moveType}
-                onChange={(e) => setMoveType(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="Điều chuyển">Điều chuyển</option>
-                <option value="Bổ nhiệm">Bổ nhiệm</option>
-                <option value="Điều chuyển và bổ nhiệm">
-                  Điều chuyển và bổ nhiệm
-                </option>
-              </select>
+                onChange={setMoveType}
+                className="w-full"
+                options={[
+                  { value: 'Điều chuyển', label: 'Điều chuyển' },
+                  { value: 'Bổ nhiệm', label: 'Bổ nhiệm' },
+                  {
+                    value: 'Điều chuyển và bổ nhiệm',
+                    label: 'Điều chuyển và bổ nhiệm',
+                  },
+                ]}
+              />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Số quyết định *
               </label>
-              <input
-                type="text"
+              <Input
                 required
                 value={decisionNumber}
                 onChange={(e) => setDecisionNumber(e.target.value)}
-                maxLength={60}
                 placeholder="VD: 02/2026/QD-NS"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </div>
 
@@ -484,13 +454,12 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Ngày ký quyết định *
               </label>
-              <input
+              <Input
                 type="date"
                 required
                 max={state.today}
                 value={signedDate}
                 onChange={(e) => setSignedDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </div>
 
@@ -498,13 +467,12 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Ngày hiệu lực *
               </label>
-              <input
+              <Input
                 type="date"
                 required
                 max={state.today}
                 value={effectiveDate}
                 onChange={(e) => setEffectiveDate(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </div>
 
@@ -512,13 +480,10 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Người ký quyết định *
               </label>
-              <input
-                type="text"
+              <Input
                 required
                 value={signer}
                 onChange={(e) => setSigner(e.target.value)}
-                maxLength={120}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </div>
 
@@ -526,31 +491,20 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Nội dung quyết định / Lý do biến động *
               </label>
-              <textarea
+              <Input.TextArea
                 rows={3}
                 required
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setFormOpen(false)}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600"
-            >
-              Đóng
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
-            >
+          <div className="flex justify-end gap-2 pt-2">
+            <Button onClick={() => setFormOpen(false)}>Đóng</Button>
+            <Button type="primary" htmlType="submit" loading={submitting}>
               Lưu quyết định & Cập nhật hồ sơ
-            </button>
+            </Button>
           </div>
         </form>
       </Modal>
@@ -559,79 +513,58 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
       <Modal
         open={!!detailDecision}
         title="Chi tiết Quyết định nhân sự (Thực thể QUYETDINH)"
-        onClose={() => setDetailDecision(null)}
+        onCancel={() => setDetailDecision(null)}
+        footer={
+          <Button onClick={() => setDetailDecision(null)}>Đóng</Button>
+        }
       >
         {detailDecision && (
-          <div className="space-y-4 text-xs">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-slate-400 block">Mã bản ghi</span>
-                <strong className="text-slate-900 font-mono">
-                  {detailDecision.id}
-                </strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Số quyết định</span>
-                <strong className="text-slate-900 font-mono">
-                  {detailDecision.number}
-                </strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Loại quyết định</span>
-                <strong className="text-slate-900">
-                  {detailDecision.type}
-                </strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Người ký</span>
-                <strong className="text-slate-900">
-                  {detailDecision.signer}
-                </strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Ngày ký</span>
-                <strong className="text-slate-900">
-                  {formatDate(detailDecision.signed_date)}
-                </strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Ngày hiệu lực</span>
-                <strong className="text-slate-900">
-                  {formatDate(detailDecision.effective_date)}
-                </strong>
-              </div>
-              <div className="col-span-2">
-                <span className="text-slate-400 block">Nội dung quyết định</span>
-                <p className="text-slate-800 mt-1 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                  {detailDecision.content}
-                </p>
-              </div>
-            </div>
+          <div className="space-y-4">
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Mã bản ghi">
+                <Text code>{detailDecision.id}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Số quyết định">
+                <Text code>{detailDecision.number}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Loại quyết định">
+                {detailDecision.type}
+              </Descriptions.Item>
+              <Descriptions.Item label="Người ký">
+                {detailDecision.signer}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày ký">
+                {formatDate(detailDecision.signed_date)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày hiệu lực">
+                {formatDate(detailDecision.effective_date)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Nội dung" span={2}>
+                {detailDecision.content}
+              </Descriptions.Item>
+            </Descriptions>
 
-            <div>
-              <span className="text-slate-400 block mb-1.5">
-                Danh sách nhân sự áp dụng theo quyết định này:
-              </span>
-              <div className="space-y-1.5">
-                {state.assignments
-                  .filter((a) => a.decision_id === detailDecision.id)
-                  .map((a) => (
-                    <div
-                      key={a.id}
-                      className="rounded-xl border border-slate-200 px-3 py-2 flex justify-between"
-                    >
+            <Divider orientation="left" plain>
+              Nhân sự áp dụng theo quyết định này
+            </Divider>
+            <div className="space-y-2">
+              {state.assignments
+                .filter((a) => a.decision_id === detailDecision.id)
+                .map((a) => (
+                  <Card key={a.id} size="small">
+                    <div className="flex justify-between text-xs">
                       <strong>
                         {emp(a.employee_id)?.name || a.employee_id}
                       </strong>
-                      <span className="text-slate-500">
+                      <Text type="secondary">
                         {deptName(a.old_department_id)} →{' '}
                         {deptName(a.new_department_id)} |{' '}
                         {posName(a.old_position_id)} →{' '}
                         {posName(a.new_position_id)}
-                      </span>
+                      </Text>
                     </div>
-                  ))}
-              </div>
+                  </Card>
+                ))}
             </div>
           </div>
         )}

@@ -13,7 +13,7 @@
 
 ## 2. Các File Mã nguồn Liên quan
 - **Backend**: `backend/src/routes/employees.routes.ts`
-- **Frontend**: `frontend/src/components/EmployeesView.tsx`
+- **Frontend (Ant Design)**: `frontend/src/components/EmployeesView.tsx` (Sử dụng `Table`, `Tabs`, `Input`, `Select`, `Modal`, `Form`, `Descriptions`, `Popconfirm`, `Avatar`, `Tag` của `antd`)
 - **Database**: Bảng `employees` và `leave_balances` trong `backend/src/db/schema.sql`
 
 ## 3. Danh sách API Endpoints & Quy tắc Nghiệp vụ

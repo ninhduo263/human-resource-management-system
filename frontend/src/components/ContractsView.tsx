@@ -1,12 +1,30 @@
 import React, { useState } from 'react';
 import {
-  Plus,
-  Download,
-  Search,
-  Eye,
-  CalendarPlus,
-  XCircle,
-} from 'lucide-react';
+  Card,
+  Table,
+  Tag,
+  Button,
+  Input,
+  InputNumber,
+  Select,
+  Tabs,
+  Modal,
+  Form,
+  Space,
+  Avatar,
+  Descriptions,
+  Alert,
+  Typography,
+  Divider,
+} from 'antd';
+import {
+  PlusOutlined,
+  DownloadOutlined,
+  SearchOutlined,
+  EyeOutlined,
+  CalendarOutlined,
+  CloseCircleOutlined,
+} from '@ant-design/icons';
 import { AppState, Contract } from '../types';
 import { apiRequest } from '../api';
 import {
@@ -14,13 +32,14 @@ import {
   downloadCsv,
   formatDate,
   formatMoney,
-  getAvatarColor,
+  getAntTagColor,
+  getAvatarHex,
   getContractStatus,
   getInitials,
-  getStatusBadgeClass,
   matchEmployeeQuery,
 } from '../utils/format';
-import { Modal } from './Modal';
+
+const { Title, Text } = Typography;
 
 interface ContractsViewProps {
   state: AppState;
@@ -37,7 +56,6 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [page, setPage] = useState(1);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [contractType, setContractType] = useState<string>('Xác định thời hạn');
@@ -46,6 +64,10 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
   const [terminateTarget, setTerminateTarget] = useState<Contract | null>(null);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const [createForm] = Form.useForm();
+  const [extendForm] = Form.useForm();
+  const [terminateForm] = Form.useForm();
 
   const emp = (id: string) => state.employees.find((e) => e.id === id);
   const activeEmployees = state.employees.filter(
@@ -63,24 +85,28 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     );
   });
 
-  const pageSize = 8;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const rows = filtered.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const handleOpenCreate = () => {
+    setFormError('');
+    setContractType('Xác định thời hạn');
+    createForm.resetFields();
+    createForm.setFieldsValue({
+      employee_id: activeEmployees[0]?.id,
+      type: 'Xác định thời hạn',
+      start_date: state.today,
+    });
+    setCreateOpen(true);
+  };
 
-  const handleCreateContract = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleCreateContract = async (values: Record<string, any>) => {
     setFormError('');
     setSubmitting(true);
-    const raw = Object.fromEntries(new FormData(e.currentTarget).entries());
     const body = {
-      ...raw,
-      salary: Number(raw.salary),
+      ...values,
+      salary: Number(values.salary),
       end_date:
-        raw.type === 'Không xác định thời hạn' ? null : raw.end_date || null,
+        values.type === 'Không xác định thời hạn'
+          ? null
+          : values.end_date || null,
     };
     try {
       await apiRequest('/api/contracts', body, 'POST');
@@ -94,16 +120,14 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     }
   };
 
-  const handleExtendContract = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleExtendContract = async (values: Record<string, any>) => {
     if (!extendTarget) return;
     setFormError('');
     setSubmitting(true);
-    const body = Object.fromEntries(new FormData(e.currentTarget).entries());
     try {
       await apiRequest(
         `/api/contracts/${encodeURIComponent(extendTarget.id)}/extend`,
-        body,
+        values,
         'POST'
       );
       setExtendTarget(null);
@@ -117,18 +141,14 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     }
   };
 
-  const handleTerminateContract = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
-    e.preventDefault();
+  const handleTerminateContract = async (values: Record<string, any>) => {
     if (!terminateTarget) return;
     setFormError('');
     setSubmitting(true);
-    const body = Object.fromEntries(new FormData(e.currentTarget).entries());
     try {
       await apiRequest(
         `/api/contracts/${encodeURIComponent(terminateTarget.id)}/terminate`,
-        body,
+        values,
         'POST'
       );
       setTerminateTarget(null);
@@ -166,541 +186,417 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     );
   };
 
+  const columns = [
+    {
+      title: 'Mã HĐ',
+      dataIndex: 'id',
+      key: 'id',
+      render: (id: string) => <Text code>{id}</Text>,
+    },
+    {
+      title: 'Nhân viên',
+      key: 'employee',
+      render: (_: unknown, c: Contract) => {
+        const e = emp(c.employee_id);
+        return (
+          <Space>
+            <Avatar style={{ backgroundColor: getAvatarHex(e?.id) }}>
+              {getInitials(e?.name)}
+            </Avatar>
+            <div>
+              <div className="font-semibold text-slate-900">
+                {e?.name || c.employee_id}
+              </div>
+              <div className="text-xs text-slate-400">{c.employee_id}</div>
+            </div>
+          </Space>
+        );
+      },
+    },
+    {
+      title: 'Loại hợp đồng',
+      dataIndex: 'type',
+      key: 'type',
+    },
+    {
+      title: 'Thời hạn',
+      key: 'duration',
+      render: (_: unknown, c: Contract) => (
+        <div className="text-xs">
+          <div>{formatDate(c.start_date)}</div>
+          <Text type="secondary">đến {formatDate(c.end_date)}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Mức lương / tháng',
+      dataIndex: 'salary',
+      key: 'salary',
+      render: (salary: number | null) => (
+        <Text strong={salary != null} type={salary == null ? 'secondary' : undefined}>
+          {formatMoney(salary)}
+        </Text>
+      ),
+    },
+    {
+      title: 'Trạng thái',
+      key: 'status',
+      render: (_: unknown, c: Contract) => {
+        const st = getContractStatus(c, state.today);
+        return <Tag color={getAntTagColor(st)}>{st}</Tag>;
+      },
+    },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      align: 'right' as const,
+      render: (_: unknown, c: Contract) => (
+        <Button
+          size="small"
+          type="link"
+          icon={<EyeOutlined />}
+          onClick={() => setDetailContract(c)}
+        >
+          Chi tiết
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-brand-600">
+          <Text className="text-xs font-bold uppercase tracking-wider text-[#12584b]">
             PHÂN HỆ 3.0 · BFD 3.1 – 3.4
-          </p>
-          <h1 className="text-2xl font-bold text-slate-900">
+          </Text>
+          <Title level={3} style={{ margin: '4px 0' }}>
             Hợp đồng lao động
-          </h1>
-          <p className="text-sm text-slate-500">
+          </Title>
+          <Text type="secondary">
             Lập hợp đồng (3.1), gia hạn có lịch sử (3.2), chấm dứt (3.3) và theo dõi hết hạn 30 ngày (3.4) (Kho D3).
-          </p>
+          </Text>
         </div>
 
-        <div className="flex items-center gap-2.5 no-print">
-          <button
-            type="button"
-            onClick={handleExport}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
-          >
-            <Download className="h-4 w-4" />
-            <span>Xuất CSV</span>
-          </button>
+        <Space className="no-print">
+          <Button icon={<DownloadOutlined />} onClick={handleExport}>
+            Xuất CSV
+          </Button>
           {canEdit(state.user.role) && (
-            <button
-              type="button"
-              onClick={() => {
-                setFormError('');
-                setContractType('Xác định thời hạn');
-                setCreateOpen(true);
-              }}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition"
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleOpenCreate}
             >
-              <Plus className="h-4 w-4" />
-              <span>Lập hợp đồng (3.1)</span>
-            </button>
+              Lập hợp đồng (3.1)
+            </Button>
           )}
-        </div>
+        </Space>
       </div>
 
-      {/* Panel */}
-      <section className="rounded-2xl bg-white border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setTab('all');
-                setPage(1);
-              }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
-                tab === 'all'
-                  ? 'bg-brand-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Tất cả hợp đồng ({state.contracts.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setTab('expiring');
-                setPage(1);
-              }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
-                tab === 'expiring'
-                  ? 'bg-brand-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Sắp hết hạn 30 ngày (
+      <Card bordered={false} className="shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+          <Tabs
+            activeKey={tab}
+            onChange={(k) => setTab(k as 'all' | 'expiring')}
+            items={[
               {
-                state.contracts.filter(
-                  (c) => getContractStatus(c, state.today) === 'Sắp hết hạn'
-                ).length
-              }
-              )
-            </button>
-          </div>
+                key: 'all',
+                label: `Tất cả hợp đồng (${state.contracts.length})`,
+              },
+              {
+                key: 'expiring',
+                label: `Sắp hết hạn 30 ngày (${
+                  state.contracts.filter(
+                    (c) => getContractStatus(c, state.today) === 'Sắp hết hạn'
+                  ).length
+                })`,
+              },
+            ]}
+          />
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative">
-              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Tìm nhân viên..."
-                className="pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:border-brand-600 focus:outline-none w-52"
-              />
-            </div>
-
-            <select
+          <Space wrap>
+            <Input
+              prefix={<SearchOutlined className="text-slate-400" />}
+              placeholder="Tìm nhân viên..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              allowClear
+              style={{ width: 200 }}
+            />
+            <Select
               value={deptFilter}
-              onChange={(e) => {
-                setDeptFilter(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs"
-            >
-              <option value="">Tất cả phòng ban</option>
-              {state.departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-
-            <select
+              onChange={setDeptFilter}
+              style={{ width: 170 }}
+              options={[
+                { value: '', label: 'Tất cả phòng ban' },
+                ...state.departments.map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                })),
+              ]}
+            />
+            <Select
               value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs"
-            >
-              <option value="">Tất cả trạng thái</option>
-              {[
-                'Hiệu lực',
-                'Sắp hết hạn',
-                'Hết hạn',
-                'Chưa hiệu lực',
-                'Đã chấm dứt',
-              ].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
+              onChange={setStatusFilter}
+              style={{ width: 170 }}
+              options={[
+                { value: '', label: 'Tất cả trạng thái' },
+                ...[
+                  'Hiệu lực',
+                  'Sắp hết hạn',
+                  'Hết hạn',
+                  'Chưa hiệu lực',
+                  'Đã chấm dứt',
+                ].map((s) => ({ value: s, label: s })),
+              ]}
+            />
+          </Space>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-xs font-semibold text-slate-500 uppercase">
-                <th className="py-3 px-6">Mã HĐ</th>
-                <th className="py-3 px-4">Nhân viên</th>
-                <th className="py-3 px-4">Loại hợp đồng</th>
-                <th className="py-3 px-4">Thời hạn</th>
-                <th className="py-3 px-4">Mức lương / tháng</th>
-                <th className="py-3 px-4">Trạng thái</th>
-                <th className="py-3 px-6 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-10 text-center text-sm text-slate-400">
-                    Không có hợp đồng phù hợp.
-                  </td>
-                </tr>
-              ) : (
-                rows.map((c) => {
-                  const e = emp(c.employee_id);
-                  const st = getContractStatus(c, state.today);
-                  return (
-                    <tr key={c.id} className="hover:bg-slate-50/80">
-                      <td className="py-3 px-6 font-mono text-xs font-bold text-slate-900">
-                        {c.id}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <span
-                            className={`h-8 w-8 rounded-full border flex items-center justify-center text-xs font-bold ${getAvatarColor(
-                              e?.id
-                            )}`}
-                          >
-                            {getInitials(e?.name)}
-                          </span>
-                          <div>
-                            <div className="font-semibold text-slate-900 text-xs">
-                              {e?.name || c.employee_id}
-                            </div>
-                            <div className="text-[11px] text-slate-400">
-                              {c.employee_id}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-xs text-slate-700">
-                        {c.type}
-                      </td>
-                      <td className="py-3 px-4 text-xs text-slate-600">
-                        <div>{formatDate(c.start_date)}</div>
-                        <div className="text-[11px] text-slate-400">
-                          đến {formatDate(c.end_date)}
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-xs font-semibold text-slate-800">
-                        {formatMoney(c.salary)}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(
-                            st
-                          )}`}
-                        >
-                          {st}
-                        </span>
-                      </td>
-                      <td className="py-3 px-6 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setDetailContract(c)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                          <span>Chi tiết</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <span>
-            Hiển thị{' '}
-            {filtered.length
-              ? `${(currentPage - 1) * pageSize + 1}–${Math.min(
-                  currentPage * pageSize,
-                  filtered.length
-                )}`
-              : '0'}{' '}
-            trong {filtered.length} hợp đồng
-          </span>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPage(p)}
-                className={`h-7 w-7 rounded-lg font-medium ${
-                  currentPage === p
-                    ? 'bg-brand-600 text-white'
-                    : 'hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={filtered}
+          pagination={{ pageSize: 8, showSizeChanger: false }}
+          size="middle"
+        />
+      </Card>
 
       {/* Modal Lập hợp đồng mới (3.1) */}
       <Modal
         open={createOpen}
         title="Lập hợp đồng lao động mới (3.1)"
-        onClose={() => setCreateOpen(false)}
+        onCancel={() => setCreateOpen(false)}
+        footer={null}
+        width={640}
       >
-        <form onSubmit={handleCreateContract} className="space-y-4">
+        <Form
+          form={createForm}
+          layout="vertical"
+          onFinish={handleCreateContract}
+          className="mt-3"
+        >
           {formError && (
-            <div className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-2.5 text-xs text-rose-700">
-              {formError}
-            </div>
+            <Alert type="error" showIcon message={formError} className="mb-4" />
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Mã hợp đồng *
-              </label>
-              <input
-                name="id"
-                type="text"
-                required
-                maxLength={30}
-                placeholder="VD: HD013"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+            <Form.Item
+              name="id"
+              label="Mã hợp đồng"
+              rules={[{ required: true, message: 'Nhập mã hợp đồng' }]}
+            >
+              <Input placeholder="VD: HD013" />
+            </Form.Item>
+
+            <Form.Item
+              name="employee_id"
+              label="Nhân viên"
+              rules={[{ required: true, message: 'Chọn nhân viên' }]}
+            >
+              <Select
+                options={activeEmployees.map((e) => ({
+                  value: e.id,
+                  label: `${e.id} - ${e.name}`,
+                }))}
               />
-            </div>
+            </Form.Item>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Nhân viên *
-              </label>
-              <select
-                name="employee_id"
-                required
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              >
-                {activeEmployees.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.id} - {e.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <Form.Item
+              name="type"
+              label="Loại hợp đồng"
+              rules={[{ required: true }]}
+            >
+              <Select
+                onChange={(val) => setContractType(val)}
+                options={[
+                  { value: 'Thử việc', label: 'Thử việc' },
+                  { value: 'Xác định thời hạn', label: 'Xác định thời hạn' },
+                  {
+                    value: 'Không xác định thời hạn',
+                    label: 'Không xác định thời hạn',
+                  },
+                ]}
+              />
+            </Form.Item>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Loại hợp đồng *
-              </label>
-              <select
-                name="type"
-                value={contractType}
-                onChange={(e) => setContractType(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="Thử việc">Thử việc</option>
-                <option value="Xác định thời hạn">Xác định thời hạn</option>
-                <option value="Không xác định thời hạn">
-                  Không xác định thời hạn
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Mức lương tháng (VND) *
-              </label>
-              <input
-                name="salary"
-                type="number"
-                required
+            <Form.Item
+              name="salary"
+              label="Mức lương tháng (VND)"
+              rules={[{ required: true, message: 'Nhập mức lương' }]}
+            >
+              <InputNumber
                 min={1}
                 max={100000000000}
-                step={1}
+                className="w-full"
                 placeholder="VD: 15000000"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
               />
-            </div>
+            </Form.Item>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ngày bắt đầu *
-              </label>
-              <input
-                name="start_date"
-                type="date"
-                required
-                defaultValue={state.today}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
+            <Form.Item
+              name="start_date"
+              label="Ngày bắt đầu"
+              rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}
+            >
+              <Input type="date" />
+            </Form.Item>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ngày kết thúc{' '}
-                {contractType !== 'Không xác định thời hạn' ? '*' : ''}
-              </label>
-              <input
-                name="end_date"
+            <Form.Item
+              name="end_date"
+              label="Ngày kết thúc"
+              rules={[
+                {
+                  required: contractType !== 'Không xác định thời hạn',
+                  message: 'Chọn ngày kết thúc',
+                },
+              ]}
+            >
+              <Input
                 type="date"
-                required={contractType !== 'Không xác định thời hạn'}
                 disabled={contractType === 'Không xác định thời hạn'}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
               />
-            </div>
+            </Form.Item>
           </div>
 
-          <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200">
-            Hệ thống kiểm tra ngày bắt đầu không trước ngày vào làm và không trùng thời hạn với hợp đồng chưa chấm dứt của cùng nhân viên.
-          </p>
+          <Alert
+            type="info"
+            showIcon
+            className="mb-4"
+            message="Hệ thống tự động kiểm tra ngày bắt đầu không trước ngày vào làm và không trùng thời gian với hợp đồng hiện hành."
+          />
 
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setCreateOpen(false)}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600"
-            >
-              Đóng
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
-            >
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setCreateOpen(false)}>Đóng</Button>
+            <Button type="primary" htmlType="submit" loading={submitting}>
               Lưu hợp đồng
-            </button>
+            </Button>
           </div>
-        </form>
+        </Form>
       </Modal>
 
-      {/* Modal Chi tiết Hợp đồng & Lịch sử Gia hạn */}
+      {/* Modal Chi tiết Hợp đồng */}
       <Modal
         open={!!detailContract}
         title="Chi tiết hợp đồng lao động"
-        onClose={() => setDetailContract(null)}
-        wide
-      >
-        {detailContract && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  Hợp đồng {detailContract.id}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Nhân viên:{' '}
-                  <strong>
-                    {emp(detailContract.employee_id)?.name ||
-                      detailContract.employee_id}
-                  </strong>{' '}
-                  ({detailContract.employee_id})
-                </p>
-              </div>
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusBadgeClass(
-                  getContractStatus(detailContract, state.today)
-                )}`}
-              >
-                {getContractStatus(detailContract, state.today)}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-              <div>
-                <span className="text-slate-400 block">Loại hợp đồng</span>
-                <strong className="text-slate-800">{detailContract.type}</strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Mức lương / tháng</span>
-                <strong className="text-slate-800">
-                  {formatMoney(detailContract.salary)}
-                </strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Ngày bắt đầu</span>
-                <strong className="text-slate-800">
-                  {formatDate(detailContract.start_date)}
-                </strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Ngày kết thúc</span>
-                <strong className="text-slate-800">
-                  {formatDate(detailContract.end_date)}
-                </strong>
-              </div>
-              {detailContract.terminated_date && (
-                <>
-                  <div>
-                    <span className="text-slate-400 block">Ngày chấm dứt</span>
-                    <strong className="text-rose-700">
-                      {formatDate(detailContract.terminated_date)}
-                    </strong>
-                  </div>
-                  <div className="col-span-3">
-                    <span className="text-slate-400 block">Lý do chấm dứt</span>
-                    <strong className="text-slate-800">
-                      {detailContract.termination_reason}
-                    </strong>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Lịch sử gia hạn (GIAHANHOPDONG) */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Lịch sử gia hạn hợp đồng (3.2 - Thực thể GIAHANHOPDONG)
-              </h4>
-              <div className="space-y-2">
-                {state.extensions
-                  .filter((ex) => ex.contract_id === detailContract.id)
-                  .map((ex) => (
-                    <div
-                      key={ex.id}
-                      className="rounded-xl border border-slate-200 px-4 py-3 text-xs"
-                    >
-                      <div className="flex justify-between font-semibold text-slate-900">
-                        <span>
-                          Lần gia hạn thứ {ex.sequence} ({ex.id})
-                        </span>
-                        <span>Ngày lập: {formatDate(ex.created_date)}</span>
-                      </div>
-                      <div className="text-slate-600 mt-1">
-                        Hạn cũ: {formatDate(ex.old_end_date)} → Hạn mới:{' '}
-                        <strong className="text-emerald-700">
-                          {formatDate(ex.new_end_date)}
-                        </strong>
-                      </div>
-                      <div className="text-slate-500 mt-0.5">
-                        Lý do: {ex.reason}
-                      </div>
-                    </div>
-                  ))}
-                {state.extensions.filter(
-                  (ex) => ex.contract_id === detailContract.id
-                ).length === 0 && (
-                  <p className="text-xs text-slate-400">
-                    Chưa có lần gia hạn nào.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setDetailContract(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600"
-              >
-                Đóng
-              </button>
+        onCancel={() => setDetailContract(null)}
+        width={720}
+        footer={
+          detailContract && (
+            <Space>
+              <Button onClick={() => setDetailContract(null)}>Đóng</Button>
               {canEdit(state.user.role) &&
                 detailContract.status !== 'Đã chấm dứt' && (
                   <>
-                    <button
-                      type="button"
+                    <Button
+                      danger
+                      icon={<CloseCircleOutlined />}
                       onClick={() => {
                         setFormError('');
+                        terminateForm.resetFields();
+                        terminateForm.setFieldsValue({
+                          terminated_date: state.today,
+                        });
                         setTerminateTarget(detailContract);
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                     >
-                      <XCircle className="h-3.5 w-3.5" />
-                      <span>Chấm dứt HĐ (3.3)</span>
-                    </button>
+                      Chấm dứt HĐ (3.3)
+                    </Button>
                     {detailContract.end_date && (
-                      <button
-                        type="button"
+                      <Button
+                        type="primary"
+                        icon={<CalendarOutlined />}
                         onClick={() => {
                           setFormError('');
+                          extendForm.resetFields();
                           setExtendTarget(detailContract);
                         }}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
                       >
-                        <CalendarPlus className="h-3.5 w-3.5" />
-                        <span>Gia hạn hợp đồng (3.2)</span>
-                      </button>
+                        Gia hạn hợp đồng (3.2)
+                      </Button>
                     )}
                   </>
                 )}
+            </Space>
+          )
+        }
+      >
+        {detailContract && (
+          <div className="space-y-4">
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Mã hợp đồng">
+                <Text code>{detailContract.id}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">
+                <Tag
+                  color={getAntTagColor(
+                    getContractStatus(detailContract, state.today)
+                  )}
+                >
+                  {getContractStatus(detailContract, state.today)}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="Nhân viên">
+                <strong>
+                  {emp(detailContract.employee_id)?.name ||
+                    detailContract.employee_id}
+                </strong>{' '}
+                ({detailContract.employee_id})
+              </Descriptions.Item>
+              <Descriptions.Item label="Loại hợp đồng">
+                {detailContract.type}
+              </Descriptions.Item>
+              <Descriptions.Item label="Mức lương / tháng">
+                <strong>{formatMoney(detailContract.salary)}</strong>
+              </Descriptions.Item>
+              <Descriptions.Item label="Thời hạn">
+                {formatDate(detailContract.start_date)} →{' '}
+                {formatDate(detailContract.end_date)}
+              </Descriptions.Item>
+              {detailContract.terminated_date && (
+                <>
+                  <Descriptions.Item label="Ngày chấm dứt">
+                    <Text type="danger">
+                      {formatDate(detailContract.terminated_date)}
+                    </Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Lý do chấm dứt">
+                    {detailContract.termination_reason}
+                  </Descriptions.Item>
+                </>
+              )}
+            </Descriptions>
+
+            <Divider orientation="left" plain>
+              Lịch sử gia hạn hợp đồng (3.2 - Thực thể GIAHANHOPDONG)
+            </Divider>
+            <div className="space-y-2">
+              {state.extensions
+                .filter((ex) => ex.contract_id === detailContract.id)
+                .map((ex) => (
+                  <Card key={ex.id} size="small">
+                    <div className="flex justify-between font-semibold">
+                      <span>
+                        Lần gia hạn thứ {ex.sequence} ({ex.id})
+                      </span>
+                      <span>Ngày lập: {formatDate(ex.created_date)}</span>
+                    </div>
+                    <div className="text-xs text-slate-600 mt-1">
+                      Hạn cũ: {formatDate(ex.old_end_date)} → Hạn mới:{' '}
+                      <strong className="text-emerald-700">
+                        {formatDate(ex.new_end_date)}
+                      </strong>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      Lý do: {ex.reason}
+                    </div>
+                  </Card>
+                ))}
+              {state.extensions.filter(
+                (ex) => ex.contract_id === detailContract.id
+              ).length === 0 && (
+                <Text type="secondary">Chưa có lần gia hạn nào.</Text>
+              )}
             </div>
           </div>
         )}
@@ -710,58 +606,52 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
       <Modal
         open={!!extendTarget}
         title="Gia hạn hợp đồng lao động (3.2)"
-        onClose={() => setExtendTarget(null)}
+        onCancel={() => setExtendTarget(null)}
+        footer={null}
       >
         {extendTarget && (
-          <form onSubmit={handleExtendContract} className="space-y-4">
-            <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              Hợp đồng <strong>{extendTarget.id}</strong> · Ngày kết thúc hiện
-              tại: <strong>{formatDate(extendTarget.end_date)}</strong>
-            </p>
+          <Form
+            form={extendForm}
+            layout="vertical"
+            onFinish={handleExtendContract}
+          >
+            <Alert
+              type="info"
+              showIcon
+              className="mb-4"
+              message={`Hợp đồng ${extendTarget.id} · Ngày kết thúc hiện tại: ${formatDate(
+                extendTarget.end_date
+              )}`}
+            />
             {formError && (
-              <div className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-2.5 text-xs text-rose-700">
-                {formError}
-              </div>
+              <Alert
+                type="error"
+                showIcon
+                message={formError}
+                className="mb-4"
+              />
             )}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ngày kết thúc mới *
-              </label>
-              <input
-                name="new_end_date"
-                type="date"
-                required
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Lý do gia hạn *
-              </label>
-              <textarea
-                name="reason"
-                rows={3}
-                required
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setExtendTarget(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
-              >
+            <Form.Item
+              name="new_end_date"
+              label="Ngày kết thúc mới"
+              rules={[{ required: true, message: 'Chọn ngày kết thúc mới' }]}
+            >
+              <Input type="date" />
+            </Form.Item>
+            <Form.Item
+              name="reason"
+              label="Lý do gia hạn"
+              rules={[{ required: true, message: 'Nhập lý do gia hạn' }]}
+            >
+              <Input.TextArea rows={3} />
+            </Form.Item>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setExtendTarget(null)}>Hủy</Button>
+              <Button type="primary" htmlType="submit" loading={submitting}>
                 Xác nhận gia hạn
-              </button>
+              </Button>
             </div>
-          </form>
+          </Form>
         )}
       </Modal>
 
@@ -769,60 +659,55 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
       <Modal
         open={!!terminateTarget}
         title="Chấm dứt hợp đồng lao động (3.3)"
-        onClose={() => setTerminateTarget(null)}
+        onCancel={() => setTerminateTarget(null)}
+        footer={null}
       >
         {terminateTarget && (
-          <form onSubmit={handleTerminateContract} className="space-y-4">
-            <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200">
-              Hợp đồng <strong>{terminateTarget.id}</strong> · Toàn bộ lịch sử
-              gia hạn vẫn được bảo lưu sau khi chấm dứt.
-            </p>
+          <Form
+            form={terminateForm}
+            layout="vertical"
+            onFinish={handleTerminateContract}
+          >
+            <Alert
+              type="warning"
+              showIcon
+              className="mb-4"
+              message={`Hợp đồng ${terminateTarget.id} · Toàn bộ lịch sử gia hạn được bảo lưu sau khi chấm dứt.`}
+            />
             {formError && (
-              <div className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-2.5 text-xs text-rose-700">
-                {formError}
-              </div>
+              <Alert
+                type="error"
+                showIcon
+                message={formError}
+                className="mb-4"
+              />
             )}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ngày chấm dứt *
-              </label>
-              <input
-                name="terminated_date"
-                type="date"
-                required
-                defaultValue={state.today}
-                max={state.today}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Lý do chấm dứt *
-              </label>
-              <textarea
-                name="reason"
-                rows={3}
-                required
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setTerminateTarget(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700"
+            <Form.Item
+              name="terminated_date"
+              label="Ngày chấm dứt"
+              rules={[{ required: true, message: 'Chọn ngày chấm dứt' }]}
+            >
+              <Input type="date" max={state.today} />
+            </Form.Item>
+            <Form.Item
+              name="reason"
+              label="Lý do chấm dứt"
+              rules={[{ required: true, message: 'Nhập lý do chấm dứt' }]}
+            >
+              <Input.TextArea rows={3} />
+            </Form.Item>
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setTerminateTarget(null)}>Hủy</Button>
+              <Button
+                danger
+                type="primary"
+                htmlType="submit"
+                loading={submitting}
               >
                 Chấm dứt hợp đồng
-              </button>
+              </Button>
             </div>
-          </form>
+          </Form>
         )}
       </Modal>
     </div>

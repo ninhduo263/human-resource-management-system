@@ -34,9 +34,9 @@ export class HttpError extends Error {
   }
 }
 
-export const fail = (message: string, status = 400): never => {
+export function fail(message: string, status = 400): never {
   throw new HttpError(message, status);
-};
+}
 
 export const today = (): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Bangkok' }).format(new Date());
@@ -56,7 +56,7 @@ export const text = (b: Record<string, unknown>, k: string, max = 250): string =
   if (typeof val !== 'string' || !val.trim()) {
     fail(`Vui lòng nhập ${labels[k] || k}.`);
   }
-  const trimmed = (val as string).trim();
+  const trimmed = val.trim();
   if (trimmed.length > max) {
     fail(`${labels[k] || k} quá dài.`);
   }

@@ -15,8 +15,8 @@
 - **Backend**:
   - `backend/src/routes/catalogs.routes.ts` (Quản lý danh mục Phòng ban `2.1` & Chức vụ `2.2`)
   - `backend/src/routes/assignments.routes.ts` (Thực thi Phân bổ nhân sự `2.3` & Bổ nhiệm chức vụ `2.4`)
-- **Frontend**:
-  - `frontend/src/components/DepartmentsView.tsx` (Hiển thị thẻ phòng ban, thành viên, bảng chức vụ, nút Điều chuyển/Bổ nhiệm nhanh)
+- **Frontend (Ant Design)**:
+  - `frontend/src/components/DepartmentsView.tsx` (Sử dụng `Row`, `Col`, `Card`, `Avatar.Group`, `Table`, `Tabs`, `Modal`, `Form`, `InputNumber`, `Popconfirm` của `antd`)
   - `frontend/src/components/AssignmentsView.tsx`
 
 ## 3. Danh sách API Endpoints & Quy tắc Nghiệp vụ

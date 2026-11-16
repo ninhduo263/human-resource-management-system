@@ -100,11 +100,11 @@ export async function existsInTable<T = any>(
   if (!row) {
     fail('Không tìm thấy dữ liệu.', 404);
   }
-  return row;
+  return row as T;
 }
 
 export async function requireActiveEmployee(executor: DbExecutor, id: string): Promise<any> {
-  const emp = await existsInTable(executor, 'employees', id);
+  const emp = await existsInTable<any>(executor, 'employees', id);
   if (emp.status === 'Đã lưu trữ') {
     fail('Hồ sơ nhân viên đã lưu trữ.');
   }

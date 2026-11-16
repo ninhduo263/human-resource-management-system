@@ -1,9 +1,9 @@
 # Thư mục Tài liệu Đặc tả & Lưu vết Tính năng (`features-docs/`)
 
-Thư mục này lưu trữ toàn bộ tài liệu kỹ thuật của từng tính năng/phân hệ trong hệ thống **PeopleOps HRMS (Nhóm 16)**.
+Thư mục này lưu trữ toàn bộ tài liệu kỹ thuật của từng tính năng/phân hệ trong hệ thống **PeopleOps HRMS (Nhóm 16)** sử dụng bộ công nghệ **Docker Compose + PostgreSQL 16 + Node.js (Express/TypeScript) + React (Ant Design & Vite)**.
 
 ## Nguyên tắc vận hành & Bảo trì
-1. **Không cần ghi nhớ thủ công**: Mỗi tính năng sau khi tạo xong được ghi chép đầy đủ vào một file `.md` riêng biệt tại đây (gồm nguồn gốc BFD/DFD/ERD, bảng CSDL, API endpoints, file code Backend/Frontend, và quy tắc nghiệp vụ).
+1. **Không cần ghi nhớ thủ công**: Mỗi tính năng sau khi tạo xong được ghi chép đầy đủ vào một file `.md` riêng biệt tại đây (gồm nguồn gốc BFD/DFD/ERD, bảng CSDL, API endpoints, file code Backend/Frontend Ant Design, và quy tắc nghiệp vụ).
 2. **Quy trình khi sửa đổi hoặc nâng cấp tính năng**:
    - **Bước 1**: Mở file `.md` tương ứng của tính năng đó trong thư mục `features-docs/` để nắm rõ cấu trúc file, API và ràng buộc hiện tại.
    - **Bước 2**: Thực hiện chỉnh sửa mã nguồn ở `backend/` hoặc `frontend/`.

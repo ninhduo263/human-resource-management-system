@@ -1,27 +1,46 @@
 import React, { useState } from 'react';
 import {
-  Plus,
-  Download,
-  Search,
-  Edit3,
-  Archive,
-  RotateCcw,
-  Eye,
-  Phone,
-} from 'lucide-react';
+  Card,
+  Table,
+  Tag,
+  Button,
+  Input,
+  Select,
+  Tabs,
+  Modal,
+  Form,
+  Space,
+  Avatar,
+  Descriptions,
+  Popconfirm,
+  Alert,
+  Typography,
+  Divider,
+} from 'antd';
+import {
+  PlusOutlined,
+  DownloadOutlined,
+  SearchOutlined,
+  EditOutlined,
+  EyeOutlined,
+  InboxOutlined,
+  RollbackOutlined,
+  PhoneOutlined,
+} from '@ant-design/icons';
 import { AppState, Employee } from '../types';
 import { apiRequest } from '../api';
 import {
   canEdit,
   downloadCsv,
   formatDate,
-  getAvatarColor,
+  getAntTagColor,
+  getAvatarHex,
   getContractStatus,
   getInitials,
-  getStatusBadgeClass,
   matchEmployeeQuery,
 } from '../utils/format';
-import { Modal } from './Modal';
+
+const { Title, Text } = Typography;
 
 interface EmployeesViewProps {
   state: AppState;
@@ -42,7 +61,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   const [search, setSearch] = useState(initialSearch);
   const [deptFilter, setDeptFilter] = useState(initialDeptFilter);
   const [statusFilter, setStatusFilter] = useState('');
-  const [page, setPage] = useState(1);
 
   const [detailEmp, setDetailEmp] = useState<Employee | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -50,6 +68,9 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   const [selfContactModal, setSelfContactModal] = useState<Employee | null>(null);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const [empForm] = Form.useForm();
+  const [contactForm] = Form.useForm();
 
   const deptName = (id: string) =>
     state.departments.find((d) => d.id === id)?.name || id;
@@ -63,17 +84,17 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     return matchTab && matchStatus && matchEmployeeQuery(e, search, deptFilter);
   });
 
-  const pageSize = 8;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const rows = filtered.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
   const handleOpenAdd = () => {
     setEditingEmp(null);
     setFormError('');
+    empForm.resetFields();
+    empForm.setFieldsValue({
+      gender: 'Nam',
+      join_date: state.today,
+      status: 'Đang làm việc',
+      department_id: state.departments[0]?.id,
+      position_id: 'CV01',
+    });
     setFormOpen(true);
   };
 
@@ -81,20 +102,22 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     setDetailEmp(null);
     setEditingEmp(emp);
     setFormError('');
+    empForm.setFieldsValue({
+      ...emp,
+    });
     setFormOpen(true);
   };
 
-  const handleSaveEmployee = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSaveEmployee = async (values: Record<string, any>) => {
     setFormError('');
     setSubmitting(true);
-    const fd = new FormData(e.currentTarget);
-    const body: Record<string, any> = Object.fromEntries(fd.entries());
-
     try {
       if (editingEmp) {
-        body.department_id = editingEmp.department_id;
-        body.position_id = editingEmp.position_id;
+        const body = {
+          ...values,
+          department_id: editingEmp.department_id,
+          position_id: editingEmp.position_id,
+        };
         await apiRequest(
           `/api/employees/${encodeURIComponent(editingEmp.id)}`,
           body,
@@ -102,7 +125,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         );
         notify('Đã cập nhật hồ sơ nhân viên.');
       } else {
-        await apiRequest('/api/employees', body, 'POST');
+        await apiRequest('/api/employees', values, 'POST');
         notify('Đã thêm hồ sơ nhân viên mới.');
       }
       setFormOpen(false);
@@ -114,20 +137,14 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     }
   };
 
-  const handleSaveSelfContact = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleSaveSelfContact = async (values: Record<string, any>) => {
     if (!selfContactModal) return;
     setFormError('');
     setSubmitting(true);
-    const fd = new FormData(e.currentTarget);
-    const body = {
-      ...Object.fromEntries(fd.entries()),
-      self_contact: true,
-    };
     try {
       await apiRequest(
         `/api/employees/${encodeURIComponent(selfContactModal.id)}`,
-        body,
+        { ...values, self_contact: true },
         'PUT'
       );
       notify('Đã cập nhật thông tin liên hệ cá nhân.');
@@ -141,12 +158,6 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   };
 
   const handleArchive = async (emp: Employee) => {
-    if (
-      !window.confirm(
-        `Lưu trữ hồ sơ nhân viên ${emp.name} (${emp.id})? Lưu ý: Nhân viên phải không còn hợp đồng hiệu lực và đơn phép chờ duyệt.`
-      )
-    )
-      return;
     try {
       await apiRequest(
         `/api/employees/${encodeURIComponent(emp.id)}/archive`,
@@ -206,448 +217,351 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     );
   };
 
+  const columns = [
+    {
+      title: 'Nhân viên',
+      key: 'employee',
+      render: (_: unknown, e: Employee) => (
+        <Space>
+          <Avatar style={{ backgroundColor: getAvatarHex(e.id) }}>
+            {getInitials(e.name)}
+          </Avatar>
+          <div>
+            <div className="font-semibold text-slate-900">{e.name}</div>
+            <div className="text-xs text-slate-500">
+              {e.email} · {e.phone}
+            </div>
+          </div>
+        </Space>
+      ),
+    },
+    {
+      title: 'Mã NV',
+      dataIndex: 'id',
+      key: 'id',
+      render: (id: string) => <Text code>{id}</Text>,
+    },
+    {
+      title: 'Phòng ban',
+      dataIndex: 'department_id',
+      key: 'department_id',
+      render: (id: string) => deptName(id),
+    },
+    {
+      title: 'Chức vụ',
+      dataIndex: 'position_id',
+      key: 'position_id',
+      render: (id: string) => posName(id),
+    },
+    {
+      title: 'Ngày vào làm',
+      dataIndex: 'join_date',
+      key: 'join_date',
+      render: (d: string) => formatDate(d),
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => (
+        <Tag color={getAntTagColor(status)}>{status}</Tag>
+      ),
+    },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      align: 'right' as const,
+      render: (_: unknown, e: Employee) => (
+        <Space>
+          <Button
+            size="small"
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => setDetailEmp(e)}
+          >
+            Chi tiết
+          </Button>
+          {canEdit(state.user.role) && e.status !== 'Đã lưu trữ' && (
+            <Button
+              size="small"
+              type="text"
+              icon={<EditOutlined />}
+              onClick={() => handleOpenEdit(e)}
+            >
+              Sửa
+            </Button>
+          )}
+          {!canEdit(state.user.role) &&
+            e.id === state.user.employee_id &&
+            e.status !== 'Đã lưu trữ' && (
+              <Button
+                size="small"
+                type="text"
+                icon={<PhoneOutlined />}
+                onClick={() => {
+                  setFormError('');
+                  contactForm.setFieldsValue({
+                    phone: e.phone,
+                    email: e.email,
+                    address: e.address,
+                  });
+                  setSelfContactModal(e);
+                }}
+              >
+                Sửa liên hệ
+              </Button>
+            )}
+        </Space>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-brand-600">
+          <Text className="text-xs font-bold uppercase tracking-wider text-[#12584b]">
             PHÂN HỆ 1.0 · BFD 1.1 – 1.4
-          </p>
-          <h1 className="text-2xl font-bold text-slate-900">Hồ sơ nhân viên</h1>
-          <p className="text-sm text-slate-500">
+          </Text>
+          <Title level={3} style={{ margin: '4px 0' }}>
+            Hồ sơ nhân viên
+          </Title>
+          <Text type="secondary">
             Thêm mới, cập nhật, tra cứu đa tiêu chí và lưu trữ hồ sơ nhân sự (Kho D1).
-          </p>
+          </Text>
         </div>
-        <div className="flex items-center gap-2.5 no-print">
-          <button
-            type="button"
-            onClick={handleExport}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
-          >
-            <Download className="h-4 w-4" />
-            <span>Xuất danh sách</span>
-          </button>
+
+        <Space className="no-print">
+          <Button icon={<DownloadOutlined />} onClick={handleExport}>
+            Xuất danh sách
+          </Button>
           {canEdit(state.user.role) && (
-            <button
-              type="button"
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
               onClick={handleOpenAdd}
-              className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition"
             >
-              <Plus className="h-4 w-4" />
-              <span>Thêm nhân viên (1.1)</span>
-            </button>
+              Thêm nhân viên (1.1)
+            </Button>
           )}
-        </div>
+        </Space>
       </div>
 
-      {/* Toolbar */}
-      <section className="rounded-2xl bg-white border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setTab('active');
-                setPage(1);
-              }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
-                tab === 'active'
-                  ? 'bg-brand-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Đang làm việc (
-              {state.employees.filter((e) => e.status !== 'Đã lưu trữ').length})
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setTab('archived');
-                setPage(1);
-              }}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition ${
-                tab === 'archived'
-                  ? 'bg-brand-600 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              Đã lưu trữ (
-              {state.employees.filter((e) => e.status === 'Đã lưu trữ').length})
-            </button>
-          </div>
+      <Card bordered={false} className="shadow-xs">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+          <Tabs
+            activeKey={tab}
+            onChange={(k) => setTab(k as 'active' | 'archived')}
+            items={[
+              {
+                key: 'active',
+                label: `Đang làm việc (${
+                  state.employees.filter((e) => e.status !== 'Đã lưu trữ').length
+                })`,
+              },
+              {
+                key: 'archived',
+                label: `Đã lưu trữ (${
+                  state.employees.filter((e) => e.status === 'Đã lưu trữ').length
+                })`,
+              },
+            ]}
+          />
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative">
-              <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Tìm tên, mã NV, email..."
-                className="pl-9 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:border-brand-600 focus:outline-none w-56"
-              />
-            </div>
-
-            <select
+          <Space wrap>
+            <Input
+              prefix={<SearchOutlined className="text-slate-400" />}
+              placeholder="Tìm tên, mã NV, email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              allowClear
+              style={{ width: 220 }}
+            />
+            <Select
               value={deptFilter}
-              onChange={(e) => {
-                setDeptFilter(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs focus:border-brand-600 focus:outline-none"
-            >
-              <option value="">Tất cả phòng ban</option>
-              {state.departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-
+              onChange={setDeptFilter}
+              style={{ width: 180 }}
+              options={[
+                { value: '', label: 'Tất cả phòng ban' },
+                ...state.departments.map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                })),
+              ]}
+            />
             {tab === 'active' && (
-              <select
+              <Select
                 value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="rounded-xl border border-slate-200 px-3 py-1.5 text-xs focus:border-brand-600 focus:outline-none"
-              >
-                <option value="">Tất cả trạng thái</option>
-                <option value="Đang làm việc">Đang làm việc</option>
-                <option value="Thử việc">Thử việc</option>
-              </select>
+                onChange={setStatusFilter}
+                style={{ width: 160 }}
+                options={[
+                  { value: '', label: 'Tất cả trạng thái' },
+                  { value: 'Đang làm việc', label: 'Đang làm việc' },
+                  { value: 'Thử việc', label: 'Thử việc' },
+                ]}
+              />
             )}
-          </div>
+          </Space>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-xs font-semibold text-slate-500 uppercase">
-                <th className="py-3 px-6">Nhân viên</th>
-                <th className="py-3 px-4">Mã NV</th>
-                <th className="py-3 px-4">Phòng ban</th>
-                <th className="py-3 px-4">Chức vụ</th>
-                <th className="py-3 px-4">Ngày vào làm</th>
-                <th className="py-3 px-4">Trạng thái</th>
-                <th className="py-3 px-6 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-10 text-center text-sm text-slate-400">
-                    Không tìm thấy hồ sơ nhân sự phù hợp.
-                  </td>
-                </tr>
-              ) : (
-                rows.map((e) => (
-                  <tr key={e.id} className="hover:bg-slate-50/80">
-                    <td className="py-3 px-6">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`h-9 w-9 rounded-full border flex items-center justify-center text-xs font-bold ${getAvatarColor(
-                            e.id
-                          )}`}
-                        >
-                          {getInitials(e.name)}
-                        </span>
-                        <div>
-                          <div className="font-semibold text-slate-900">{e.name}</div>
-                          <div className="text-xs text-slate-500">
-                            {e.email} · {e.phone}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-xs text-slate-700">
-                      {e.id}
-                    </td>
-                    <td className="py-3 px-4 text-slate-700">
-                      {deptName(e.department_id)}
-                    </td>
-                    <td className="py-3 px-4 text-slate-700">
-                      {posName(e.position_id)}
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 text-xs">
-                      {formatDate(e.join_date)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(
-                          e.status
-                        )}`}
-                      >
-                        {e.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-6 text-right space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => setDetailEmp(e)}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        <span>Chi tiết</span>
-                      </button>
-                      {canEdit(state.user.role) && e.status !== 'Đã lưu trữ' && (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(e)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
-                        >
-                          <Edit3 className="h-3.5 w-3.5" />
-                          <span>Sửa</span>
-                        </button>
-                      )}
-                      {!canEdit(state.user.role) &&
-                        e.id === state.user.employee_id &&
-                        e.status !== 'Đã lưu trữ' && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setFormError('');
-                              setSelfContactModal(e);
-                            }}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
-                          >
-                            <Phone className="h-3.5 w-3.5" />
-                            <span>Sửa liên hệ</span>
-                          </button>
-                        )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <span>
-            Hiển thị{' '}
-            {filtered.length
-              ? `${(currentPage - 1) * pageSize + 1}–${Math.min(
-                  currentPage * pageSize,
-                  filtered.length
-                )}`
-              : '0'}{' '}
-            trong tổng số {filtered.length} hồ sơ
-          </span>
-          <div className="flex items-center gap-1">
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setPage(p)}
-                className={`h-7 w-7 rounded-lg font-medium ${
-                  currentPage === p
-                    ? 'bg-brand-600 text-white'
-                    : 'hover:bg-slate-100 text-slate-600'
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={filtered}
+          pagination={{ pageSize: 8, showSizeChanger: false }}
+          size="middle"
+        />
+      </Card>
 
       {/* Modal Chi tiết Hồ sơ (1.3 / 1.4) */}
       <Modal
         open={!!detailEmp}
         title="Chi tiết hồ sơ nhân viên (1.3)"
-        onClose={() => setDetailEmp(null)}
-        wide
+        onCancel={() => setDetailEmp(null)}
+        width={760}
+        footer={
+          detailEmp && (
+            <Space>
+              <Button onClick={() => setDetailEmp(null)}>Đóng</Button>
+              {canEdit(state.user.role) &&
+                (detailEmp.status === 'Đã lưu trữ' ? (
+                  <Button
+                    type="primary"
+                    icon={<RollbackOutlined />}
+                    onClick={() => handleRestore(detailEmp)}
+                  >
+                    Khôi phục hồ sơ (1.4)
+                  </Button>
+                ) : (
+                  <>
+                    <Popconfirm
+                      title="Lưu trữ hồ sơ nhân viên?"
+                      description="Nhân viên phải không còn hợp đồng hiệu lực và đơn phép chờ duyệt."
+                      onConfirm={() => handleArchive(detailEmp)}
+                      okText="Lưu trữ"
+                      cancelText="Hủy"
+                    >
+                      <Button danger icon={<InboxOutlined />}>
+                        Lưu trữ hồ sơ (1.4)
+                      </Button>
+                    </Popconfirm>
+                    <Button
+                      type="primary"
+                      icon={<EditOutlined />}
+                      onClick={() => handleOpenEdit(detailEmp)}
+                    >
+                      Chỉnh sửa (1.2)
+                    </Button>
+                  </>
+                ))}
+            </Space>
+          )
+        }
       >
         {detailEmp && (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
-              <span
-                className={`h-14 w-14 rounded-2xl border flex items-center justify-center text-lg font-bold ${getAvatarColor(
-                  detailEmp.id
-                )}`}
+          <div className="space-y-4">
+            <div className="flex items-center gap-4 pb-3 border-b border-slate-100">
+              <Avatar
+                size={56}
+                style={{ backgroundColor: getAvatarHex(detailEmp.id) }}
               >
                 {getInitials(detailEmp.name)}
-              </span>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-slate-900">
+              </Avatar>
+              <div>
+                <Title level={4} style={{ margin: 0 }}>
                   {detailEmp.name}
-                </h3>
-                <p className="text-xs text-slate-500">
+                </Title>
+                <Text type="secondary">
                   Mã NV: <strong>{detailEmp.id}</strong> ·{' '}
                   {posName(detailEmp.position_id)} ·{' '}
                   {deptName(detailEmp.department_id)}
-                </p>
-                <div className="mt-1.5">
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(
-                      detailEmp.status
-                    )}`}
-                  >
+                </Text>
+                <div className="mt-1">
+                  <Tag color={getAntTagColor(detailEmp.status)}>
                     {detailEmp.status}
-                  </span>
+                  </Tag>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
-              <div>
-                <span className="text-slate-400 block">Ngày sinh</span>
-                <strong className="text-slate-800">
-                  {formatDate(detailEmp.birth_date)}
-                </strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Giới tính</span>
-                <strong className="text-slate-800">{detailEmp.gender}</strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Ngày vào làm</span>
-                <strong className="text-slate-800">
-                  {formatDate(detailEmp.join_date)}
-                </strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Email</span>
-                <strong className="text-slate-800">{detailEmp.email}</strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Số điện thoại</span>
-                <strong className="text-slate-800">{detailEmp.phone}</strong>
-              </div>
-              <div>
-                <span className="text-slate-400 block">Địa chỉ</span>
-                <strong className="text-slate-800">
-                  {detailEmp.address || '—'}
-                </strong>
-              </div>
+            <Descriptions bordered size="small" column={2}>
+              <Descriptions.Item label="Ngày sinh">
+                {formatDate(detailEmp.birth_date)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Giới tính">
+                {detailEmp.gender}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày vào làm">
+                {formatDate(detailEmp.join_date)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Số điện thoại">
+                {detailEmp.phone}
+              </Descriptions.Item>
+              <Descriptions.Item label="Email" span={2}>
+                {detailEmp.email}
+              </Descriptions.Item>
+              <Descriptions.Item label="Địa chỉ" span={2}>
+                {detailEmp.address || '—'}
+              </Descriptions.Item>
               {detailEmp.archived_date && (
-                <div>
-                  <span className="text-slate-400 block">Ngày lưu trữ</span>
-                  <strong className="text-rose-700">
-                    {formatDate(detailEmp.archived_date)}
-                  </strong>
-                </div>
+                <Descriptions.Item label="Ngày lưu trữ" span={2}>
+                  <Text type="danger">{formatDate(detailEmp.archived_date)}</Text>
+                </Descriptions.Item>
               )}
-            </div>
+            </Descriptions>
 
-            {/* Hợp đồng của nhân viên */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Hợp đồng lao động liên kết
-              </h4>
-              <div className="space-y-2">
-                {state.contracts
-                  .filter((c) => c.employee_id === detailEmp.id)
-                  .map((c) => (
-                    <div
-                      key={c.id}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-2.5 text-xs"
-                    >
+            <Divider orientation="left" plain>
+              Hợp đồng lao động liên kết
+            </Divider>
+            <div className="space-y-2">
+              {state.contracts
+                .filter((c) => c.employee_id === detailEmp.id)
+                .map((c) => (
+                  <Card key={c.id} size="small">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <strong className="text-slate-900">{c.id}</strong> ·{' '}
-                        {c.type}
-                        <div className="text-slate-500">
+                        <strong>{c.id}</strong> · {c.type}
+                        <div className="text-xs text-slate-500">
                           {formatDate(c.start_date)} → {formatDate(c.end_date)}
                         </div>
                       </div>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadgeClass(
-                          getContractStatus(c, state.today)
-                        )}`}
-                      >
+                      <Tag color={getAntTagColor(getContractStatus(c, state.today))}>
                         {getContractStatus(c, state.today)}
-                      </span>
+                      </Tag>
                     </div>
-                  ))}
-                {state.contracts.filter((c) => c.employee_id === detailEmp.id)
-                  .length === 0 && (
-                  <p className="text-xs text-slate-400">Chưa có hợp đồng.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Lịch sử công tác */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Quá trình công tác (Điều chuyển / Bổ nhiệm)
-              </h4>
-              <div className="space-y-2">
-                {state.assignments
-                  .filter((a) => a.employee_id === detailEmp.id)
-                  .map((a) => (
-                    <div
-                      key={a.id}
-                      className="rounded-xl border border-slate-200 px-4 py-2.5 text-xs"
-                    >
-                      <div className="flex justify-between font-semibold text-slate-800">
-                        <span>{a.type}</span>
-                        <span>Hiệu lực: {formatDate(a.effective_date)}</span>
-                      </div>
-                      <div className="text-slate-600 mt-1">
-                        Phòng ban: {deptName(a.old_department_id)} →{' '}
-                        <strong>{deptName(a.new_department_id)}</strong> | Chức
-                        vụ: {posName(a.old_position_id)} →{' '}
-                        <strong>{posName(a.new_position_id)}</strong>
-                      </div>
-                    </div>
-                  ))}
-                {state.assignments.filter((a) => a.employee_id === detailEmp.id)
-                  .length === 0 && (
-                  <p className="text-xs text-slate-400">
-                    Chưa có biến động công tác.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Footer actions */}
-            <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setDetailEmp(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-              >
-                Đóng
-              </button>
-              {canEdit(state.user.role) &&
-                (detailEmp.status === 'Đã lưu trữ' ? (
-                  <button
-                    type="button"
-                    onClick={() => handleRestore(detailEmp)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    <span>Khôi phục hồ sơ (1.4)</span>
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => handleArchive(detailEmp)}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 border border-rose-200 px-4 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100"
-                    >
-                      <Archive className="h-3.5 w-3.5" />
-                      <span>Lưu trữ hồ sơ (1.4)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEdit(detailEmp)}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
-                    >
-                      <Edit3 className="h-3.5 w-3.5" />
-                      <span>Chỉnh sửa (1.2)</span>
-                    </button>
-                  </>
+                  </Card>
                 ))}
+              {state.contracts.filter((c) => c.employee_id === detailEmp.id)
+                .length === 0 && (
+                <Text type="secondary">Chưa có hợp đồng.</Text>
+              )}
+            </div>
+
+            <Divider orientation="left" plain>
+              Quá trình công tác (Điều chuyển / Bổ nhiệm)
+            </Divider>
+            <div className="space-y-2">
+              {state.assignments
+                .filter((a) => a.employee_id === detailEmp.id)
+                .map((a) => (
+                  <Card key={a.id} size="small">
+                    <div className="flex justify-between font-semibold">
+                      <span>{a.type}</span>
+                      <span>Hiệu lực: {formatDate(a.effective_date)}</span>
+                    </div>
+                    <div className="text-xs text-slate-600 mt-1">
+                      Phòng ban: {deptName(a.old_department_id)} →{' '}
+                      <strong>{deptName(a.new_department_id)}</strong> | Chức vụ:{' '}
+                      {posName(a.old_position_id)} →{' '}
+                      <strong>{posName(a.new_position_id)}</strong>
+                    </div>
+                  </Card>
+                ))}
+              {state.assignments.filter((a) => a.employee_id === detailEmp.id)
+                .length === 0 && (
+                <Text type="secondary">Chưa có biến động công tác.</Text>
+              )}
             </div>
           </div>
         )}
@@ -657,276 +571,203 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
       <Modal
         open={formOpen}
         title={
-          editingEmp ? 'Cập nhật hồ sơ nhân viên (1.2)' : 'Thêm hồ sơ nhân viên mới (1.1)'
+          editingEmp
+            ? 'Cập nhật hồ sơ nhân viên (1.2)'
+            : 'Thêm hồ sơ nhân viên mới (1.1)'
         }
-        onClose={() => setFormOpen(false)}
+        onCancel={() => setFormOpen(false)}
+        footer={null}
+        width={680}
       >
-        <form onSubmit={handleSaveEmployee} className="space-y-4">
-          <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
-            {editingEmp
-              ? 'Lưu ý: Để thay đổi Phòng ban hoặc Chức vụ của nhân viên, vui lòng sử dụng chức năng Quá trình công tác (4.1) để lưu kèm Quyết định.'
-              : 'Hồ sơ nhân viên mới sẽ được tự động khởi tạo quỹ phép mặc định 12 ngày cho năm hiện tại.'}
-          </p>
+        <Form
+          form={empForm}
+          layout="vertical"
+          onFinish={handleSaveEmployee}
+          className="mt-3"
+        >
+          <Alert
+            type="info"
+            showIcon
+            className="mb-4"
+            message={
+              editingEmp
+                ? 'Để thay đổi Phòng ban hoặc Chức vụ, vui lòng dùng chức năng Quá trình công tác (4.1) để lưu kèm Quyết định.'
+                : 'Hồ sơ mới được cấp tự động quỹ phép mặc định 12 ngày cho năm hiện tại.'
+            }
+          />
 
           {formError && (
-            <div className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-2.5 text-xs text-rose-700">
-              {formError}
-            </div>
+            <Alert
+              type="error"
+              showIcon
+              message={formError}
+              className="mb-4"
+            />
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Mã nhân viên *
-              </label>
-              <input
-                name="id"
-                type="text"
-                required
-                readOnly={!!editingEmp}
-                defaultValue={editingEmp?.id || ''}
-                maxLength={25}
-                pattern="[A-Za-z0-9_-]+"
-                placeholder="VD: NV013"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm read-only:bg-slate-100"
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+            <Form.Item
+              name="id"
+              label="Mã nhân viên"
+              rules={[{ required: true, message: 'Nhập mã nhân viên' }]}
+            >
+              <Input disabled={!!editingEmp} placeholder="VD: NV013" />
+            </Form.Item>
+
+            <Form.Item
+              name="name"
+              label="Họ và tên"
+              rules={[{ required: true, message: 'Nhập họ và tên' }]}
+            >
+              <Input placeholder="Nhập họ tên..." />
+            </Form.Item>
+
+            <Form.Item
+              name="birth_date"
+              label="Ngày sinh"
+              rules={[{ required: true, message: 'Chọn ngày sinh' }]}
+            >
+              <Input type="date" max={state.today} />
+            </Form.Item>
+
+            <Form.Item
+              name="gender"
+              label="Giới tính"
+              rules={[{ required: true }]}
+            >
+              <Select
+                options={[
+                  { value: 'Nam', label: 'Nam' },
+                  { value: 'Nữ', label: 'Nữ' },
+                  { value: 'Khác', label: 'Khác' },
+                ]}
               />
-            </div>
+            </Form.Item>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Họ và tên *
-              </label>
-              <input
-                name="name"
-                type="text"
-                required
-                defaultValue={editingEmp?.name || ''}
-                maxLength={120}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            <Form.Item
+              name="phone"
+              label="Số điện thoại"
+              rules={[{ required: true, message: 'Nhập số điện thoại' }]}
+            >
+              <Input />
+            </Form.Item>
+
+            <Form.Item
+              name="email"
+              label="Email"
+              rules={[
+                { required: true, type: 'email', message: 'Nhập email hợp lệ' },
+              ]}
+            >
+              <Input />
+            </Form.Item>
+
+            <Form.Item
+              name="join_date"
+              label="Ngày vào làm"
+              rules={[{ required: true, message: 'Chọn ngày vào làm' }]}
+            >
+              <Input type="date" />
+            </Form.Item>
+
+            <Form.Item
+              name="status"
+              label="Trạng thái"
+              rules={[{ required: true }]}
+            >
+              <Select
+                options={[
+                  { value: 'Đang làm việc', label: 'Đang làm việc' },
+                  { value: 'Thử việc', label: 'Thử việc' },
+                ]}
               />
-            </div>
+            </Form.Item>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ngày sinh *
-              </label>
-              <input
-                name="birth_date"
-                type="date"
-                required
-                max={state.today}
-                defaultValue={editingEmp?.birth_date || ''}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Giới tính *
-              </label>
-              <select
-                name="gender"
-                defaultValue={editingEmp?.gender || 'Nam'}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="Nam">Nam</option>
-                <option value="Nữ">Nữ</option>
-                <option value="Khác">Khác</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Số điện thoại *
-              </label>
-              <input
-                name="phone"
-                type="tel"
-                required
-                defaultValue={editingEmp?.phone || ''}
-                maxLength={20}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Email *
-              </label>
-              <input
-                name="email"
-                type="email"
-                required
-                defaultValue={editingEmp?.email || ''}
-                maxLength={150}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ngày vào làm *
-              </label>
-              <input
-                name="join_date"
-                type="date"
-                required
-                defaultValue={editingEmp?.join_date || state.today}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Trạng thái *
-              </label>
-              <select
-                name="status"
-                defaultValue={editingEmp?.status || 'Đang làm việc'}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="Đang làm việc">Đang làm việc</option>
-                <option value="Thử việc">Thử việc</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Phòng ban *
-              </label>
-              <select
-                name="department_id"
+            <Form.Item
+              name="department_id"
+              label="Phòng ban"
+              rules={[{ required: true }]}
+            >
+              <Select
                 disabled={!!editingEmp}
-                defaultValue={
-                  editingEmp?.department_id || state.departments[0]?.id
-                }
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
-              >
-                {state.departments.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Chức vụ *
-              </label>
-              <select
-                name="position_id"
-                disabled={!!editingEmp}
-                defaultValue={editingEmp?.position_id || 'CV01'}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
-              >
-                {state.positions.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Địa chỉ
-              </label>
-              <input
-                name="address"
-                type="text"
-                defaultValue={editingEmp?.address || ''}
-                maxLength={500}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                options={state.departments.map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                }))}
               />
-            </div>
+            </Form.Item>
+
+            <Form.Item
+              name="position_id"
+              label="Chức vụ"
+              rules={[{ required: true }]}
+            >
+              <Select
+                disabled={!!editingEmp}
+                options={state.positions.map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                }))}
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="address"
+              label="Địa chỉ"
+              className="sm:col-span-2"
+            >
+              <Input />
+            </Form.Item>
           </div>
 
-          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setFormOpen(false)}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-            >
-              Đóng
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
-            >
-              {submitting ? 'Đang lưu...' : 'Lưu thông tin'}
-            </button>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button onClick={() => setFormOpen(false)}>Đóng</Button>
+            <Button type="primary" htmlType="submit" loading={submitting}>
+              Lưu thông tin
+            </Button>
           </div>
-        </form>
+        </Form>
       </Modal>
 
       {/* Modal Nhân viên tự cập nhật thông tin liên hệ cá nhân (DFD 1.2) */}
       <Modal
         open={!!selfContactModal}
         title="Cập nhật thông tin liên hệ cá nhân (1.2)"
-        onClose={() => setSelfContactModal(null)}
+        onCancel={() => setSelfContactModal(null)}
+        footer={null}
       >
-        {selfContactModal && (
-          <form onSubmit={handleSaveSelfContact} className="space-y-4">
-            {formError && (
-              <div className="rounded-xl bg-rose-50 border border-rose-200 px-4 py-2.5 text-xs text-rose-700">
-                {formError}
-              </div>
-            )}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Số điện thoại *
-              </label>
-              <input
-                name="phone"
-                type="tel"
-                required
-                defaultValue={selfContactModal.phone}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Email *
-              </label>
-              <input
-                name="email"
-                type="email"
-                required
-                defaultValue={selfContactModal.email}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Địa chỉ
-              </label>
-              <input
-                name="address"
-                type="text"
-                defaultValue={selfContactModal.address}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={() => setSelfContactModal(null)}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-xl bg-brand-600 px-4 py-2 text-xs font-semibold text-white hover:bg-brand-700"
-              >
-                Lưu liên hệ
-              </button>
-            </div>
-          </form>
-        )}
+        <Form
+          form={contactForm}
+          layout="vertical"
+          onFinish={handleSaveSelfContact}
+        >
+          {formError && (
+            <Alert type="error" showIcon message={formError} className="mb-4" />
+          )}
+          <Form.Item
+            name="phone"
+            label="Số điện thoại"
+            rules={[{ required: true }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[{ required: true, type: 'email' }]}
+          >
+            <Input />
+          </Form.Item>
+          <Form.Item name="address" label="Địa chỉ">
+            <Input />
+          </Form.Item>
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setSelfContactModal(null)}>Hủy</Button>
+            <Button type="primary" htmlType="submit" loading={submitting}>
+              Lưu liên hệ
+            </Button>
+          </div>
+        </Form>
       </Modal>
     </div>
   );

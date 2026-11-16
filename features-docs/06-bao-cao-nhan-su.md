@@ -16,8 +16,8 @@
 
 ## 2. Các File Mã nguồn Liên quan
 - **Backend**: `backend/src/routes/auth.routes.ts` (`buildScopedState` trả dữ liệu tổng hợp từ 5 nhóm kho D1–D5 theo đúng thẩm quyền người dùng).
-- **Frontend**:
-  - `frontend/src/components/ReportsView.tsx`: Màn hình chọn loại báo cáo (`5.1` – `5.4`), lọc theo Phòng ban và Khoảng thời gian (`Từ ngày` – `Đến ngày`), in báo cáo (`window.print()`) và xuất CSV UTF-8 BOM.
+- **Frontend (Ant Design)**:
+  - `frontend/src/components/ReportsView.tsx`: Màn hình chọn loại báo cáo (`5.1` – `5.4`) dùng `Card`, `Statistic`, `Table`, `Select`, `Button` của `antd`, lọc theo Phòng ban và Khoảng thời gian (`Từ ngày` – `Đến ngày`), in báo cáo (`window.print()`) và xuất CSV UTF-8 BOM.
   - `frontend/src/utils/format.ts`: Hàm `downloadCsv` hỗ trợ tiếng Việt có dấu mở trực tiếp trên Microsoft Excel và chống CSV Formula Injection.
 
 ## 3. Chi tiết 4 Loại Báo cáo (`5.1` – `5.4`)

@@ -1,5 +1,22 @@
 import React, { useState } from 'react';
-import { Printer, Download, RotateCcw } from 'lucide-react';
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Table,
+  Select,
+  Input,
+  Button,
+  Space,
+  Tag,
+  Typography,
+} from 'antd';
+import {
+  PrinterOutlined,
+  DownloadOutlined,
+  ReloadOutlined,
+} from '@ant-design/icons';
 import { AppState } from '../types';
 import {
   downloadCsv,
@@ -7,6 +24,8 @@ import {
   formatMoney,
   getContractStatus,
 } from '../utils/format';
+
+const { Title, Text } = Typography;
 
 interface ReportsViewProps {
   state: AppState;
@@ -44,7 +63,10 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
     return true;
   };
 
-  const buildReportData = (): { headers: string[]; rows: (string | number)[][] } => {
+  const buildReportData = (): {
+    headers: string[];
+    rows: (string | number)[][];
+  } => {
     if (reportType === 'movements') {
       return {
         headers: [
@@ -154,71 +176,80 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
     notify(`Đã xuất ${data.rows.length} bản ghi ra file CSV.`);
   };
 
+  const tableColumns = data.headers.map((h, idx) => ({
+    title: h,
+    dataIndex: `col_${idx}`,
+    key: `col_${idx}`,
+  }));
+
+  const tableData = data.rows.map((r, rIdx) => {
+    const obj: Record<string, any> = { key: rIdx };
+    r.forEach((cell, cIdx) => {
+      obj[`col_${cIdx}`] = cell;
+    });
+    return obj;
+  });
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wider text-brand-600">
+          <Text className="text-xs font-bold uppercase tracking-wider text-[#12584b]">
             PHÂN HỆ 5.0 · BFD 5.1 – 5.4
-          </p>
-          <h1 className="text-2xl font-bold text-slate-900">Báo cáo nhân sự</h1>
-          <p className="text-sm text-slate-500">
+          </Text>
+          <Title level={3} style={{ margin: '4px 0' }}>
+            Báo cáo nhân sự
+          </Title>
+          <Text type="secondary">
             Tổng hợp dữ liệu từ các kho D1–D5 phục vụ Ban giám đốc & Cán bộ nhân sự.
-          </p>
+          </Text>
         </div>
 
-        <div className="flex items-center gap-2.5 no-print">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
-          >
-            <Printer className="h-4 w-4" />
-            <span>In / Lưu PDF</span>
-          </button>
-          <button
-            type="button"
+        <Space className="no-print">
+          <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
+            In / Lưu PDF
+          </Button>
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
             onClick={handleExportCsv}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition"
           >
-            <Download className="h-4 w-4" />
-            <span>Tải báo cáo CSV</span>
-          </button>
-        </div>
+            Tải báo cáo CSV
+          </Button>
+        </Space>
       </div>
 
       {/* Filters */}
-      <section className="rounded-2xl bg-white p-4 border border-slate-200/80 shadow-xs no-print">
-        <div className="flex flex-wrap items-center gap-3">
-          <select
+      <Card bordered={false} className="shadow-xs no-print">
+        <Space wrap size="middle">
+          <Select
             value={reportType}
-            onChange={(e) => setReportType(e.target.value as ReportType)}
-            className="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-800"
-          >
-            {Object.entries(REPORT_LABELS).map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setReportType(val as ReportType)}
+            style={{ width: 250 }}
+            options={Object.entries(REPORT_LABELS).map(([id, label]) => ({
+              value: id,
+              label,
+            }))}
+          />
 
-          <select
+          <Select
             value={reportDept}
-            onChange={(e) => setReportDept(e.target.value)}
-            className="rounded-xl border border-slate-200 px-3.5 py-2 text-xs"
-          >
-            <option value="">Tất cả phòng ban</option>
-            {state.departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+            onChange={setReportDept}
+            style={{ width: 190 }}
+            options={[
+              { value: '', label: 'Tất cả phòng ban' },
+              ...state.departments.map((d) => ({
+                value: d.id,
+                label: d.name,
+              })),
+            ]}
+          />
 
-          <label className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span>Từ ngày:</span>
-            <input
+          <Space>
+            <Text type="secondary" className="text-xs">
+              Từ ngày:
+            </Text>
+            <Input
               type="date"
               value={reportFrom}
               onChange={(e) => {
@@ -228,132 +259,89 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
                 }
                 setReportFrom(e.target.value);
               }}
-              className="rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs text-slate-800"
+              style={{ width: 155 }}
             />
-          </label>
+          </Space>
 
-          <label className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span>Đến ngày:</span>
-            <input
+          <Space>
+            <Text type="secondary" className="text-xs">
+              Đến ngày:
+            </Text>
+            <Input
               type="date"
               value={reportTo}
               onChange={(e) => {
-                if (reportFrom && e.target.value && e.target.value < reportFrom) {
+                if (
+                  reportFrom &&
+                  e.target.value &&
+                  e.target.value < reportFrom
+                ) {
                   notify('Đến ngày không được trước từ ngày.', true);
                   return;
                 }
                 setReportTo(e.target.value);
               }}
-              className="rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs text-slate-800"
+              style={{ width: 155 }}
             />
-          </label>
+          </Space>
 
-          <button
-            type="button"
+          <Button
+            icon={<ReloadOutlined />}
             onClick={() => {
               setReportDept('');
               setReportFrom('');
               setReportTo('');
             }}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-900 ml-auto"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
-            <span>Đặt lại bộ lọc</span>
-          </button>
-        </div>
-      </section>
+            Đặt lại bộ lọc
+          </Button>
+        </Space>
+      </Card>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-2xl bg-white p-5 border border-slate-200/80 print-card">
-          <span className="text-xs font-semibold uppercase text-slate-400">
-            Số lượng bản ghi
-          </span>
-          <div className="text-2xl font-bold text-slate-900 mt-1">
-            {data.rows.length} kết quả
-          </div>
-          <p className="text-xs text-slate-500 mt-1">Theo bộ lọc hiện tại</p>
-        </div>
-
-        <div className="rounded-2xl bg-white p-5 border border-slate-200/80 print-card">
-          <span className="text-xs font-semibold uppercase text-slate-400">
-            Phạm vi phòng ban
-          </span>
-          <div className="text-2xl font-bold text-slate-900 mt-1">
-            {reportDept ? deptName(reportDept) : 'Toàn bộ đơn vị'}
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Trong phạm vi phân quyền của tài khoản
-          </p>
-        </div>
-
-        <div className="rounded-2xl bg-white p-5 border border-slate-200/80 print-card">
-          <span className="text-xs font-semibold uppercase text-slate-400">
-            Ngày lập báo cáo
-          </span>
-          <div className="text-2xl font-bold text-slate-900 mt-1">
-            {formatDate(state.today)}
-          </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Người lập: {state.user.name}
-          </p>
-        </div>
-      </div>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} sm={8}>
+          <Card bordered={false} className="shadow-xs print-card">
+            <Statistic
+              title="Số lượng bản ghi"
+              value={data.rows.length}
+              suffix="kết quả"
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card bordered={false} className="shadow-xs print-card">
+            <Statistic
+              title="Phạm vi phòng ban"
+              value={reportDept ? deptName(reportDept) : 'Toàn bộ đơn vị'}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={8}>
+          <Card bordered={false} className="shadow-xs print-card">
+            <Statistic
+              title="Ngày lập báo cáo"
+              value={formatDate(state.today)}
+              suffix={`(${state.user.name})`}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Report Table */}
-      <section className="rounded-2xl bg-white border border-slate-200/80 shadow-xs overflow-hidden print-card">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">
-              {REPORT_LABELS[reportType]}
-            </h2>
-            <p className="text-xs text-slate-500">
-              Khoảng thời gian:{' '}
-              {reportFrom ? formatDate(reportFrom) : 'Từ đầu dữ liệu'} →{' '}
-              {reportTo ? formatDate(reportTo) : 'Mới nhất'}
-            </p>
-          </div>
-          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
-            {data.rows.length} dòng
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70 text-xs font-semibold text-slate-500 uppercase">
-                {data.headers.map((h) => (
-                  <th key={h} className="py-3 px-5">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {data.rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={data.headers.length}
-                    className="py-10 text-center text-sm text-slate-400"
-                  >
-                    Không có dữ liệu phù hợp với tiêu chí lọc.
-                  </td>
-                </tr>
-              ) : (
-                data.rows.map((r, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/80">
-                    {r.map((cell, cIdx) => (
-                      <td key={cIdx} className="py-3 px-5 text-xs text-slate-700">
-                        {cell}
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <Card
+        title={REPORT_LABELS[reportType]}
+        extra={<Tag color="processing">{data.rows.length} dòng</Tag>}
+        bordered={false}
+        className="shadow-xs print-card"
+      >
+        <Table
+          columns={tableColumns}
+          dataSource={tableData}
+          pagination={{ pageSize: 12, showSizeChanger: false }}
+          size="middle"
+        />
+      </Card>
     </div>
   );
 };

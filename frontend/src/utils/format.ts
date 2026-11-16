@@ -48,33 +48,34 @@ export function getInitials(name?: string): string {
     .toUpperCase();
 }
 
-const AVATAR_COLORS = [
-  'bg-emerald-100 text-emerald-800 border-emerald-200',
-  'bg-sky-100 text-sky-800 border-sky-200',
-  'bg-amber-100 text-amber-800 border-amber-200',
-  'bg-purple-100 text-purple-800 border-purple-200',
-  'bg-rose-100 text-rose-800 border-rose-200',
-];
+const AVATAR_BG_HEX = ['#12584b', '#0284c7', '#d97706', '#7c3aed', '#e11d48'];
 
-export function getAvatarColor(id?: string): string {
+export function getAvatarHex(id?: string): string {
   const sum = [...String(id || '')].reduce((a, c) => a + c.charCodeAt(0), 0);
-  return AVATAR_COLORS[sum % AVATAR_COLORS.length];
+  return AVATAR_BG_HEX[sum % AVATAR_BG_HEX.length];
 }
 
-export function getStatusBadgeClass(status: string): string {
+export function getAntTagColor(status: string): string {
   if (['Chờ duyệt', 'Thử việc', 'Sắp hết hạn', 'Chưa hiệu lực'].includes(status)) {
-    return 'bg-amber-50 text-amber-700 border-amber-200';
+    return 'warning';
   }
   if (['Từ chối', 'Hết hạn', 'Đã chấm dứt'].includes(status)) {
-    return 'bg-rose-50 text-rose-700 border-rose-200';
+    return 'error';
   }
   if (['Đã lưu trữ', 'Đã hủy'].includes(status)) {
-    return 'bg-slate-100 text-slate-600 border-slate-200';
+    return 'default';
   }
-  return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (['Điều chuyển', 'Bổ nhiệm', 'Điều chuyển và bổ nhiệm'].includes(status)) {
+    return 'processing';
+  }
+  return 'success';
 }
 
-export function downloadCsv(filename: string, headers: string[], rows: (string | number | null | undefined)[][]) {
+export function downloadCsv(
+  filename: string,
+  headers: string[],
+  rows: (string | number | null | undefined)[][]
+) {
   const csvContent =
     '\uFEFF' +
     [headers, ...rows]

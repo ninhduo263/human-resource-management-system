@@ -17,9 +17,9 @@
 - **Backend**:
   - `backend/src/routes/assignments.routes.ts` (`4.1 Ghi nhận công tác` & dùng chung Quyết định 1-N)
   - `backend/src/routes/leaves.routes.ts` (`4.2 Đăng ký`, `4.3 Duyệt`, `4.4 Quỹ phép`)
-- **Frontend**:
-  - `frontend/src/components/AssignmentsView.tsx`
-  - `frontend/src/components/LeavesView.tsx`
+- **Frontend (Ant Design)**:
+  - `frontend/src/components/AssignmentsView.tsx` (Sử dụng `Table`, `Modal`, `Select`, `Descriptions`, `Alert`, `Tag` của `antd`)
+  - `frontend/src/components/LeavesView.tsx` (Sử dụng `Table`, `Tabs`, `Modal`, `Form`, `InputNumber`, `Popconfirm`, `Descriptions`, `Tag` của `antd`)
 
 ## 3. Danh sách API Endpoints & Quy tắc Nghiệp vụ
 
