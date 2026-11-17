@@ -1,18 +1,19 @@
 # 00. Hạ tầng Docker & Cơ sở dữ liệu PostgreSQL
 
 ## 1. Tổng quan
-Thiết lập môi trường container hóa với **Docker Compose** gồm 3 dịch vụ (`db`, `backend`, `frontend`) và lược đồ cơ sở dữ liệu **PostgreSQL 16** ánh xạ 100% từ sơ đồ `ERD_QLNS_v2.drawio.pdf`.
+Thiết lập môi trường container hóa với **Docker Compose** gồm 3 dịch vụ (`db`, `backend`, `frontend`) và lược đồ cơ sở dữ liệu **PostgreSQL 16** ánh xạ 100% từ sơ đồ `ERD_QLNS_v2.drawio` (`ERD_QLNS_v2.drawio.pdf`) và `BFD_DFD_QLNS_v2.drawio`.
 
 ## 2. Các File Mã nguồn Liên quan
+- `ERD_QLNS_v2.drawio` & `BFD_DFD_QLNS_v2.drawio`: Bộ sơ đồ thiết kế BFD, DFD Mức 0, DFD Mức 1 và ERD (11 thực thể) chuẩn hóa định dạng Draw.io.
 - `docker-compose.yml`: Định nghĩa 3 container (`peopleops-db`, `peopleops-backend`, `peopleops-frontend`), healthcheck và volume `postgres_data`.
 - `.env` / `.env.example`: Biến môi trường cấu hình cổng và chuỗi kết nối PostgreSQL.
-- `backend/src/db/schema.sql`: Lược đồ DDL nền (baseline) tạo 10 bảng ERD + 3 bảng hệ thống; các thay đổi sau đó và View `v_songayphep` nằm trong `backend/src/db/migrations.ts`.
+- `backend/src/db/schema.sql`: Lược đồ DDL nền (baseline) tạo 11 bảng ERD + 3 bảng hệ thống; các thay đổi sau đó và View `v_songayphep` nằm trong `backend/src/db/migrations.ts`.
 - `backend/src/db/pool.ts`: Quản lý kết nối `pg.Pool`, hàm giao dịch nguyên tử `withTransaction(fn)`, tự động nạp `schema.sql` và ghi `audit_log`.
-- `backend/src/db/seed.ts`: Khởi tạo dữ liệu mẫu (6 phòng ban, 5 chức vụ, 12 nhân viên, 12 hợp đồng, 4 loại phép, 4 đơn phép, 1 quyết định bổ nhiệm, 5 tài khoản mẫu).
+- `backend/src/db/seed.ts`: Khởi tạo dữ liệu mẫu (6 phòng ban kèm `head_id`, 5 chức vụ, 12 nhân viên, 12 hợp đồng, 4 loại phép, 4 đơn phép, 6 quyết định mẫu, 3 quá trình công tác, 2 bản ghi khen thưởng/kỷ luật, 5 tài khoản mẫu).
 - `backend/src/utils/crypto.ts`: Băm mật khẩu bằng `scrypt` + salt ngẫu nhiên, băm token `sha256`.
 - `backend/src/utils/validation.ts`: Các hàm kiểm tra dữ liệu đầu vào (`text`, `optional`, `date`, `numeric`, `choice`) và xử lý ngày tháng (`today`, `shift`, `calendarDays`).
 
-## 3. Ánh xạ 10 Thực thể ERD sang PostgreSQL
+## 3. Ánh xạ 11 Thực thể ERD sang PostgreSQL
 
 | STT | Thực thể trên ERD | Bảng PostgreSQL | Khóa chính | Khóa ngoại & Ràng buộc chính |
 | :--- | :--- | :--- | :--- | :--- |
@@ -57,3 +58,7 @@ Thiết lập môi trường container hóa với **Docker Compose** gồm 3 d�
 - **Job theo ngày** (`runScheduledJobs`): chạy khi khởi động, mỗi 15 phút và khi gọi `GET /api/state` (tối đa 1 lần/phút); chốt chấm dứt hợp đồng đã hẹn, áp dụng phụ lục lương đến hạn, áp dụng quyết định công tác đến hạn, đồng bộ trạng thái nhân viên theo hợp đồng. Idempotent và có khóa advisory.
 - **Docker Compose**: cổng DB và backend chỉ bind `127.0.0.1`; backend nhận `TRUST_PROXY=true` (tin `X-Forwarded-For` của nginx), `COOKIE_SECURE` (đặt `true` khi chạy sau HTTPS) và `ADMIN_PASSWORD` (mật khẩu admin của dữ liệu mẫu, mặc định `Demo@12345` — đổi trước khi triển khai thật). `.env.example` đã bổ sung các biến này.
 - **Dữ liệu mẫu** (`seed.ts`): chức vụ có `is_executive`/`default_role`, phòng ban có trưởng phòng (`head_id`), đơn nghỉ phép tạo trên ngày làm việc, nạp ngày lễ cố định (01/01, 30/04, 01/05, 02/09) cho năm trước/nay/sau khi bảng `holidays` còn trống.
+- **Cập nhật kiểm thử ngày 17/11/2026**:
+  - Đồng bộ kiểu dữ liệu `contracts.original_end_date` (`DATE`), `rewards_disciplines.effective_date` (`DATE`) và `rewards_disciplines.amount` (`NUMERIC(15,2)`) giữa `schema.sql` và `migrations.ts` (`004`) để tránh lỗi xung đột kiểu tham số PostgreSQL (`42P08`).
+  - Cho phép phương thức `DELETE` không có body không bắt buộc gửi header `Content-Type: application/json` trong `backend/src/app.ts`.
+  - Mở rộng bộ kiểm thử tích hợp `backend/tests/workflows.test.mjs` lên **22 kịch bản con (23/23 pass)** bao phủ toàn bộ các file `00`–`07`.

@@ -55,7 +55,11 @@ export function createExpressApp() {
         }
       }
       const contentType = req.headers['content-type'] || '';
-      if (!contentType.startsWith('application/json')) {
+      const hasBody =
+        req.method !== 'DELETE' ||
+        (req.headers['content-length'] !== undefined && req.headers['content-length'] !== '0') ||
+        Boolean(contentType);
+      if (hasBody && !contentType.startsWith('application/json')) {
         return next(Object.assign(new Error('Yêu cầu phải là JSON.'), { status: 415 }));
       }
     }

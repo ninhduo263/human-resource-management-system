@@ -13,11 +13,11 @@ Thư mục này lưu trữ toàn bộ tài liệu kỹ thuật của từng tín
 
 | STT | File tài liệu | Phân hệ / Nội dung | Đối chiếu BFD / DFD / ERD |
 | :--- | :--- | :--- | :--- |
-| 00 | [00-ha-tang-docker-va-database.md](./00-ha-tang-docker-va-database.md) | Hạ tầng Docker Compose, PostgreSQL 16 & Khởi tạo dữ liệu | 10 thực thể ERD + 3 bảng hệ thống |
-| 01 | [01-xac-thuc-phan-quyen-va-quan-tri.md](./01-xac-thuc-phan-quyen-va-quan-tri.md) | Đăng nhập, Phiên, Phân quyền 5 vai trò, Quản trị & Dashboard | Tác nhân DFD Mức 0, RBAC/ABAC |
+| 00 | [00-ha-tang-docker-va-database.md](./00-ha-tang-docker-va-database.md) | Hạ tầng Docker Compose, PostgreSQL 16 & Khởi tạo dữ liệu | 11 thực thể ERD (`ERD_QLNS_v2.drawio`) + 3 bảng hệ thống |
+| 01 | [01-xac-thuc-phan-quyen-va-quan-tri.md](./01-xac-thuc-phan-quyen-va-quan-tri.md) | Đăng nhập, Phiên, Phân quyền 5 vai trò, Quản trị & Dashboard | Tác nhân DFD Mức 0 (`BFD_DFD_QLNS_v2.drawio`), RBAC/ABAC |
 | 02 | [02-ho-so-nhan-vien.md](./02-ho-so-nhan-vien.md) | Quản lý Hồ sơ nhân viên | BFD `1.1`, `1.2`, `1.3`, `1.4` — Kho `D1` |
-| 03 | [03-phong-ban-va-chuc-vu.md](./03-phong-ban-va-chuc-vu.md) | Quản lý Phòng ban & Chức vụ | BFD `2.1`, `2.2`, `2.3`, `2.4` — Kho `D2` |
-| 04 | [04-hop-dong-lao-dong.md](./04-hop-dong-lao-dong.md) | Quản lý Hợp đồng lao động | BFD `3.1`, `3.2`, `3.3`, `3.4` — Kho `D3` |
+| 03 | [03-phong-ban-va-chuc-vu.md](./03-phong-ban-va-chuc-vu.md) | Quản lý Phòng ban & Chức vụ | BFD `2.1`, `2.2`, `2.3`, `2.4` — Kho `D2`, `D4` |
+| 04 | [04-hop-dong-lao-dong.md](./04-hop-dong-lao-dong.md) | Quản lý Hợp đồng lao động | BFD `3.1`, `3.2`, `3.3`, `3.4` — Kho `D3`, `D6` |
 | 05 | [05-cong-tac-va-nghi-phep.md](./05-cong-tac-va-nghi-phep.md) | Quản lý Công tác & Nghỉ phép | BFD `4.1`, `4.2`, `4.3`, `4.4` — Kho `D4`, `D5` |
 | 06 | [06-bao-cao-nhan-su.md](./06-bao-cao-nhan-su.md) | Báo cáo & Thống kê nhân sự | BFD `5.1`, `5.2`, `5.3`, `5.4` — Kho `D1`–`D5` |
 | 07 | [07-khen-thuong-va-ky-luat.md](./07-khen-thuong-va-ky-luat.md) | Quản lý Khen thưởng & Kỷ luật | BFD `3.4` — Kho `D6` (liên kết `D1`, `D4`) |
@@ -33,3 +33,9 @@ Hệ thống được thiết kế theo tiêu chuẩn giao diện thích ứng �
 ## Lịch sử cập nhật lớn
 
 - **16/11/2026 — Nâng cấp nghiệp vụ và nền dữ liệu**: migration có đánh số, kiểu `DATE`/`NUMERIC`, trạng thái nhân viên suy từ hợp đồng, quy định lao động cho hợp đồng, công tác chờ hiệu lực và hoàn tác, nghỉ phép theo ngày làm việc + tuyến duyệt, đặt lại mật khẩu/đổi vai trò, nhật ký có giá trị trước/sau. Chi tiết trong mục *Cập nhật ngày 16/11/2026* ở từng file `00`–`06`.
+- **17/11/2026 — Hoàn thiện 4 điểm chuẩn hóa BFD / DFD / ERD & Sơ đồ Draw.io**:
+  1. Bổ sung thực thể và phân hệ `KHENTHUONG_KYLUAT` (`rewards_disciplines`) cho **BFD 3.4 "Quản lý khen thưởng, kỷ luật"** (tài liệu `07-khen-thuong-va-ky-luat.md`).
+  2. Bảo toàn lịch sử hợp đồng gốc khi gia hạn/chấm dứt (`HOPDONG.original_end_date`, `termination_decision_id` và `GIAHANHOPDONG.decision_id`).
+  3. Xác định rõ tác nhân **Trưởng phòng** (`PHONGBAN.head_id` / `MaTruongPhong`) duyệt đơn nghỉ phép (`4.2`/`4.3`).
+  4. Liên kết chặt `QUATRINHCONGTAC` với `QUYETDINH` (`MaQD`) hỗ trợ đầy đủ *Điều chuyển, Bổ nhiệm, Miễn nhiệm* (`DFD 2.3, 2.4`).
+  5. Xuất bộ file thiết kế chuẩn Draw.io tại thư mục gốc: `ERD_QLNS_v2.drawio` và `BFD_DFD_QLNS_v2.drawio`.

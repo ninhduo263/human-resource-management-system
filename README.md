@@ -1,8 +1,8 @@
 # Hệ thống Quản lý Nhân sự (PeopleOps HRMS) - Nhóm 16
 
-Hệ thống được thiết kế và xây dựng hoàn chỉnh từ **4 tài liệu thiết kế gốc** (`BFD.jpeg`, `DFD-MUC0.png`, `ERD_QLNS_v2.drawio.pdf`, `Nhom_16_QL_Nhan_su.pdf`) sử dụng kiến trúc **Docker Compose**:
+Hệ thống được thiết kế và xây dựng hoàn chỉnh từ **các tài liệu thiết kế chuẩn hóa** (`BFD_DFD_QLNS_v2.drawio`, `ERD_QLNS_v2.drawio`, cùng các bản xuất `BFD.jpeg`, `DFD-MUC0.png`, `ERD_QLNS_v2.drawio.pdf`, `Nhom_16_QL_Nhan_su.pdf`) sử dụng kiến trúc **Docker Compose**:
 
-- **Database**: **PostgreSQL 16** (10 bảng thực thể ERD + View `v_songayphep` + 3 bảng hệ thống)
+- **Database**: **PostgreSQL 16** (11 bảng thực thể ERD + View `v_songayphep` + 3 bảng hệ thống)
 - **Backend**: **Node.js + Express + TypeScript** (`backend/`)
 - **Frontend**: **React 18 + Vite + TypeScript + Tailwind CSS** (`frontend/`)
 - **Container**: **Docker & Docker Compose** (`docker-compose.yml`)
@@ -44,13 +44,14 @@ Mật khẩu chung ban đầu: **`Demo@12345`** (có thể chọn nhanh ngay tr�
 Mỗi tính năng sau khi hoàn thành được lưu trữ độc lập thành một file `.md` trong thư mục [`features-docs/`](./features-docs/README.md). Khi cần sửa đổi hoặc mở rộng bất kỳ tính năng nào, chỉ cần đọc đúng file `.md` của tính năng đó và cập nhật lại sau khi sửa:
 
 - [Mục lục & Quy trình bảo trì tính năng](./features-docs/README.md)
-- [00. Hạ tầng Docker & Cơ sở dữ liệu PostgreSQL (10 thực thể ERD)](./features-docs/00-ha-tang-docker-va-database.md)
+- [00. Hạ tầng Docker & Cơ sở dữ liệu PostgreSQL (11 thực thể ERD)](./features-docs/00-ha-tang-docker-va-database.md)
 - [01. Xác thực, Phân quyền 5 vai trò, Quản trị & Tổng quan](./features-docs/01-xac-thuc-phan-quyen-va-quan-tri.md)
 - [02. Phân hệ 1.0 - Quản lý Hồ sơ nhân viên (1.1 – 1.4)](./features-docs/02-ho-so-nhan-vien.md)
 - [03. Phân hệ 2.0 - Quản lý Phòng ban & Chức vụ (2.1 – 2.4)](./features-docs/03-phong-ban-va-chuc-vu.md)
 - [04. Phân hệ 3.0 - Quản lý Hợp đồng lao động (3.1 – 3.4)](./features-docs/04-hop-dong-lao-dong.md)
 - [05. Phân hệ 4.0 - Quản lý Công tác & Nghỉ phép (4.1 – 4.4)](./features-docs/05-cong-tac-va-nghi-phep.md)
 - [06. Phân hệ 5.0 - Báo cáo & Thống kê nhân sự (5.1 – 5.4)](./features-docs/06-bao-cao-nhan-su.md)
+- [07. Phân hệ Khen thưởng & Kỷ luật (BFD 3.4)](./features-docs/07-khen-thuong-va-ky-luat.md)
 
 ---
 

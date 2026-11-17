@@ -2,14 +2,14 @@
 
 ## 1. Đối chiếu 4 Tài liệu Thiết kế
 - **BFD**: Nhóm `2. Phòng ban và chức vụ`:
-  - `2.1 Quản lý phòng ban`
+  - `2.1 Quản lý phòng ban` (kèm chỉ định Trưởng phòng `MaTruongPhong` / `head_id`)
   - `2.2 Quản lý chức vụ`
-  - `2.3 Phân bổ nhân sự` (Điều chuyển phòng ban theo Quyết định)
-  - `2.4 Bổ nhiệm chức vụ` (Bổ nhiệm chức danh theo Quyết định)
-- **DFD Mức 0 & Mức 1 (Trang 1)**:
-  - Tác nhân: `Cán bộ nhân sự` (quản lý danh mục phòng ban `2.1`, chức vụ `2.2`), `Ban giám đốc` (ban hành Quyết định điều chuyển `2.3`, Quyết định bổ nhiệm `2.4`).
-  - Kho dữ liệu: `D2 - Phòng ban, chức vụ`.
-- **ERD**: Thực thể `PHONGBAN` (`departments`), `CHUCVU` (`positions`), liên kết với `NHANVIEN` (`employees`), `QUYETDINH` (`decisions`) và `QUATRINHCONGTAC` (`assignments`).
+  - `2.3 Phân bổ nhân sự` (Điều chuyển phòng ban theo Quyết định từ Ban giám đốc)
+  - `2.4 Bổ nhiệm / Miễn nhiệm chức vụ` (Bổ nhiệm hoặc miễn nhiệm chức danh theo Quyết định từ Ban giám đốc)
+- **DFD Mức 0 & Mức 1 (Trang 1 - `BFD_DFD_QLNS_v2.drawio`)**:
+  - Tác nhân: `Cán bộ nhân sự` (quản lý danh mục phòng ban `2.1`, chức vụ `2.2`), `Ban giám đốc` (ban hành Quyết định điều chuyển `2.3`, Quyết định bổ nhiệm / miễn nhiệm `2.4`).
+  - Kho dữ liệu: `D2 - Phòng ban, chức vụ`, `D4 - Quá trình công tác & Quyết định` (liên kết `D1 - Hồ sơ nhân viên`).
+- **ERD (`ERD_QLNS_v2.drawio`)**: Thực thể `PHONGBAN` (`departments`, có khóa ngoại `MaTruongPhong` / `head_id` và mối kết hợp `Là Trưởng phòng` 1-1 với `NHANVIEN`), `CHUCVU` (`positions`), liên kết với `NHANVIEN` (`employees`), `QUYETDINH` (`decisions`) và `QUATRINHCONGTAC` (`assignments`).
 
 ## 2. Các File Mã nguồn Liên quan
 - **Backend**:

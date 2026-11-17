@@ -96,8 +96,8 @@ CREATE TABLE IF NOT EXISTS rewards_disciplines (
   decision_id VARCHAR(30) NOT NULL REFERENCES decisions(id) ON DELETE RESTRICT,
   type VARCHAR(40) NOT NULL CHECK (type IN ('Khen thưởng', 'Kỷ luật')),
   category VARCHAR(100) NOT NULL,
-  amount DOUBLE PRECISION DEFAULT 0 CHECK (amount >= 0),
-  effective_date VARCHAR(10) NOT NULL,
+  amount NUMERIC(15,2) DEFAULT 0 CHECK (amount >= 0),
+  effective_date DATE NOT NULL,
   reason TEXT NOT NULL
 );
 
@@ -187,7 +187,10 @@ ALTER TABLE departments ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT
 ALTER TABLE contracts ADD COLUMN IF NOT EXISTS contract_number VARCHAR(60);
 ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_type VARCHAR(40);
 ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_decision_id VARCHAR(30) REFERENCES decisions(id) ON DELETE SET NULL;
-ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_end_date VARCHAR(10);
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_end_date DATE;
+ALTER TABLE contracts ALTER COLUMN original_end_date TYPE DATE USING original_end_date::date;
+ALTER TABLE rewards_disciplines ALTER COLUMN effective_date TYPE DATE USING effective_date::date;
+ALTER TABLE rewards_disciplines ALTER COLUMN amount TYPE NUMERIC(15,2) USING amount::numeric;
 
 ALTER TABLE assignments DROP CONSTRAINT IF EXISTS assignments_type_check;
 ALTER TABLE assignments ADD CONSTRAINT assignments_type_check

@@ -1,7 +1,26 @@
+# Dependencies & build outputs
 node_modules/
 dist/
+*.tsbuildinfo
+
+# Environment & logs
 .env
+.env.local
+.env.*.local
 *.log
+
+# OS & Editor files
 .DS_Store
 Thumbs.db
-*.tsbuildinfo
+.vscode/
+.idea/
+
+# Report documents, Word temporary files & diagrams (local only)
+*.docx
+*.doc
+~$*
+*.pdf
+*.drawio
+*.drawio.bkp
+BFD.jpeg
+DFD-MUC0.png

@@ -153,7 +153,11 @@ export const migrations: Migration[] = [
       ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_decision_id VARCHAR(30)
         REFERENCES decisions(id) ON DELETE SET NULL;
       ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_end_date DATE;
+      ALTER TABLE contracts ALTER COLUMN original_end_date TYPE DATE USING original_end_date::date;
       UPDATE contracts SET original_end_date = end_date WHERE original_end_date IS NULL;
+
+      ALTER TABLE rewards_disciplines ALTER COLUMN effective_date TYPE DATE USING effective_date::date;
+      ALTER TABLE rewards_disciplines ALTER COLUMN amount TYPE NUMERIC(15,2) USING amount::numeric;
 
       ALTER TABLE extensions ADD COLUMN IF NOT EXISTS decision_id VARCHAR(30)
         REFERENCES decisions(id) ON DELETE SET NULL;

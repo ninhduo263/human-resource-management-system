@@ -22,10 +22,10 @@
 
 | Mã BFD | Phương thức & Đường dẫn | Quyền hạn | Quy tắc Kiểm tra & Xử lý |
 | :--- | :--- | :--- | :--- |
-| `3.1` | `POST /api/contracts` | `admin`, `hr` | - Hỗ trợ 3 loại HĐ: `Thử việc`, `Xác định thời hạn`, `Không xác định thời hạn`.<br>- `start_date >= employee.join_date`, `salary > 0`.<br>- Chặn lập hợp đồng trùng khoảng thời gian với các hợp đồng chưa chấm dứt của cùng nhân viên. |
-| `3.2` | `POST /api/contracts/:id/extend` | `admin`, `hr` | - Chỉ gia hạn hợp đồng đang hoạt động và có `end_date`.<br>- `new_end_date` phải sau `old_end_date` và `>= today`.<br>- Tạo bản ghi `extensions` với `sequence = MAX(sequence) + 1` và cập nhật `contracts.end_date` trong cùng 1 transaction. |
-| `3.3` | `POST /api/contracts/:id/terminate` | `admin`, `hr` | - Ghi nhận `terminated_date` (từ `start_date` đến `today` và `<= end_date`) cùng `termination_reason`.<br>- Đổi trạng thái thành `Đã chấm dứt`. |
-| `3.4` | `GET /api/state` (Tự động cảnh báo) | Tất cả vai trò (theo phạm vi) | - Tự động suy diễn trạng thái: `Chưa hiệu lực`, `Hiệu lực`, `Sắp hết hạn` (còn $\le 30$ ngày), `Hết hạn`, `Đã chấm dứt`.<br>- Hiển thị danh sách cảnh báo 30 ngày trên Dashboard và tab `Sắp hết hạn`. |
+| `3.1` | `POST /api/contracts` | `admin`, `hr` | - Hỗ trợ 3 loại HĐ: `Thử việc`, `Xác định thời hạn`, `Không xác định thời hạn`.<br>- `start_date >= employee.join_date`, `salary > 0`.<br>- Lưu `original_end_date = end_date` để bảo toàn ngày kết thúc gốc.<br>- Chặn lập hợp đồng trùng khoảng thời gian với các hợp đồng chưa chấm dứt của cùng nhân viên. |
+| `3.2` | `POST /api/contracts/:id/extend` | `admin`, `hr` | - Chỉ gia hạn hợp đồng đang hoạt động và có `end_date`.<br>- `new_end_date` phải sau `old_end_date` và `>= today`.<br>- Tạo bản ghi phụ lục `extensions` (`GIAHANHOPDONG`) với `sequence = MAX(sequence) + 1`, lưu đầy đủ `old_end_date`, `new_end_date`, `decision_id` (nếu có Quyết định) và cập nhật `contracts.end_date` trong cùng 1 transaction (không làm mất lịch sử HĐ gốc). |
+| `3.3` | `POST /api/contracts/:id/terminate` | `admin`, `hr` | - Ghi nhận `terminated_date`, `termination_type`, `termination_reason` và liên kết `termination_decision_id` (`decisions.id` khi có Quyết định chấm dứt HĐ).<br>- Đổi trạng thái thành `Đã chấm dứt` và đồng bộ trạng thái nhân viên. |
+| `3.4` | `GET / POST / DELETE /api/rewards`<br>`GET /api/state` | `admin`, `hr`, `director` (ghi)<br>Tất cả (xem theo phạm vi) | - **BFD 3.4 Quản lý khen thưởng, kỷ luật**: Lưu vào bảng `rewards_disciplines` (`KHENTHUONG_KYLUAT`) gắn với `decisions` (`QUYETDINH`). Xem chi tiết tại [07-khen-thuong-va-ky-luat.md](./07-khen-thuong-va-ky-luat.md).<br>- Hỗ trợ thêm tiện ích tự động cảnh báo hợp đồng sắp hết hạn ($\le 30$ ngày) trên Dashboard và tab `Sắp hết hạn`. |
 
 ## 4. Hướng dẫn Sửa đổi / Bảo trì sau này
 - **Thay đổi ngưỡng cảnh báo sắp hết hạn (hiện tại 30 ngày)**: Chỉnh sửa hàm `contractStatus` trong `frontend/src/utils/format.ts` (hoặc `ContractsView.tsx`).

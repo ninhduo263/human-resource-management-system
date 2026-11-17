@@ -252,10 +252,11 @@ test('Employee accounts, directors, contract appendices and termination', async 
     const a = await leave(noManager);
     const b = await leave(withManager);
     assert.equal((await request(`/leaves/${b.body.id}/review`, { status: 'Đã duyệt' }, hr)).status, 403);
+    assert.equal((await request(`/leaves/${a.body.id}/review`, { status: 'Đã duyệt' }, hr)).status, 403);
     assert.equal((await request(`/leaves/${a.body.id}/review`, { status: 'Đã duyệt' }, manager)).status, 403);
     assert.equal((await request(`/leaves/${a.body.id}/review`, { status: 'Đã duyệt' }, dir)).status, 200);
     assert.equal((await request(`/leaves/${b.body.id}/review`, { status: 'Đã duyệt' }, manager)).status, 200);
-    assert.equal((await request(`/leaves/${a.body.id}/review`, { status: 'Đã duyệt' }, hr)).status, 403);
+    assert.equal((await request(`/leaves/${a.body.id}/review`, { status: 'Đã duyệt' }, dir)).status, 400);
     assert.ok((await state(manager)).leaves.every((item) => typeof item.can_review === 'boolean'));
 
     const owner = await login(noManagerAccount.username, noManagerAccount.password);
@@ -371,5 +372,186 @@ test('Employee accounts, directors, contract appendices and termination', async 
     const data = await state();
     assert.equal(data.extensions.filter((item) => item.contract_id === c.id).length, 3);
     assert.equal(data.employees.find((item) => item.id === e.id).status, 'Đã lưu trữ');
+  });
+
+  await t.test('Positions auto-ID, department head_id validation, and usage summary on delete (03)', async () => {
+    const posRes = await request('/positions', {
+      id: 'IGNORED',
+      name: 'Trưởng nhóm kiểm thử',
+      level: 4,
+      description: 'Nhóm trưởng',
+      is_executive: false,
+      default_role: 'manager',
+      active: true,
+    }, admin);
+    assert.equal(posRes.status, 201, JSON.stringify(posRes.body));
+    assert.match(posRes.body.id, /^CV\d{2,}$/);
+
+    // Không xóa được phòng ban hoặc chức vụ đang sử dụng, trả 409 kèm thông tin số lượng
+    const delDept = await request('/departments/PB02', undefined, admin, 'DELETE');
+    assert.equal(delDept.status, 409);
+    assert.match(delDept.body.error, /nhân viên/);
+
+    const delPos = await request('/positions/CV01', undefined, admin, 'DELETE');
+    assert.equal(delPos.status, 409);
+
+    // Xóa được chức vụ chưa sử dụng
+    assert.equal((await request(`/positions/${posRes.body.id}`, undefined, admin, 'DELETE')).status, 200);
+
+    // Gán head_id khác phòng ban bị từ chối (400)
+    const wrongHead = await request('/departments/PB02', {
+      name: 'Công nghệ',
+      description: 'Phát triển sản phẩm và hạ tầng',
+      founded_date: '2022-01-01',
+      head_id: 'NV001', // NV001 thuộc PB01
+    }, admin, 'PUT');
+    assert.equal(wrongHead.status, 400);
+  });
+
+  await t.test('Contract original_end_date preservation and decision links on extend/terminate (04)', async () => {
+    const emp4 = employee();
+    await addEmployee(emp4);
+    const initialEnd = shift(date, 90);
+    const c4 = await addContract(emp4, { start_date: shift(date, -20), end_date: initialEnd });
+
+    const extRes = await request(`/contracts/${c4.id}/extend`, {
+      new_end_date: shift(date, 180),
+      reason: 'Gia hạn theo quyết định',
+      decision_number: `QD-GH-${c4.id}`,
+      signer: 'Trần Hải Đăng',
+      signed_date: date,
+    }, admin);
+    assert.equal(extRes.status, 200, JSON.stringify(extRes.body));
+
+    let data = await state();
+    const updatedC4 = data.contracts.find((item) => item.id === c4.id);
+    assert.equal(updatedC4.original_end_date, initialEnd);
+    assert.equal(updatedC4.end_date, shift(date, 180));
+    const extRecord = data.extensions.find((item) => item.contract_id === c4.id);
+    assert.ok(extRecord.decision_id);
+
+    const termRes = await request(`/contracts/${c4.id}/terminate`, {
+      terminated_date: date,
+      termination_type: 'Thỏa thuận chấm dứt',
+      reason: 'Chấm dứt theo thỏa thuận',
+      decision_number: `QD-CD-${c4.id}`,
+      signer: 'Trần Hải Đăng',
+      signed_date: date,
+    }, admin);
+    assert.equal(termRes.status, 200, JSON.stringify(termRes.body));
+    data = await state();
+    assert.ok(data.contracts.find((item) => item.id === c4.id).termination_decision_id);
+  });
+
+  await t.test('Shared 1-N decisions, Mien nhiem assignment, Holidays API and Leave Balances (05)', async () => {
+    const empA = employee({ department_id: 'PB02', position_id: 'CV02' });
+    const empB = employee({ department_id: 'PB03', position_id: 'CV02' });
+    await addEmployee(empA);
+    await addEmployee(empB);
+
+    const sharedDecision = {
+      type: 'Miễn nhiệm',
+      new_position_id: 'CV01',
+      effective_date: date,
+      signed_date: date,
+      number: 'QD-MIEN-NHIEM-CHUNG-01',
+      signer: 'Trần Hải Đăng',
+      reason: 'Miễn nhiệm chức vụ Trưởng phòng chuyển về Chuyên viên',
+    };
+
+    const r1 = await request('/assignments', {
+      ...sharedDecision,
+      employee_id: empA.id,
+      new_department_id: 'PB02',
+    }, admin);
+    assert.equal(r1.status, 201, JSON.stringify(r1.body));
+
+    const r2 = await request('/assignments', {
+      ...sharedDecision,
+      employee_id: empB.id,
+      new_department_id: 'PB03',
+    }, admin);
+    assert.equal(r2.status, 201, JSON.stringify(r2.body));
+
+    const data = await state();
+    const a1 = data.assignments.find((x) => x.id === r1.body.id);
+    const a2 = data.assignments.find((x) => x.id === r2.body.id);
+    assert.equal(a1.decision_id, a2.decision_id);
+    assert.equal(a1.type, 'Miễn nhiệm');
+
+    // Holidays API
+    const holDay = `${Number(date.slice(0, 4)) + 1}-12-25`;
+    assert.equal((await request('/holidays', { day: holDay, name: 'Lễ kiểm thử' }, hr)).status, 201);
+    const holList = await request('/holidays', undefined, hr, 'GET');
+    assert.equal(holList.status, 200);
+    assert.ok(holList.body.some((h) => h.day === holDay));
+    assert.equal((await request(`/holidays/${holDay}`, undefined, hr, 'DELETE')).status, 200);
+
+    // Balances adjustment API
+    const balRes = await request('/balances', {
+      employee_id: empA.id,
+      year: Number(date.slice(0, 4)),
+      total: 18,
+    }, hr);
+    assert.equal(balRes.status, 200);
+    assert.equal((await state()).balances.find((b) => b.employee_id === empA.id && b.year === Number(date.slice(0, 4))).total, 18);
+  });
+
+  await t.test('Rewards and Disciplines (BFD 3.4 - 07) creation, 1-N decision link, RBAC scoping and deletion', async () => {
+    const empReward = employee({ department_id: 'PB02' });
+    const empRewardAcc = await addEmployee(empReward);
+    const empOtherDept = employee({ department_id: 'PB03' });
+    await addEmployee(empOtherDept);
+
+    const rewardRes = await request('/rewards', {
+      employee_id: empReward.id,
+      type: 'Khen thưởng',
+      category: 'Thưởng sáng kiến kỹ thuật',
+      amount: 3_000_000,
+      signed_date: date,
+      effective_date: date,
+      number: 'QD-KT-TEST-01',
+      signer: 'Trần Hải Đăng',
+      reason: 'Đạt giải sáng kiến cải tiến hệ thống',
+    }, hr);
+    assert.equal(rewardRes.status, 201, JSON.stringify(rewardRes.body));
+    assert.match(rewardRes.body.id, /^KT\d{3,}$/);
+
+    const disciplineRes = await request('/rewards', {
+      employee_id: empOtherDept.id,
+      type: 'Kỷ luật',
+      category: 'Khiển trách',
+      amount: 0,
+      signed_date: date,
+      effective_date: date,
+      number: 'QD-KL-TEST-01',
+      signer: 'Trần Hải Đăng',
+      reason: 'Vi phạm nội quy giờ giấc',
+    }, admin);
+    assert.equal(disciplineRes.status, 201, JSON.stringify(disciplineRes.body));
+    assert.match(disciplineRes.body.id, /^KL\d{3,}$/);
+
+    // Kiểm tra phân quyền xem khen thưởng/kỷ luật (RBAC/ABAC)
+    const managerRewards = await request('/rewards', undefined, manager, 'GET');
+    assert.equal(managerRewards.status, 200);
+    assert.ok(managerRewards.body.some((r) => r.id === rewardRes.body.id));
+    assert.ok(!managerRewards.body.some((r) => r.id === disciplineRes.body.id));
+
+    const empCookie = await login(empRewardAcc.username, empRewardAcc.password);
+    const empRewards = await request('/rewards', undefined, empCookie, 'GET');
+    assert.equal(empRewards.status, 200);
+    assert.ok(empRewards.body.every((r) => r.employee_id === empReward.id));
+    assert.equal((await request(`/rewards/${rewardRes.body.id}`, undefined, empCookie, 'DELETE')).status, 403);
+
+    // Xóa bản ghi kỷ luật bởi HR/Admin
+    assert.equal((await request(`/rewards/${disciplineRes.body.id}`, undefined, hr, 'DELETE')).status, 200);
+  });
+
+  await t.test('Paginated and searchable audit log API for admin (01)', async () => {
+    assert.equal((await request('/audit?limit=10&offset=0', undefined, hr, 'GET')).status, 403);
+    const auditRes = await request('/audit?limit=10&offset=0&q=Khen', undefined, admin, 'GET');
+    assert.equal(auditRes.status, 200);
+    assert.ok(auditRes.body.total >= 1);
+    assert.ok(Array.isArray(auditRes.body.rows));
   });
 });
