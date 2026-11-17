@@ -20,15 +20,25 @@ export async function runScheduledJobs(force = false): Promise<void> {
     if (!lock?.ok) return;
     const day = today();
 
-    const terminations = await tx.all<{ id: string; employee_id: string }>(
-      `SELECT id, employee_id FROM contracts
+    const terminations = await tx.all<{
+      id: string;
+      employee_id: string;
+      termination_type: string | null;
+    }>(
+      `SELECT id, employee_id, termination_type FROM contracts
        WHERE status NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')
          AND terminated_date IS NOT NULL AND terminated_date <= $1
        ORDER BY terminated_date`,
       [day]
     );
     for (const c of terminations) {
-      await finalizeTermination(tx, c, null, 'Chấm dứt hợp đồng đến hạn');
+      await finalizeTermination(
+        tx,
+        c,
+        null,
+        'Chấm dứt hợp đồng đến hạn',
+        c.termination_type
+      );
     }
 
     const salaries = await tx.all<{ id: string; contract_id: string; new_salary: number }>(

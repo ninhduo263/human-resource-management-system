@@ -366,7 +366,8 @@ contractsRouter.post(
           tx,
           c,
           u.id,
-          'Chấm dứt hợp đồng và cập nhật trạng thái nhân viên'
+          'Chấm dứt hợp đồng và cập nhật trạng thái nhân viên',
+          type
         );
       } else {
         await auditLog(tx, u.id, 'Hẹn chấm dứt hợp đồng', rid, { terminated_date: ended, type });

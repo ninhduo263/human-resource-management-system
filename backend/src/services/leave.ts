@@ -70,40 +70,24 @@ export async function usedAnnualDays(
   return Number(row?.n ?? 0);
 }
 
-/**
- * Ai được duyệt đơn nghỉ phép của ai (không bao giờ tự duyệt):
- *  - admin: mọi đơn.
- *  - trưởng phòng: nhân viên thuộc phòng ban mình làm trưởng phòng (hoặc cùng phòng).
- *  - giám đốc: trưởng phòng, hoặc nhân viên thuộc phòng chưa có trưởng phòng.
- *  - nhân sự: giám đốc, hoặc nhân viên thuộc phòng chưa có trưởng phòng.
- */
+/** Duyệt theo tuyến cấp trên: trưởng phòng cùng phòng ban hoặc lãnh đạo cấp cao hơn. */
 export function canReviewLeave(
-  u: SessionUser,
-  target: { id: string; department_id: string | null },
-  targetRole: string | null,
-  departmentHasManager: boolean,
-  isHeadOfDepartment: boolean = false
+  reviewer: SessionUser & { position_level: number },
+  target: { id: string; department_id: string | null; position_level: number },
+  isHeadOfDepartment: boolean
 ): boolean {
-  if (target.id === u.employee_id) return false;
-  switch (u.role) {
-    case 'admin':
-      return true;
-    case 'manager':
-      return (
-        isHeadOfDepartment || (
-          u.department_id !== null &&
-          target.department_id === u.department_id &&
-          targetRole !== 'manager' &&
-          targetRole !== 'director'
-        )
-      );
-    case 'director':
-      return targetRole === 'manager' || (!departmentHasManager && targetRole !== 'director');
-    case 'hr':
-      return targetRole === 'director' || (!departmentHasManager && targetRole !== 'manager');
-    default:
-      return false;
+  if (target.id === reviewer.employee_id) return false;
+  if (reviewer.role === 'admin') return true;
+  if (reviewer.position_level <= target.position_level) return false;
+
+  if (reviewer.role === 'manager') {
+    return (
+      isHeadOfDepartment &&
+      reviewer.department_id !== null &&
+      target.department_id === reviewer.department_id
+    );
   }
+  return reviewer.role === 'director';
 }
 
 /** Phòng ban nào đang có trưởng phòng hoặc tài khoản trưởng phòng hoạt động. */

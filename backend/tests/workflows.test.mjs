@@ -252,10 +252,10 @@ test('Employee accounts, directors, contract appendices and termination', async 
     const a = await leave(noManager);
     const b = await leave(withManager);
     assert.equal((await request(`/leaves/${b.body.id}/review`, { status: 'Đã duyệt' }, hr)).status, 403);
-    assert.equal((await request(`/leaves/${b.body.id}/review`, { status: 'Đã duyệt' }, dir)).status, 403);
     assert.equal((await request(`/leaves/${a.body.id}/review`, { status: 'Đã duyệt' }, manager)).status, 403);
+    assert.equal((await request(`/leaves/${a.body.id}/review`, { status: 'Đã duyệt' }, dir)).status, 200);
     assert.equal((await request(`/leaves/${b.body.id}/review`, { status: 'Đã duyệt' }, manager)).status, 200);
-    assert.equal((await request(`/leaves/${a.body.id}/review`, { status: 'Đã duyệt' }, hr)).status, 200);
+    assert.equal((await request(`/leaves/${a.body.id}/review`, { status: 'Đã duyệt' }, hr)).status, 403);
     assert.ok((await state(manager)).leaves.every((item) => typeof item.can_review === 'boolean'));
 
     const owner = await login(noManagerAccount.username, noManagerAccount.password);
@@ -294,11 +294,17 @@ test('Employee accounts, directors, contract appendices and termination', async 
     assert.equal(indefinite.status, 201);
   });
 
-  await t.test('Scheduled contract termination is finalised by the daily job', async () => {
+  await t.test('Employee resignation is finalised on its effective date even with a future contract', async () => {
     const z = employee();
     const account = await addEmployee(z);
     const zc = await addContract(z);
-    const scheduled = await request(`/contracts/${zc.id}/terminate`, { terminated_date: shift(date, 5), reason: 'Hẹn nghỉ', termination_type: 'Thỏa thuận chấm dứt' }, admin);
+    const futureContractStart = shift(date, 30);
+    await pool.query(
+      `INSERT INTO contracts(id, employee_id, type, start_date, end_date, original_end_date, salary, status)
+       VALUES($1, $2, 'Xác định thời hạn', $3, $4, $4, 10_000_000, 'Hiệu lực')`,
+      [`FUTURE-${z.id}`, z.id, futureContractStart, shift(futureContractStart, 90)]
+    );
+    const scheduled = await request(`/contracts/${zc.id}/terminate`, { terminated_date: shift(date, 5), reason: 'Người lao động xin nghỉ', termination_type: 'Người lao động xin nghỉ' }, admin);
     assert.equal(scheduled.status, 200, JSON.stringify(scheduled.body));
     let data = await state();
     assert.equal(data.contracts.find((item) => item.id === zc.id).status, 'Hiệu lực');
