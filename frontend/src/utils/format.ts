@@ -68,6 +68,12 @@ export function getAntTagColor(status: string): string {
   if (['Điều chuyển', 'Bổ nhiệm', 'Điều chuyển và bổ nhiệm'].includes(status)) {
     return 'processing';
   }
+  if (['Miễn nhiệm', 'Kỷ luật'].includes(status)) {
+    return 'magenta';
+  }
+  if (['Khen thưởng'].includes(status)) {
+    return 'gold';
+  }
   return 'success';
 }
 

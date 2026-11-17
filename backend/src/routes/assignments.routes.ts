@@ -27,7 +27,7 @@ assignmentsRouter.post(
     const b = req.body;
     const effective = date(b, 'effective_date');
     const signed = date(b, 'signed_date');
-    const type = choice(b, 'type', ['Điều chuyển', 'Bổ nhiệm', 'Điều chuyển và bổ nhiệm'] as const);
+    const type = choice(b, 'type', ['Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm'] as const);
     const reason = text(b, 'reason', 1000);
     const number = text(b, 'number', 60);
     const signer = text(b, 'signer', 120);
@@ -66,13 +66,19 @@ assignmentsRouter.post(
         fail('Phòng ban hoặc chức vụ mới phải thay đổi.');
       }
 
-      const expected =
-        e.department_id !== dept.id
-          ? e.position_id !== pos.id
-            ? 'Điều chuyển và bổ nhiệm'
-            : 'Điều chuyển'
-          : 'Bổ nhiệm';
-      if (type !== expected) fail('Loại biến động không khớp phòng ban/chức vụ thay đổi.');
+      if (type === 'Miễn nhiệm') {
+        if (e.position_id === pos.id) {
+          fail('Miễn nhiệm yêu cầu thay đổi chức vụ sang chức vụ mới.');
+        }
+      } else {
+        const expected =
+          e.department_id !== dept.id
+            ? e.position_id !== pos.id
+              ? 'Điều chuyển và bổ nhiệm'
+              : 'Điều chuyển'
+            : 'Bổ nhiệm';
+        if (type !== expected) fail('Loại biến động không khớp phòng ban/chức vụ thay đổi.');
+      }
 
       const did = generateId('QD');
       await tx.run(

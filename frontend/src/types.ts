@@ -50,11 +50,13 @@ export interface Contract {
   type: 'Thử việc' | 'Xác định thời hạn' | 'Không xác định thời hạn';
   start_date: string;
   end_date: string | null;
+  original_end_date?: string | null;
   salary: number | null;
   status: string;
   terminated_date: string | null;
   termination_reason: string | null;
   termination_type?: string | null;
+  termination_decision_id?: string | null;
   contract_number?: string | null;
 }
 
@@ -71,6 +73,7 @@ export interface ContractExtension {
   reason: string;
   effective_date?: string | null;
   applied?: boolean;
+  decision_id?: string | null;
 }
 
 export interface Decision {
@@ -87,7 +90,7 @@ export interface Assignment {
   id: string;
   employee_id: string;
   decision_id: string;
-  type: 'Điều chuyển' | 'Bổ nhiệm' | 'Điều chuyển và bổ nhiệm';
+  type: 'Điều chuyển' | 'Bổ nhiệm' | 'Miễn nhiệm' | 'Điều chuyển và bổ nhiệm';
   old_department_id: string | null;
   new_department_id: string;
   old_position_id: string;
@@ -96,6 +99,23 @@ export interface Assignment {
   reason: string;
   status?: 'Chờ hiệu lực' | 'Hiệu lực' | 'Đã hủy';
   cancel_reason?: string | null;
+}
+
+export interface RewardDiscipline {
+  id: string;
+  employee_id: string;
+  decision_id: string;
+  type: 'Khen thưởng' | 'Kỷ luật';
+  category: string;
+  amount: number;
+  effective_date: string;
+  reason: string;
+  employee_name?: string;
+  department_name?: string;
+  position_name?: string;
+  decision_number?: string;
+  signer?: string;
+  signed_date?: string;
 }
 
 export interface LeaveType {
@@ -160,6 +180,7 @@ export interface AppState {
   extensions: ContractExtension[];
   assignments: Assignment[];
   decisions: Decision[];
+  rewards?: RewardDiscipline[];
   leaveTypes: LeaveType[];
   leaves: LeaveRequest[];
   balances: LeaveBalance[];
@@ -173,6 +194,7 @@ export type RouteKey =
   | 'departments'
   | 'contracts'
   | 'assignments'
+  | 'rewards'
   | 'leaves'
   | 'reports'
   | 'settings';

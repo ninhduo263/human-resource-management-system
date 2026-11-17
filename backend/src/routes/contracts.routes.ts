@@ -111,8 +111,8 @@ async function insertContract(tx: DbExecutor, c: NewContract, actorId: string): 
 
   const cid = await nextBusinessId(tx, 'contracts');
   await tx.run(
-    `INSERT INTO contracts(id, employee_id, type, start_date, end_date, salary, status, contract_number)
-     VALUES($1, $2, $3, $4, $5, $6, 'Hiệu lực', $7)`,
+    `INSERT INTO contracts(id, employee_id, type, start_date, end_date, original_end_date, salary, status, contract_number)
+     VALUES($1, $2, $3, $4, $5, $5, $6, 'Hiệu lực', $7)`,
     [cid, c.employee.id, c.type, c.start, c.end, c.salary, c.number]
   );
   await auditLog(tx, actorId, 'Lập hợp đồng', cid);
@@ -219,10 +219,27 @@ function amendContract(extend: boolean) {
         [rid]
       );
       const seq = Number(seqRow?.n ?? 1);
+
+      let decisionId: string | null = null;
+      if (b.decision_number) {
+        const decNum = text(b, 'decision_number', 60);
+        const signer = text(b, 'signer', 120);
+        const signedDate = b.signed_date ? date(b, 'signed_date') : currentDay;
+        const did = generateId('QD');
+        await tx.run(
+          `INSERT INTO decisions(id, number, type, signed_date, effective_date, signer, content)
+           VALUES($1, $2, 'Gia hạn hợp đồng', $3, $4, $5, $6)
+           ON CONFLICT (number) DO NOTHING`,
+          [did, decNum, signedDate, effective, signer, reason]
+        );
+        const d = await tx.one<any>('SELECT id FROM decisions WHERE number = $1', [decNum]);
+        if (d) decisionId = d.id;
+      }
+
       await tx.run(
         `INSERT INTO extensions(id, contract_id, sequence, created_date, old_end_date, new_end_date, reason,
-          amendment_type, old_salary, new_salary, effective_date, applied)
-         VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+          amendment_type, old_salary, new_salary, effective_date, applied, decision_id)
+         VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
           generateId('PL'),
           rid,
@@ -236,6 +253,7 @@ function amendContract(extend: boolean) {
           salary,
           effective,
           applyNow,
+          decisionId,
         ]
       );
       await tx.run('UPDATE contracts SET end_date = $1, salary = $2 WHERE id = $3', [
@@ -322,10 +340,26 @@ contractsRouter.post(
       }
       if (ended > addMonths(currentDay, 6)) fail('Chỉ được hẹn chấm dứt trong vòng 6 tháng tới.');
 
+      let decisionId: string | null = null;
+      if (b.decision_number) {
+        const decNum = text(b, 'decision_number', 60);
+        const signer = text(b, 'signer', 120);
+        const signedDate = b.signed_date ? date(b, 'signed_date') : currentDay;
+        const did = generateId('QD');
+        await tx.run(
+          `INSERT INTO decisions(id, number, type, signed_date, effective_date, signer, content)
+           VALUES($1, $2, 'Chấm dứt hợp đồng', $3, $4, $5, $6)
+           ON CONFLICT (number) DO NOTHING`,
+          [did, decNum, signedDate, ended, signer, reason]
+        );
+        const d = await tx.one<any>('SELECT id FROM decisions WHERE number = $1', [decNum]);
+        if (d) decisionId = d.id;
+      }
+
       await tx.run(
-        `UPDATE contracts SET terminated_date = $1, termination_reason = $2, termination_type = $3
-         WHERE id = $4`,
-        [ended, reason, type, rid]
+        `UPDATE contracts SET terminated_date = $1, termination_reason = $2, termination_type = $3, termination_decision_id = $4
+         WHERE id = $5`,
+        [ended, reason, type, decisionId, rid]
       );
       if (ended <= currentDay) {
         await finalizeTermination(

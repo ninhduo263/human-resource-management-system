@@ -1,15 +1,15 @@
 # 04. Phân hệ 3.0 - Quản lý Hợp đồng Lao động (`3.1` – `3.4`)
 
 ## 1. Đối chiếu 4 Tài liệu Thiết kế
-- **BFD**: Nhóm `3. Hợp đồng lao động`:
+- **BFD**: Nhóm `3. Hợp đồng lao động & Chế độ`:
   - `3.1 Lập hợp đồng`
-  - `3.2 Gia hạn hợp đồng`
-  - `3.3 Chấm dứt hợp đồng`
-  - `3.4 Theo dõi hết hạn HĐ`
+  - `3.2 Gia hạn hợp đồng` (Kèm bảo toàn lịch sử HĐ gốc và lưu vết Phụ lục/Gia hạn)
+  - `3.3 Chấm dứt hợp đồng` (Gắn với Quyết định chấm dứt hợp đồng từ Ban Giám đốc)
+  - `3.4 Quản lý khen thưởng, kỷ luật` (Xem chi tiết tại [07-khen-thuong-va-ky-luat.md](./07-khen-thuong-va-ky-luat.md); tính năng cảnh báo hợp đồng hết hạn là tiện ích theo dõi tự động của phân hệ HĐ).
 - **DFD Mức 0 & Mức 1 (Trang 2)**:
-  - Tác nhân: `Cán bộ nhân sự` (lập hợp đồng mới, gia hạn, chấm dứt, nhận cảnh báo hợp đồng sắp hết hạn).
-  - Kho dữ liệu: `D3 - Hợp đồng`.
-- **ERD**: Thực thể `HOPDONG` (`contracts`) và `GIAHANHOPDONG` (`extensions`, quan hệ 1-N lưu lịch sử từng lần gia hạn).
+  - Tác nhân: `Cán bộ nhân sự` (lập hợp đồng mới, gia hạn, đề xuất chấm dứt, nhận cảnh báo hết hạn), `Ban giám đốc` (ban hành Quyết định chấm dứt HĐ, Quyết định khen thưởng/kỷ luật).
+  - Kho dữ liệu: `D3 - Hợp đồng`, `D6 - Khen thưởng, kỷ luật`.
+- **ERD**: Thực thể `HOPDONG` (`contracts`, lưu `original_end_date`, `termination_decision_id`), `GIAHANHOPDONG` (`extensions`, quan hệ 1-N lưu lịch sử từng lần gia hạn/phụ lục và quyết định `decision_id`), và `KHENTHUONG_KYLUAT` (`rewards_disciplines`).
 
 ## 2. Các File Mã nguồn Liên quan
 - **Backend**:

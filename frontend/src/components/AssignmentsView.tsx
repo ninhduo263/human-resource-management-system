@@ -470,6 +470,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                 options={[
                   { value: 'Điều chuyển', label: 'Điều chuyển' },
                   { value: 'Bổ nhiệm', label: 'Bổ nhiệm' },
+                  { value: 'Miễn nhiệm', label: 'Miễn nhiệm' },
                   {
                     value: 'Điều chuyển và bổ nhiệm',
                     label: 'Điều chuyển và bổ nhiệm',

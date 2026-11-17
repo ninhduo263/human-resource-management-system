@@ -28,6 +28,7 @@ import {
   SearchOutlined,
   MenuOutlined,
   MoreOutlined,
+  TrophyOutlined,
 } from '@ant-design/icons';
 import { AppState, RouteKey } from './types';
 import { apiRequest } from './api';
@@ -43,6 +44,7 @@ import { EmployeesView } from './components/EmployeesView';
 import { DepartmentsView } from './components/DepartmentsView';
 import { ContractsView } from './components/ContractsView';
 import { AssignmentsView } from './components/AssignmentsView';
+import { RewardsView } from './components/RewardsView';
 import { LeavesView } from './components/LeavesView';
 import { ReportsView } from './components/ReportsView';
 import { SettingsView } from './components/SettingsView';
@@ -169,6 +171,11 @@ export const App: React.FC = () => {
       key: 'assignments',
       icon: <AuditOutlined />,
       label: 'Quá trình công tác',
+    },
+    {
+      key: 'rewards',
+      icon: <TrophyOutlined />,
+      label: 'Khen thưởng & Kỷ luật',
     },
     {
       key: 'leaves',
@@ -441,6 +448,13 @@ export const App: React.FC = () => {
             )}
             {route === 'assignments' && (
               <AssignmentsView
+                state={state}
+                onRefresh={refreshState}
+                notify={notify}
+              />
+            )}
+            {route === 'rewards' && (
+              <RewardsView
                 state={state}
                 onRefresh={refreshState}
                 notify={notify}
