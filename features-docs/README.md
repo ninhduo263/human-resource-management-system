@@ -20,6 +20,7 @@ Thư mục này lưu trữ toàn bộ tài liệu kỹ thuật của từng tín
 | 04 | [04-hop-dong-lao-dong.md](./04-hop-dong-lao-dong.md) | Quản lý Hợp đồng lao động | BFD `3.1`, `3.2`, `3.3`, `3.4` — Kho `D3` |
 | 05 | [05-cong-tac-va-nghi-phep.md](./05-cong-tac-va-nghi-phep.md) | Quản lý Công tác & Nghỉ phép | BFD `4.1`, `4.2`, `4.3`, `4.4` — Kho `D4`, `D5` |
 | 06 | [06-bao-cao-nhan-su.md](./06-bao-cao-nhan-su.md) | Báo cáo & Thống kê nhân sự | BFD `5.1`, `5.2`, `5.3`, `5.4` — Kho `D1`–`D5` |
+| 07 | [07-khen-thuong-va-ky-luat.md](./07-khen-thuong-va-ky-luat.md) | Quản lý Khen thưởng & Kỷ luật | BFD `3.4` — Kho `D6` (liên kết `D1`, `D4`) |
 
 ## Kiến trúc Giao diện Thích ứng Đa thiết bị (Responsive Architecture)
 

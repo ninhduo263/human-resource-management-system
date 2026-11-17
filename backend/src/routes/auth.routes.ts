@@ -193,6 +193,8 @@ export async function buildScopedState(u: SessionUser) {
   const roleOf = new Map(roleRows.map((r) => [r.employee_id, r.role]));
   const employeeById = new Map(employees.map((e) => [e.id, e]));
   const managed = await departmentsWithManager(db);
+  const deptHeadRows = await db.all<{ id: string; head_id: string | null }>('SELECT id, head_id FROM departments');
+  const deptHeadMap = new Map(deptHeadRows.map((d) => [d.id, d.head_id]));
 
   const rawLeaves = await db.all(
     'SELECT * FROM leave_requests WHERE employee_id = ANY($1::text[]) ORDER BY submitted_date DESC, id DESC',
@@ -209,7 +211,8 @@ export async function buildScopedState(u: SessionUser) {
           u,
           emp,
           roleOf.get(emp.id) ?? null,
-          emp.department_id !== null && managed.has(emp.department_id)
+          emp.department_id !== null && managed.has(emp.department_id),
+          emp.department_id !== null && deptHeadMap.get(emp.department_id) === u.employee_id
         ),
     };
   });
@@ -263,11 +266,22 @@ export async function buildScopedState(u: SessionUser) {
     };
   });
 
+  const rawRewards = await db.all(
+    'SELECT * FROM rewards_disciplines WHERE employee_id = ANY($1::text[]) ORDER BY effective_date DESC, id DESC',
+    [ids]
+  );
+  const rewards = rawRewards.map((r) => ({
+    ...r,
+    amount: Number(r.amount),
+  }));
+  const rewardDecisionIds = rawRewards.map((r) => r.decision_id);
+  const allDecisionIds = Array.from(new Set([...decisionIds, ...rewardDecisionIds]));
+
   const decisions = fullAccess
     ? await db.all('SELECT * FROM decisions ORDER BY effective_date DESC')
     : await db.all(
         'SELECT * FROM decisions WHERE id = ANY($1::text[]) ORDER BY effective_date DESC',
-        [decisionIds]
+        [allDecisionIds]
       );
 
   const users =
@@ -301,6 +315,7 @@ export async function buildScopedState(u: SessionUser) {
     extensions,
     assignments,
     decisions,
+    rewards,
     leaveTypes,
     leaves,
     balances,

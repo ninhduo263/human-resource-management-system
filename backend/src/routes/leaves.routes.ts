@@ -180,7 +180,11 @@ leavesRouter.post(
       );
       const managed = await departmentsWithManager(tx);
       const hasManager = e.department_id !== null && managed.has(e.department_id);
-      if (!canReviewLeave(u, e, target?.role ?? null, hasManager)) {
+      const deptHead = e.department_id
+        ? await tx.one<{ head_id: string | null }>('SELECT head_id FROM departments WHERE id = $1', [e.department_id])
+        : null;
+      const isHead = deptHead?.head_id === u.employee_id;
+      if (!canReviewLeave(u, e, target?.role ?? null, hasManager, isHead)) {
         fail('Bạn không có quyền duyệt đơn nghỉ phép này.', 403);
       }
 

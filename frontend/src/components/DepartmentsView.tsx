@@ -322,9 +322,22 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
                   >
                     {d.description || 'Chưa có mô tả phòng ban.'}
                   </Paragraph>
-                  <div className="text-xs text-slate-400 mb-3">
+                  <div className="text-xs text-slate-400 mb-2">
                     Thành lập: {formatDate(d.founded_date)}
                   </div>
+                  {(() => {
+                    const head = state.employees.find((e) => e.id === d.head_id);
+                    return head ? (
+                      <div className="text-xs text-slate-700 font-medium mb-3 flex items-center gap-1.5">
+                        <Tag color="cyan" className="m-0">Trưởng phòng</Tag>
+                        <span className="font-semibold text-slate-800">{head.name}</span>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-400 mb-3 flex items-center gap-1.5">
+                        <Tag color="default" className="m-0">Chưa có Trưởng phòng</Tag>
+                      </div>
+                    );
+                  })()}
                   <Avatar.Group max={{ count: 6 }}>
                     {members.map((e) => (
                       <Avatar

@@ -80,11 +80,23 @@ CREATE TABLE IF NOT EXISTS assignments (
   id VARCHAR(30) PRIMARY KEY,
   employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
   decision_id VARCHAR(30) NOT NULL REFERENCES decisions(id) ON DELETE RESTRICT,
-  type VARCHAR(40) NOT NULL CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Điều chuyển và bổ nhiệm')),
+  type VARCHAR(40) NOT NULL CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm')),
   old_department_id VARCHAR(25) REFERENCES departments(id) ON DELETE RESTRICT,
   new_department_id VARCHAR(25) NOT NULL REFERENCES departments(id) ON DELETE RESTRICT,
   old_position_id VARCHAR(25) NOT NULL REFERENCES positions(id) ON DELETE RESTRICT,
   new_position_id VARCHAR(25) NOT NULL REFERENCES positions(id) ON DELETE RESTRICT,
+  effective_date VARCHAR(10) NOT NULL,
+  reason TEXT NOT NULL
+);
+
+-- 8. KHENTHUONG_KYLUAT (rewards_disciplines - BFD 3.4)
+CREATE TABLE IF NOT EXISTS rewards_disciplines (
+  id VARCHAR(30) PRIMARY KEY,
+  employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+  decision_id VARCHAR(30) NOT NULL REFERENCES decisions(id) ON DELETE RESTRICT,
+  type VARCHAR(40) NOT NULL CHECK (type IN ('Khen thưởng', 'Kỷ luật')),
+  category VARCHAR(100) NOT NULL,
+  amount DOUBLE PRECISION DEFAULT 0 CHECK (amount >= 0),
   effective_date VARCHAR(10) NOT NULL,
   reason TEXT NOT NULL
 );
@@ -167,3 +179,22 @@ ALTER TABLE extensions ALTER COLUMN new_end_date DROP NOT NULL;
 ALTER TABLE extensions ADD COLUMN IF NOT EXISTS amendment_type VARCHAR(40) NOT NULL DEFAULT 'Gia hạn';
 ALTER TABLE extensions ADD COLUMN IF NOT EXISTS old_salary DOUBLE PRECISION;
 ALTER TABLE extensions ADD COLUMN IF NOT EXISTS new_salary DOUBLE PRECISION;
+ALTER TABLE extensions ADD COLUMN IF NOT EXISTS decision_id VARCHAR(30) REFERENCES decisions(id) ON DELETE SET NULL;
+
+ALTER TABLE departments ADD COLUMN IF NOT EXISTS head_id VARCHAR(25) REFERENCES employees(id) ON DELETE SET NULL;
+ALTER TABLE departments ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
+
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS contract_number VARCHAR(60);
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_type VARCHAR(40);
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_decision_id VARCHAR(30) REFERENCES decisions(id) ON DELETE SET NULL;
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_end_date VARCHAR(10);
+
+ALTER TABLE assignments DROP CONSTRAINT IF EXISTS assignments_type_check;
+ALTER TABLE assignments ADD CONSTRAINT assignments_type_check
+  CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm'));
+
+CREATE INDEX IF NOT EXISTS idx_rewards_employee ON rewards_disciplines(employee_id);
+CREATE INDEX IF NOT EXISTS idx_rewards_decision ON rewards_disciplines(decision_id);
+CREATE INDEX IF NOT EXISTS idx_rewards_type ON rewards_disciplines(type);
+CREATE INDEX IF NOT EXISTS idx_departments_head ON departments(head_id);
+CREATE INDEX IF NOT EXISTS idx_contracts_termination_decision ON contracts(termination_decision_id);

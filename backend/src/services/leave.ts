@@ -73,7 +73,7 @@ export async function usedAnnualDays(
 /**
  * Ai được duyệt đơn nghỉ phép của ai (không bao giờ tự duyệt):
  *  - admin: mọi đơn.
- *  - trưởng phòng: nhân viên cùng phòng (không phải trưởng phòng/giám đốc).
+ *  - trưởng phòng: nhân viên thuộc phòng ban mình làm trưởng phòng (hoặc cùng phòng).
  *  - giám đốc: trưởng phòng, hoặc nhân viên thuộc phòng chưa có trưởng phòng.
  *  - nhân sự: giám đốc, hoặc nhân viên thuộc phòng chưa có trưởng phòng.
  */
@@ -81,7 +81,8 @@ export function canReviewLeave(
   u: SessionUser,
   target: { id: string; department_id: string | null },
   targetRole: string | null,
-  departmentHasManager: boolean
+  departmentHasManager: boolean,
+  isHeadOfDepartment: boolean = false
 ): boolean {
   if (target.id === u.employee_id) return false;
   switch (u.role) {
@@ -89,10 +90,12 @@ export function canReviewLeave(
       return true;
     case 'manager':
       return (
-        u.department_id !== null &&
-        target.department_id === u.department_id &&
-        targetRole !== 'manager' &&
-        targetRole !== 'director'
+        isHeadOfDepartment || (
+          u.department_id !== null &&
+          target.department_id === u.department_id &&
+          targetRole !== 'manager' &&
+          targetRole !== 'director'
+        )
       );
     case 'director':
       return targetRole === 'manager' || (!departmentHasManager && targetRole !== 'director');
@@ -103,10 +106,12 @@ export function canReviewLeave(
   }
 }
 
-/** Phòng ban nào đang có tài khoản trưởng phòng hoạt động. */
+/** Phòng ban nào đang có trưởng phòng hoặc tài khoản trưởng phòng hoạt động. */
 export async function departmentsWithManager(tx: DbExecutor): Promise<Set<string>> {
   const rows = await tx.all<{ department_id: string }>(
-    `SELECT DISTINCT e.department_id
+    `SELECT id AS department_id FROM departments WHERE head_id IS NOT NULL AND active = TRUE
+     UNION
+     SELECT DISTINCT e.department_id
      FROM users u JOIN employees e ON e.id = u.employee_id
      WHERE u.role = 'manager' AND u.active = 1
        AND e.status NOT IN ('Đã lưu trữ', 'Đã nghỉ việc')

@@ -130,6 +130,44 @@ export const migrations: Migration[] = [
       LEFT JOIN used u ON u.employee_id = lb.employee_id AND u.year = lb.year;
     `,
   },
+  {
+    id: '004_rewards_disciplines_and_model_enhancements',
+    sql: `
+      -- 1. Thêm thực thể KHENTHUONG_KYLUAT (rewards_disciplines) cho BFD 3.4
+      CREATE TABLE IF NOT EXISTS rewards_disciplines (
+        id VARCHAR(30) PRIMARY KEY,
+        employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+        decision_id VARCHAR(30) NOT NULL REFERENCES decisions(id) ON DELETE RESTRICT,
+        type VARCHAR(40) NOT NULL CHECK (type IN ('Khen thưởng', 'Kỷ luật')),
+        category VARCHAR(100) NOT NULL,
+        amount NUMERIC(15,2) DEFAULT 0 CHECK (amount >= 0),
+        effective_date DATE NOT NULL,
+        reason TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_rewards_employee ON rewards_disciplines(employee_id);
+      CREATE INDEX IF NOT EXISTS idx_rewards_decision ON rewards_disciplines(decision_id);
+      CREATE INDEX IF NOT EXISTS idx_rewards_type ON rewards_disciplines(type);
+
+      -- 2. Hỗ trợ Quyết định chấm dứt hợp đồng và Phụ lục hợp đồng (bảo toàn lịch sử HĐ gốc)
+      ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_decision_id VARCHAR(30)
+        REFERENCES decisions(id) ON DELETE SET NULL;
+      ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_end_date DATE;
+      UPDATE contracts SET original_end_date = end_date WHERE original_end_date IS NULL;
+
+      ALTER TABLE extensions ADD COLUMN IF NOT EXISTS decision_id VARCHAR(30)
+        REFERENCES decisions(id) ON DELETE SET NULL;
+
+      -- 3. Mở rộng ràng buộc cho assignments hỗ trợ 'Miễn nhiệm' (DFD 2.3, 2.4)
+      ALTER TABLE assignments DROP CONSTRAINT IF EXISTS assignments_type_check;
+      ALTER TABLE assignments ADD CONSTRAINT assignments_type_check
+        CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm'));
+
+      -- 4. Đảm bảo ràng buộc Trưởng phòng quản lý phòng ban
+      CREATE INDEX IF NOT EXISTS idx_departments_head ON departments(head_id);
+      CREATE INDEX IF NOT EXISTS idx_contracts_termination_decision ON contracts(termination_decision_id);
+    `,
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<void> {

@@ -32,13 +32,14 @@ interface ReportsViewProps {
   notify: (msg: string, isError?: boolean) => void;
 }
 
-type ReportType = 'personnel' | 'movements' | 'contracts' | 'leaves';
+type ReportType = 'personnel' | 'movements' | 'contracts' | 'leaves' | 'rewards';
 
 const REPORT_LABELS: Record<ReportType, string> = {
   personnel: 'Thống kê nhân sự',
   movements: 'Báo cáo biến động nhân sự',
   contracts: 'Báo cáo hợp đồng lao động',
   leaves: 'Báo cáo nghỉ phép',
+  rewards: 'Báo cáo khen thưởng & kỷ luật',
 };
 
 export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
@@ -136,6 +137,32 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
             l.status,
             l.approver_name ||
               (l.approver_id ? empName(l.approver_id) : '—'),
+          ]),
+      };
+    }
+
+    if (reportType === 'rewards') {
+      const rewards = state.rewards || [];
+      return {
+        headers: [
+          'Nhân viên',
+          'Phòng ban',
+          'Loại hình',
+          'Hình thức',
+          'Số tiền',
+          'Ngày hiệu lực',
+          'Lý do',
+        ],
+        rows: rewards
+          .filter((r) => matchRecord(r.employee_id, r.effective_date))
+          .map((r) => [
+            empName(r.employee_id),
+            deptName(emp(r.employee_id)?.department_id || null),
+            r.type,
+            r.category,
+            formatMoney(r.amount),
+            r.effective_date,
+            r.reason,
           ]),
       };
     }
