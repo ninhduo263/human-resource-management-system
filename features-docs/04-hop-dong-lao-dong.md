@@ -33,7 +33,7 @@
 
 ## 5. Cập nhật ngày 16/11/2026 — Phụ lục và trạng thái nhân viên
 
-- `POST /api/contracts/:id/terminate`: cập nhật hợp đồng và nhân viên trong cùng transaction. Nếu không còn hợp đồng khác đang hiệu lực tại ngày hiện tại, nhân viên chuyển **Đã nghỉ việc** và bị thu hồi phiên đăng nhập. Nếu còn hợp đồng đang hiệu lực, giữ **Đang làm việc** hoặc **Thử việc** theo hợp đồng đó. Chấm dứt hợp đồng cũ không làm nhân viên đang có hợp đồng mới bị nghỉ việc.
+- `POST /api/contracts/:id/terminate`: cập nhật hợp đồng và nhân viên trong cùng transaction. Với hình thức **Người lao động xin nghỉ**, nhân viên chuyển **Đã nghỉ việc** tại ngày chấm dứt có hiệu lực và bị thu hồi phiên đăng nhập, kể cả khi còn hợp đồng bắt đầu trong tương lai. Với hình thức khác, nhân viên chỉ chuyển **Đã nghỉ việc** nếu không còn hợp đồng hiệu lực trong ngày chấm dứt; nếu còn hợp đồng đang hiệu lực thì giữ **Đang làm việc** hoặc **Thử việc** theo hợp đồng đó. Hợp đồng bắt đầu sau ngày chấm dứt không được tính là hợp đồng đang hiệu lực tại ngày đó.
 - `POST /api/contracts/:id/salary`: nhận `{ salary, reason }`, yêu cầu quyền `admin`/`hr`, lương dương và khác lương cũ. Cập nhật lương ngay và tạo phụ lục lưu ngày lập, lý do, lương cũ/mới trong cùng transaction. Hỗ trợ cả hợp đồng không xác định thời hạn.
 - `POST /api/contracts/:id/extend`: vẫn nhận `new_end_date`, `reason`; có thể gửi thêm `salary`. Nếu bỏ trống lương thì giữ nguyên. Gia hạn kèm thay đổi lương được lưu trong một phụ lục.
 - Bảng `extensions` dùng chung cho phụ lục: thêm `amendment_type`, `old_salary`, `new_salary`; cho phép `new_end_date = NULL` với hợp đồng không xác định thời hạn. Dữ liệu gia hạn cũ được giữ và gán loại **Gia hạn**.

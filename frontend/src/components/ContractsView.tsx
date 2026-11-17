@@ -850,7 +850,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               type="warning"
               showIcon
               className="mb-4"
-              message={`Nhân viên chuyển sang Đã nghỉ việc nếu không còn hợp đồng đang hiệu lực. Toàn bộ phụ lục được bảo lưu.`}
+              message="Khi chọn “Người lao động xin nghỉ”, nhân viên chuyển sang Đã nghỉ việc vào ngày chấm dứt, kể cả khi có hợp đồng bắt đầu trong tương lai. Các trường hợp khác chỉ chuyển trạng thái khi không còn hợp đồng hiệu lực tại ngày chấm dứt."
             />
             {formError && (
               <Alert

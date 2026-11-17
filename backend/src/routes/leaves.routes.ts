@@ -6,6 +6,7 @@ import {
   requireAuth,
   requireRole,
 } from '../middleware/auth.js';
+import type { SessionUser } from '../middleware/auth.js';
 import { generateId } from '../utils/crypto.js';
 import {
   choice,
@@ -21,7 +22,6 @@ import { asyncHandler, paramId } from '../utils/http.js';
 import {
   annualTotal,
   canReviewLeave,
-  departmentsWithManager,
   loadHolidays,
   usedAnnualDays,
 } from '../services/leave.js';
@@ -171,20 +171,40 @@ leavesRouter.post(
       const leave = (await tx.one<any>('SELECT * FROM leave_requests WHERE id = $1 FOR UPDATE', [rid]))!;
       if (leave.status !== 'Chờ duyệt') fail('Đơn đã được xử lý.');
 
-      const e = await requireActiveEmployee(tx, leave.employee_id);
+      const e = await existsInTable<any>(tx, 'employees', leave.employee_id);
       if (e.id === u.employee_id) fail('Không được tự duyệt đơn nghỉ phép.');
 
-      const target = await tx.one<{ role: string }>(
-        'SELECT role FROM users WHERE employee_id = $1',
+      const target = await tx.one<{ position_level: number }>(
+        `SELECT p.level AS position_level
+         FROM employees e JOIN positions p ON p.id = e.position_id
+         WHERE e.id = $1`,
         [e.id]
       );
-      const managed = await departmentsWithManager(tx);
-      const hasManager = e.department_id !== null && managed.has(e.department_id);
+      const reviewer = await tx.one<SessionUser & { position_level: number }>(
+        `SELECT u.id, u.username, u.role, u.employee_id, e.name, e.department_id,
+                p.level AS position_level
+         FROM users u
+         JOIN employees e ON e.id = u.employee_id
+         JOIN positions p ON p.id = e.position_id
+         WHERE u.id = $1`,
+        [u.id]
+      );
       const deptHead = e.department_id
         ? await tx.one<{ head_id: string | null }>('SELECT head_id FROM departments WHERE id = $1', [e.department_id])
         : null;
       const isHead = deptHead?.head_id === u.employee_id;
-      if (!canReviewLeave(u, e, target?.role ?? null, hasManager, isHead)) {
+      const formerEmployee = ['Đã nghỉ việc', 'Đã lưu trữ'].includes(e.status);
+      const canReview =
+        (formerEmployee && ['admin', 'hr'].includes(u.role)) ||
+        (!formerEmployee &&
+          !!reviewer &&
+          !!target &&
+          canReviewLeave(
+            reviewer,
+            { ...e, position_level: Number(target.position_level) },
+            isHead
+          ));
+      if (!canReview) {
         fail('Bạn không có quyền duyệt đơn nghỉ phép này.', 403);
       }
 

@@ -9,7 +9,6 @@ import { runScheduledJobs } from '../services/jobs.js';
 import {
   canReviewLeave,
   defaultEntitlement,
-  departmentsWithManager,
 } from '../services/leave.js';
 
 export const authRouter = Router();
@@ -185,16 +184,19 @@ export async function buildScopedState(u: SessionUser) {
   );
   const decisionIds = assignments.map((a) => a.decision_id);
 
-  // Vai trò tài khoản + phòng đã có trưởng phòng, để tính "đơn nào tôi được duyệt".
-  const roleRows = await db.all<{ employee_id: string; role: string }>(
-    'SELECT employee_id, role FROM users WHERE employee_id = ANY($1::text[])',
-    [ids]
-  );
-  const roleOf = new Map(roleRows.map((r) => [r.employee_id, r.role]));
   const employeeById = new Map(employees.map((e) => [e.id, e]));
-  const managed = await departmentsWithManager(db);
   const deptHeadRows = await db.all<{ id: string; head_id: string | null }>('SELECT id, head_id FROM departments');
   const deptHeadMap = new Map(deptHeadRows.map((d) => [d.id, d.head_id]));
+  const positionLevels = new Map(
+    (await db.all<{ id: string; level: number }>('SELECT id, level FROM positions')).map((p) => [
+      p.id,
+      Number(p.level),
+    ])
+  );
+  const reviewerEmployee = employees.find((e) => e.id === u.employee_id);
+  const reviewerLevel = reviewerEmployee
+    ? positionLevels.get(reviewerEmployee.position_id)
+    : undefined;
 
   const rawLeaves = await db.all(
     'SELECT * FROM leave_requests WHERE employee_id = ANY($1::text[]) ORDER BY submitted_date DESC, id DESC',
@@ -207,13 +209,19 @@ export async function buildScopedState(u: SessionUser) {
       approver_name: l.approver_id ? nameMap.get(l.approver_id) || l.approver_id : null,
       can_review:
         l.status === 'Chờ duyệt' &&
-        canReviewLeave(
-          u,
-          emp,
-          roleOf.get(emp.id) ?? null,
-          emp.department_id !== null && managed.has(emp.department_id),
-          emp.department_id !== null && deptHeadMap.get(emp.department_id) === u.employee_id
-        ),
+        ((['Đã nghỉ việc', 'Đã lưu trữ'].includes(emp.status) &&
+          ['admin', 'hr'].includes(u.role)) ||
+          (!!reviewerEmployee &&
+            reviewerLevel !== undefined &&
+            canReviewLeave(
+              { ...u, position_level: reviewerLevel },
+              {
+                ...emp,
+                position_level: positionLevels.get(emp.position_id) ?? 0,
+              },
+              emp.department_id !== null &&
+                deptHeadMap.get(emp.department_id) === u.employee_id
+            ))),
     };
   });
 

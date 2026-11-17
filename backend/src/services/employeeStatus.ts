@@ -38,19 +38,19 @@ export async function finalizeTermination(
   tx: DbExecutor,
   contract: { id: string; employee_id: string },
   actorId: string | null,
-  actionLabel: string
+  actionLabel: string,
+  terminationType?: string | null
 ): Promise<void> {
   const day = today();
   await tx.run(`UPDATE contracts SET status = 'Đã chấm dứt' WHERE id = $1`, [contract.id]);
   const remaining = await tx.one<{ id: string }>(
     `SELECT id FROM contracts
      WHERE employee_id = $1 AND id != $2 AND ${LIVE_CONTRACT}
+       AND start_date <= $3
        AND (end_date IS NULL OR end_date >= $3)`,
     [contract.employee_id, contract.id, day]
   );
-  if (remaining) {
-    await syncEmployeeStatuses(tx, contract.employee_id);
-  } else {
+  if (terminationType === 'Người lao động xin nghỉ' || !remaining) {
     await tx.run(
       `UPDATE employees SET status = 'Đã nghỉ việc', version = version + 1
        WHERE id = $1 AND status IN ('Đang làm việc', 'Thử việc')`,
@@ -60,6 +60,8 @@ export async function finalizeTermination(
       'DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE employee_id = $1)',
       [contract.employee_id]
     );
+  } else {
+    await syncEmployeeStatuses(tx, contract.employee_id);
   }
   await auditLog(tx, actorId, actionLabel, contract.id);
 }
