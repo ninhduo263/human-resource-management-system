@@ -39,3 +39,6 @@ Hệ thống được thiết kế theo tiêu chuẩn giao diện thích ứng �
   3. Xác định rõ tác nhân **Trưởng phòng** (`PHONGBAN.head_id` / `MaTruongPhong`) duyệt đơn nghỉ phép (`4.2`/`4.3`).
   4. Liên kết chặt `QUATRINHCONGTAC` với `QUYETDINH` (`MaQD`) hỗ trợ đầy đủ *Điều chuyển, Bổ nhiệm, Miễn nhiệm* (`DFD 2.3, 2.4`).
   5. Xuất bộ file thiết kế chuẩn Draw.io tại thư mục `diagrams/`: `diagrams/ERD_QLNS_v2.drawio` và `diagrams/BFD_DFD_QLNS_v2.drawio` (cùng 4 file gốc `BFD.jpeg`, `DFD-MUC0.png`, `ERD_QLNS_v2.drawio.pdf`, `Nhom_16_QL_Nhan_su.pdf`).
+- **17/11/2026 — Nâng cấp giao diện Ant Design (`Botanical Forest & Warm Ivory`) & Kiểm thử toàn bộ**:
+  - Đồng bộ bảng màu `#0d392f` / `#155e4b` / `#f6f7f3`, font `Plus Jakarta Sans`, Bento Dashboard bất đối xứng và tối ưu responsive.
+  - Mở rộng bộ kiểm thử tích hợp `backend/tests/workflows.test.mjs` (23/23 pass) bao phủ đầy đủ các phân hệ `00`–`07`.
