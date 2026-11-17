@@ -4,7 +4,7 @@
 Thiết lập môi trường container hóa với **Docker Compose** gồm 3 dịch vụ (`db`, `backend`, `frontend`) và lược đồ cơ sở dữ liệu **PostgreSQL 16** ánh xạ 100% từ sơ đồ `ERD_QLNS_v2.drawio` (`ERD_QLNS_v2.drawio.pdf`) và `BFD_DFD_QLNS_v2.drawio`.
 
 ## 2. Các File Mã nguồn Liên quan
-- `ERD_QLNS_v2.drawio` & `BFD_DFD_QLNS_v2.drawio`: Bộ sơ đồ thiết kế BFD, DFD Mức 0, DFD Mức 1 và ERD (11 thực thể) chuẩn hóa định dạng Draw.io.
+- `diagrams/`: Thư mục chứa toàn bộ tài liệu kiến trúc BFD, DFD, ERD (`BFD.jpeg`, `DFD-MUC0.png`, `ERD_QLNS_v2.drawio.pdf`, `Nhom_16_QL_Nhan_su.pdf`, `ERD_QLNS_v2.drawio`, `BFD_DFD_QLNS_v2.drawio`).
 - `docker-compose.yml`: Định nghĩa 3 container (`peopleops-db`, `peopleops-backend`, `peopleops-frontend`), healthcheck và volume `postgres_data`.
 - `.env` / `.env.example`: Biến môi trường cấu hình cổng và chuỗi kết nối PostgreSQL.
 - `backend/src/db/schema.sql`: Lược đồ DDL nền (baseline) tạo 11 bảng ERD + 3 bảng hệ thống; các thay đổi sau đó và View `v_songayphep` nằm trong `backend/src/db/migrations.ts`.

@@ -2,6 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-canvas: #f6f7f3;
+  --surface-card: #ffffff;
+  --border-hairline: #e4e9e0;
+  --forest-deep: #0d392f;
+  --forest-primary: #155e4b;
+  --mint-accent: #c9f3bd;
+  --sage-soft: #eaf1e2;
+  --ink-primary: #172b23;
+  --ink-muted: #5e7066;
+
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--bg-canvas);
+  color: var(--ink-primary);
+  -webkit-tap-highlight-color: transparent;
+  padding-left: var(--sal);
+  padding-right: var(--sar);
+  touch-action: manipulation;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Login View (Botanical Forest & Warm Ivory) */
 .login-page { min-height: 100svh; display: grid; grid-template-columns: 1.05fr 1fr; background: #fafbf8; }
 .login-story { position: relative; isolation: isolate; overflow: hidden; padding: 40px clamp(32px, 4.5vw, 80px) 28px; display: flex; flex-direction: column; color: #fff; background: radial-gradient(ellipse at 0% 30%, #1e6653 0, transparent 65%), #0d392f; }
 .login-story::before, .login-story::after { content: ''; pointer-events: none; position: absolute; z-index: -1; width: 720px; height: 720px; border: 1px solid #bce8bd12; border-radius: 50%; right: -480px; top: 150px; box-shadow: 0 0 0 65px #bce8bd06, 0 0 0 130px #bce8bd05, 0 0 0 195px #bce8bd04; }
@@ -47,19 +79,20 @@
 .login-footer-spark { color: #cce7a8; font-size: 16px; margin-left: 4px; }
 .login-form-panel { display: flex; align-items: center; justify-content: center; padding: 56px 40px; background: #fafbf8; }
 .login-form-wrap { width: 100%; max-width: 400px; }
-.login-access-icon { width: 49px; height: 49px; background: #edf2e8; border: 1px solid #e0e8da; border-radius: 16px; display: grid; place-items: center; color: #32664d; font-size: 22px; margin-bottom: 30px; }
-.login-form-card.ant-card { background: transparent; box-shadow: none; }
-.login-form-card .login-form-title.ant-typography { font-size: 29px; font-weight: 650; letter-spacing: -1px; line-height: 1.3; color: #203c30; margin: 8px 0 10px; }
-.login-form-card .ant-form-item-label > label { font-size: 12px; color: #44584d; font-weight: 550; }
-.login-form-card .ant-input-affix-wrapper { background: #fff; border-color: #dce4d8; border-radius: 9px; padding: 11px 13px; font-size: 13px; }
+.login-access-icon { width: 49px; height: 49px; background: #edf2e8; border: 1px solid #e0e8da; border-radius: 16px; display: grid; place-items: center; color: #32664d; font-size: 22px; margin-bottom: 24px; }
+.login-form-card.ant-card { background: transparent; box-shadow: none; border: none !important; }
+.login-form-card .login-form-title.ant-typography { font-size: 29px; font-weight: 700; letter-spacing: -0.9px; line-height: 1.25; color: #172b23; margin: 0 0 8px; }
+.login-form-card .ant-form-item-label > label { font-size: 12px; color: #44584d; font-weight: 600; }
+.login-form-card .ant-input-affix-wrapper { background: #fff; border-color: #dce4d8; border-radius: 10px; padding: 10px 13px; font-size: 13px; }
 .login-form-card .ant-input-prefix { margin-right: 10px; }
-.login-form-card .ant-btn-primary { height: 46px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 10px #12584b16; }
+.login-form-card .ant-btn-primary { height: 46px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 12px #0d392f22; }
 .login-demo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.login-demo-grid .login-demo-button { height: 35px; font-size: 11px; color: #748477; border-color: #e1e7dc; background: transparent; box-shadow: none; padding: 0 8px; }
-.login-demo-grid .login-demo-button.is-selected { color: #2a6046; background: #eaf1e2; border-color: #bdcfaf; font-weight: 600; }
-.login-demo-help { text-align: center; color: #8c978d; font-size: 10px; margin: 14px 0 0; }
-.login-demo-help code { color: #6c7d6c; background: #eef2e8; padding: 3px 6px; border-radius: 4px; }
-.login-form-security { display: flex; align-items: center; justify-content: center; gap: 7px; color: #939f94; font-size: 10px; margin-top: 36px; text-align: center; line-height: 1.6; }
+.login-demo-grid .login-demo-button { height: 35px; font-size: 11px; color: #5e7066; border-color: #e1e7dc; background: #fff; box-shadow: none; padding: 0 8px; }
+.login-demo-grid .login-demo-button.is-selected { color: #155e4b; background: #eaf1e2; border-color: #b7d2aa; font-weight: 600; }
+.login-demo-help { text-align: center; color: #8c978d; font-size: 11px; margin: 14px 0 0; }
+.login-demo-help code { color: #155e4b; background: #eef2e8; padding: 2px 6px; border-radius: 5px; font-weight: 600; }
+.login-form-security { display: flex; align-items: center; justify-content: center; gap: 7px; color: #87988d; font-size: 11px; margin-top: 32px; text-align: center; line-height: 1.6; }
+
 @media (min-width: 1600px) { .login-story-body { max-width: 540px; } .login-preview { max-width: 470px; } }
 @media (max-width: 1100px) and (min-width: 901px) { .login-story { padding-left: 32px; padding-right: 32px; } .login-story-footer > span:last-child { display: none; } .login-story h1 { font-size: 43px; } .login-eyebrow { font-size: 8px; } }
 @media (max-width: 900px) {
@@ -85,43 +118,135 @@
   .login-form-panel { padding: 24px 16px; }
   .login-form-card .login-form-title.ant-typography { font-size: 22px; }
 }
-
 @media (max-width: 320px) {
   .login-demo-grid { grid-template-columns: 1fr; }
   .login-form-card .login-form-title.ant-typography { font-size: 20px; }
 }
 
-/* Mobile, Foldable, Tablet & Smart Device Optimizations */
-:root {
-  --sat: env(safe-area-inset-top, 0px);
-  --sar: env(safe-area-inset-right, 0px);
-  --sab: env(safe-area-inset-bottom, 0px);
-  --sal: env(safe-area-inset-left, 0px);
+/* ==========================================================================
+   Botanical Forest Workspace Shell & Ant Design Refinement
+   ========================================================================== */
+.peopleops-layout.ant-layout {
+  background: var(--bg-canvas);
 }
 
-body {
-  -webkit-tap-highlight-color: transparent;
-  padding-left: var(--sal);
-  padding-right: var(--sar);
-  touch-action: manipulation;
+.peopleops-sider.ant-layout-sider {
+  background: linear-gradient(180deg, #0d392f 0%, #092921 100%) !important;
+  border-right: 1px solid rgba(201, 243, 189, 0.08);
 }
 
-/* Touch-friendly scrolling for tables */
+.peopleops-sider .ant-layout-sider-trigger {
+  background: rgba(9, 41, 33, 0.92) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  color: #b7d2c4;
+}
+
+.peopleops-sider .ant-layout-sider-trigger:hover {
+  color: #c9f3bd;
+}
+
+.peopleops-menu.ant-menu-dark {
+  background: transparent !important;
+  padding: 6px 10px;
+}
+
+.peopleops-menu.ant-menu-dark .ant-menu-item {
+  border-radius: 10px;
+  margin-bottom: 4px;
+  color: #b8cfc4;
+  font-weight: 500;
+  height: 42px;
+  line-height: 42px;
+}
+
+.peopleops-menu.ant-menu-dark .ant-menu-item:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #ffffff !important;
+}
+
+.peopleops-menu.ant-menu-dark .ant-menu-item-selected {
+  background: rgba(201, 243, 189, 0.16) !important;
+  color: #d6f7cb !important;
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 #c9f3bd;
+}
+
+.peopleops-menu.ant-menu-dark .ant-menu-item-selected .anticon {
+  color: #c9f3bd !important;
+}
+
+/* Clean Hairline Cards */
+.ant-card {
+  border: 1px solid var(--border-hairline) !important;
+  box-shadow: 0 1px 2px rgba(13, 57, 47, 0.03) !important;
+}
+
+.ant-card.hero-forest-card {
+  background: radial-gradient(circle at 100% 0%, #1d6450 0%, transparent 62%), #0d392f !important;
+  border-color: #134a3d !important;
+  color: #ffffff;
+}
+
+.ant-card .ant-card-head {
+  border-bottom-color: #edf1e8;
+}
+
+.ant-card .ant-card-head-title {
+  font-weight: 650;
+  color: var(--ink-primary);
+}
+
+/* Refined Table Surface */
+.ant-table-wrapper .ant-table {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th {
+  background: #f2f5ee !important;
+  color: #465a4f !important;
+  font-weight: 650 !important;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border-hairline) !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr:hover > td {
+  background: #f8faf5 !important;
+}
+
 .ant-table-wrapper .ant-table-body,
 .ant-table-wrapper .ant-table-content {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Crisp Headings */
+h1.ant-typography, h2.ant-typography, h3.ant-typography, h4.ant-typography {
+  color: var(--ink-primary);
+  letter-spacing: -0.02em;
+}
+
+/* Modal polish */
+.ant-modal .ant-modal-content {
+  border-radius: 16px;
+  border: 1px solid var(--border-hairline);
+}
+
+.ant-modal .ant-modal-header {
+  border-bottom: 1px solid #edf1e8;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
 /* Descriptions styling for clean layout without letter wrapping */
 .ant-descriptions-bordered .ant-descriptions-item-label {
-  font-weight: 550;
-  color: #475569;
-  background-color: #f8fafc;
+  font-weight: 600;
+  color: #465a4f;
+  background-color: #f4f7f0;
   white-space: nowrap;
 }
 
 .ant-descriptions-bordered .ant-descriptions-item-content {
-  color: #0f172a;
+  color: var(--ink-primary);
   word-break: normal;
 }
 
@@ -140,7 +265,7 @@ body {
   }
   .ant-modal .ant-modal-content {
     padding: 16px !important;
-    border-radius: 12px !important;
+    border-radius: 14px !important;
   }
   .ant-descriptions .ant-descriptions-item-label,
   .ant-descriptions .ant-descriptions-item-content {

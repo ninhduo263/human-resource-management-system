@@ -112,10 +112,35 @@ export const App: React.FC = () => {
 
   const themeConfig = {
     token: {
-      colorPrimary: '#12584b',
+      colorPrimary: '#155e4b',
+      colorBgLayout: '#f6f7f3',
+      colorBorderSecondary: '#e4e9e0',
+      colorText: '#172b23',
+      colorTextSecondary: '#5e7066',
       borderRadius: 10,
+      borderRadiusLG: 16,
       fontFamily:
-        "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+        "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+    },
+    components: {
+      Button: {
+        controlHeight: 38,
+        borderRadius: 10,
+        fontWeight: 600,
+      },
+      Input: {
+        controlHeight: 38,
+        borderRadius: 10,
+      },
+      Select: {
+        controlHeight: 38,
+        borderRadius: 10,
+      },
+      Tabs: {
+        inkBarColor: '#155e4b',
+        itemActiveColor: '#155e4b',
+        itemSelectedColor: '#155e4b',
+      },
     },
   };
 
@@ -123,10 +148,10 @@ export const App: React.FC = () => {
     return (
       <ConfigProvider locale={viVN} theme={themeConfig}>
         {contextHolder}
-        <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-3">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-[#f6f7f3] gap-3">
           <Spin size="large" />
           <Text type="secondary">
-            Đang khởi tạo không gian quản lý nhân sự PeopleOps (Ant Design)...
+            Đang mở không gian nhân sự Nhóm 16...
           </Text>
         </div>
       </ConfigProvider>
@@ -205,27 +230,27 @@ export const App: React.FC = () => {
   return (
     <ConfigProvider locale={viVN} theme={themeConfig}>
       {contextHolder}
-      <Layout style={{ minHeight: '100vh' }}>
+      <Layout className="peopleops-layout" style={{ minHeight: '100vh' }}>
         {/* Desktop Sider */}
         <Sider
           collapsible
           collapsed={collapsed}
           onCollapse={setCollapsed}
-          width={245}
+          width={248}
           theme="dark"
-          className="hidden lg:block no-print shrink-0"
+          className="peopleops-sider hidden lg:block no-print shrink-0"
         >
-          <div className="p-4 flex items-center gap-3 border-b border-slate-800">
-            <div className="h-9 w-9 rounded-xl bg-[#1f7a68] flex items-center justify-center text-lg font-bold text-white shrink-0">
-              p
+          <div className="px-4 py-5 flex items-center gap-3 border-b border-white/10">
+            <div className="h-9 w-9 rounded-xl bg-[#c9f3bd] flex items-center justify-center text-base font-extrabold text-[#0d392f] shrink-0 tracking-tight">
+              16
             </div>
             {!collapsed && (
               <div className="overflow-hidden">
-                <strong className="text-white block leading-none truncate">
-                  PeopleOps<span className="text-emerald-400">.</span>
+                <strong className="text-white text-base block leading-none truncate tracking-tight">
+                  Nhân sự<span className="text-[#c9f3bd]">.</span>
                 </strong>
-                <small className="text-[11px] text-slate-400 truncate block mt-0.5">
-                  Nhóm 16 · Ant Design UI
+                <small className="text-[11px] text-[#a9c4b7] truncate block mt-1">
+                  Nhóm 16 · Không gian quản lý
                 </small>
               </div>
             )}
@@ -237,6 +262,7 @@ export const App: React.FC = () => {
             selectedKeys={[route]}
             items={menuItems}
             onClick={({ key }) => navigateTo(key as RouteKey)}
+            className="peopleops-menu"
             style={{ marginTop: 8 }}
           />
         </Sider>
@@ -251,27 +277,27 @@ export const App: React.FC = () => {
           styles={{
             body: {
               padding: 0,
-              backgroundColor: '#001529',
+              backgroundColor: '#0d392f',
               display: 'flex',
               flexDirection: 'column',
               height: '100%',
             },
             header: {
-              backgroundColor: '#001529',
-              borderBottom: '1px solid #1e293b',
+              backgroundColor: '#0d392f',
+              borderBottom: '1px solid rgba(255,255,255,0.1)',
               color: '#fff',
             },
           }}
           title={
             <div className="flex items-center gap-3 py-1">
-              <div className="h-8 w-8 rounded-xl bg-[#1f7a68] flex items-center justify-center text-base font-bold text-white shrink-0">
-                p
+              <div className="h-8 w-8 rounded-xl bg-[#c9f3bd] flex items-center justify-center text-sm font-extrabold text-[#0d392f] shrink-0">
+                16
               </div>
               <div>
                 <strong className="text-white block leading-none text-base">
-                  PeopleOps<span className="text-emerald-400">.</span>
+                  Nhân sự<span className="text-[#c9f3bd]">.</span>
                 </strong>
-                <small className="text-[11px] text-slate-400 block mt-0.5 font-normal">
+                <small className="text-[11px] text-[#a9c4b7] block mt-0.5 font-normal">
                   Nhóm 16 · Quản lý nhân sự
                 </small>
               </div>
@@ -285,6 +311,7 @@ export const App: React.FC = () => {
               selectedKeys={[route]}
               items={menuItems}
               onClick={({ key }) => navigateTo(key as RouteKey)}
+              className="peopleops-menu"
               style={{ marginTop: 8 }}
             />
           </div>
@@ -321,15 +348,17 @@ export const App: React.FC = () => {
           {/* Header */}
           <Header
             style={{
-              background: '#fff',
-              padding: '0 12px',
+              background: 'rgba(255, 255, 255, 0.9)',
+              backdropFilter: 'blur(8px)',
+              padding: '0 16px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              borderBottom: '1px solid #f0f0f0',
+              borderBottom: '1px solid #e4e9e0',
               position: 'sticky',
               top: 0,
               zIndex: 30,
+              height: 64,
             }}
             className="no-print sm:px-6"
           >
@@ -342,11 +371,11 @@ export const App: React.FC = () => {
                 title="Mở menu điều hướng"
               />
 
-              <div className="flex items-center gap-2 lg:hidden font-bold text-slate-800 text-sm shrink-0">
-                <div className="h-7 w-7 rounded-lg bg-[#1f7a68] flex items-center justify-center text-xs font-bold text-white">
-                  p
+              <div className="flex items-center gap-2 lg:hidden font-bold text-[#0d392f] text-sm shrink-0">
+                <div className="h-7 w-7 rounded-lg bg-[#0d392f] flex items-center justify-center text-xs font-extrabold text-[#c9f3bd]">
+                  16
                 </div>
-                <span className="hidden xs:inline">PeopleOps</span>
+                <span className="hidden xs:inline">Nhân sự.</span>
               </div>
 
               <Input

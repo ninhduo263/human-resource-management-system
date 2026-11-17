@@ -38,4 +38,4 @@ Hệ thống được thiết kế theo tiêu chuẩn giao diện thích ứng �
   2. Bảo toàn lịch sử hợp đồng gốc khi gia hạn/chấm dứt (`HOPDONG.original_end_date`, `termination_decision_id` và `GIAHANHOPDONG.decision_id`).
   3. Xác định rõ tác nhân **Trưởng phòng** (`PHONGBAN.head_id` / `MaTruongPhong`) duyệt đơn nghỉ phép (`4.2`/`4.3`).
   4. Liên kết chặt `QUATRINHCONGTAC` với `QUYETDINH` (`MaQD`) hỗ trợ đầy đủ *Điều chuyển, Bổ nhiệm, Miễn nhiệm* (`DFD 2.3, 2.4`).
-  5. Xuất bộ file thiết kế chuẩn Draw.io tại thư mục gốc: `ERD_QLNS_v2.drawio` và `BFD_DFD_QLNS_v2.drawio`.
+  5. Xuất bộ file thiết kế chuẩn Draw.io tại thư mục `diagrams/`: `diagrams/ERD_QLNS_v2.drawio` và `diagrams/BFD_DFD_QLNS_v2.drawio` (cùng 4 file gốc `BFD.jpeg`, `DFD-MUC0.png`, `ERD_QLNS_v2.drawio.pdf`, `Nhom_16_QL_Nhan_su.pdf`).

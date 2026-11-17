@@ -238,10 +238,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Text className="text-xs font-bold uppercase tracking-wider text-[#12584b]">
-            QUẢN TRỊ & BẢO MẬT
-          </Text>
-          <Title level={3} style={{ margin: '4px 0' }}>
+          <Title level={3} style={{ margin: '0 0 4px' }}>
             {state.user.role === 'admin'
               ? 'Quản trị hệ thống'
               : 'Tài khoản của tôi'}

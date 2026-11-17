@@ -102,13 +102,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
           bordered={false}
           styles={{ body: { padding: 0 } }}
         >
-          <Text
-            type="secondary"
-            className="text-xs font-bold uppercase tracking-wider text-[#12584b]"
-          >
-            CHÀO MỪNG TRỞ LẠI
-          </Text>
-          <Title level={2} className="login-form-title">
+          <Title level={2} className="login-form-title" style={{ marginTop: 0 }}>
             Một ngày mới, khởi đầu mới.
           </Title>
           <Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 24 }}>

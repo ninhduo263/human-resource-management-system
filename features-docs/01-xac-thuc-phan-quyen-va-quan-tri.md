@@ -85,3 +85,10 @@ Hệ thống được tối ưu hóa toàn diện để tương thích linh ho�
 - **Nhật ký** (`audit_log`): thêm `details` (JSON giá trị trước/sau) và `ip`; ghi trong cùng transaction với thay đổi. `GET /api/audit?limit&offset&q` (admin) trả nhật ký có phân trang và tìm kiếm; `GET /api/state` vẫn trả 100 bản ghi gần nhất cho màn hình hiện tại.
 - **`GET /api/state`**: lọc phạm vi dữ liệu theo vai trò **ngay trong SQL** (không đọc toàn bảng rồi lọc bằng JS); quỹ phép gộp bằng một truy vấn. Mỗi đơn nghỉ phép có cờ `can_review` do máy chủ tính theo vai trò, phòng ban và tuyến duyệt; giao diện dùng cờ này thay vì tự suy luận.
 - **Chưa làm**: tách `GET /api/state` thành API phân trang theo từng màn hình (cần viết lại phần lớn frontend).
+
+## Cập nhật ngày 17/11/2026 — Nâng cấp Giao diện theo `frontend-design` (Botanical Forest & Warm Ivory)
+
+- **Thống nhất bảng màu & Nhận diện**: Chuyển toàn bộ không gian làm việc sau đăng nhập từ nền mặc định sang bảng màu **Botanical Forest & Warm Ivory** đồng bộ với trang đăng nhập (`#0d392f` Deep Forest cho Sider/Drawer, `#155e4b` Botanical Pine cho hành động chính, `#c9f3bd` Spring Mint cho điểm nhấn, `#f6f7f3` Warm Alabaster cho nền tổng thể, và đường viền hairline `#e4e9e0`).
+- **Typography**: Tích hợp font `Plus Jakarta Sans` trong `frontend/index.html` và `tabular-nums` cho toàn bộ số liệu thống kê, lương, ngày phép.
+- **Dashboard bất đối xứng (`DashboardView.tsx`)**: Thay 4 thẻ thống kê đồng dạng bằng 1 thẻ chính nổi bật (*Nhân sự đang làm việc* nền xanh rừng kèm tỷ lệ Chính thức/Thử việc) kết hợp 3 thẻ phụ tương tác nhanh; bỏ các nhãn ALL-CAPS thừa ở tiêu đề trang (`DashboardView.tsx`, `LoginView.tsx`, `SettingsView.tsx`).
+- **Tùy chỉnh Ant Design (`App.tsx`, `index.css`)**: Tinh chỉnh `ConfigProvider` tokens (`colorPrimary: '#155e4b'`, `colorBgLayout: '#f6f7f3'`, `borderRadiusLG: 16`) và CSS cho `Table`, `Card`, `Modal`, `Menu` mà vẫn giữ nguyên toàn bộ quy chuẩn Responsive & Print.
