@@ -40,9 +40,9 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     }
     const user = await db.one<SessionUser>(
       `SELECT t."MaTK", t."TenDangNhap", t."VaiTro", t."MaNV", n."HoTen", n."MaPB"
-       FROM phiendangnhap p
-       JOIN taikhoan t ON t."MaTK" = p."MaTK"
-       JOIN nhanvien n ON n."MaNV" = t."MaNV"
+       FROM "PHIENDANGNHAP" p
+       JOIN "TAIKHOAN" t ON t."MaTK" = p."MaTK"
+       JOIN "NHANVIEN" n ON n."MaNV" = t."MaNV"
        WHERE p."MaPhien" = $1
          AND p."ThoiHan" > $2
          AND t."HoatDong" = 1
@@ -78,16 +78,16 @@ export function canViewEmployee(
 
 /** Bảng được phép tra theo khóa chính và tên cột khóa chính tương ứng. */
 const TABLE_KEYS: Record<string, string> = {
-  phongban: 'MaPB',
-  chucvu: 'MaCV',
-  nhanvien: 'MaNV',
-  hopdong: 'MaHD',
-  giahanhopdong: 'MaGH',
-  quyetdinh: 'MaQD',
-  quatrinhcongtac: 'MaQT',
-  loainghiphep: 'MaLoai',
-  donnghiphep: 'MaDon',
-  taikhoan: 'MaTK',
+  PHONGBAN: 'MaPB',
+  CHUCVU: 'MaCV',
+  NHANVIEN: 'MaNV',
+  HOPDONG: 'MaHD',
+  GIAHANHOPDONG: 'MaGH',
+  QUYETDINH: 'MaQD',
+  QUATRINHCONGTAC: 'MaQT',
+  LOAINGHIPHEP: 'MaLoai',
+  DONNGHIPHEP: 'MaDon',
+  TAIKHOAN: 'MaTK',
 };
 
 export async function existsInTable<T = any>(
@@ -99,7 +99,7 @@ export async function existsInTable<T = any>(
   if (!pk) {
     fail('Bảng truy vấn không hợp lệ.', 400);
   }
-  const row = await executor.one<T>(`SELECT * FROM ${table} WHERE "${pk}" = $1`, [id]);
+  const row = await executor.one<T>(`SELECT * FROM "${table}" WHERE "${pk}" = $1`, [id]);
   if (!row) {
     fail('Không tìm thấy dữ liệu.', 404);
   }
@@ -107,7 +107,7 @@ export async function existsInTable<T = any>(
 }
 
 export async function requireActiveEmployee(executor: DbExecutor, MaNV: string): Promise<any> {
-  const emp = await existsInTable<any>(executor, 'nhanvien', MaNV);
+  const emp = await existsInTable<any>(executor, 'NHANVIEN', MaNV);
   if (emp.TrangThai === 'Đã lưu trữ') {
     fail('Hồ sơ nhân viên đã lưu trữ.');
   }

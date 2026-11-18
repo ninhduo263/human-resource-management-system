@@ -112,7 +112,7 @@ test('Employee accounts, directors, contract appendices and termination', async 
     assert.equal(own.user.MaNV, e.MaNV);
     assert.equal(own.employees.length, 1);
     assert.ok(!JSON.stringify(own).includes(account.MatKhau));
-    const stored = (await pool.query('SELECT "MatKhau" FROM taikhoan WHERE "MaNV" = $1', [e.MaNV])).rows[0];
+    const stored = (await pool.query('SELECT "MatKhau" FROM "TAIKHOAN" WHERE "MaNV" = $1', [e.MaNV])).rows[0];
     assert.notEqual(stored.MatKhau, account.MatKhau);
   });
 
@@ -135,7 +135,7 @@ test('Employee accounts, directors, contract appendices and termination', async 
     assert.equal(missing.status, 400);
     const duplicateAccount = await request('/users', { TenDangNhap: 'second_account', MatKhau: 'Example@12345', VaiTro: 'manager', MaNV: directors[0].MaNV }, admin);
     assert.equal(duplicateAccount.status, 409);
-    const directorUser = (await pool.query('SELECT "MaTK" FROM taikhoan WHERE "MaNV" = $1', [directors[0].MaNV])).rows[0];
+    const directorUser = (await pool.query('SELECT "MaTK" FROM "TAIKHOAN" WHERE "MaNV" = $1', [directors[0].MaNV])).rows[0];
     assert.equal((await request(`/users/${directorUser.MaTK}/role`, { VaiTro: 'manager' }, admin, 'PUT')).status, 200);
     const noDeptManager = await login(directorAccounts[0].TenDangNhap, directorAccounts[0].MatKhau);
     assert.equal((await state(noDeptManager)).employees.length, 1);
@@ -146,10 +146,10 @@ test('Employee accounts, directors, contract appendices and termination', async 
   });
 
   await t.test('Account conflicts roll back employee creation and HR cannot create an admin', async () => {
-    await pool.query(`UPDATE taikhoan SET "TenDangNhap" = 'reserved@example.com' WHERE "MaNV" = 'NV003'`);
+    await pool.query(`UPDATE "TAIKHOAN" SET "TenDangNhap" = 'reserved@example.com' WHERE "MaNV" = 'NV003'`);
     const e = employee({ Email: 'reserved@example.com' });
     assert.equal((await request('/employees', e, admin)).status, 409);
-    assert.equal((await pool.query('SELECT "MaNV" FROM nhanvien WHERE "MaNV" = $1', [e.MaNV])).rowCount, 0);
+    assert.equal((await pool.query('SELECT "MaNV" FROM "NHANVIEN" WHERE "MaNV" = $1', [e.MaNV])).rowCount, 0);
     assert.equal((await request('/employees', employee({ VaiTro: 'admin' }), hr)).status, 403);
   });
 
@@ -219,7 +219,7 @@ test('Employee accounts, directors, contract appendices and termination', async 
   });
 
 
-  await pool.query('DELETE FROM ngayle');
+  await pool.query('DELETE FROM "NGAYLE"');
 
   await t.test('Leave days count working days only; backdated leave is limited to HR/admin', async () => {
     const w = employee();
@@ -232,7 +232,7 @@ test('Employee accounts, directors, contract appendices and termination', async 
     assert.equal(weekend.status, 400);
     const ok = await request('/leaves', { MaNV: w.MaNV, MaLoai, TuNgay: shift(sat, -1), DenNgay: shift(sun, 1), LyDo: 'Nối cuối tuần' }, admin);
     assert.equal(ok.status, 201, JSON.stringify(ok.body));
-    assert.equal((await pool.query('SELECT "SoNgay" FROM donnghiphep WHERE "MaDon" = $1', [ok.body.id])).rows[0].SoNgay, 2);
+    assert.equal((await pool.query('SELECT "SoNgay" FROM "DONNGHIPHEP" WHERE "MaDon" = $1', [ok.body.id])).rows[0].SoNgay, 2);
 
     let past = shift(date, -3);
     while (!isWorkingDay(past)) past = shift(past, -1);
@@ -301,7 +301,7 @@ test('Employee accounts, directors, contract appendices and termination', async 
     const zc = await addContract(z);
     const futureContractStart = shift(date, 30);
     await pool.query(
-      `INSERT INTO hopdong("MaHD", "MaNV", "LoaiHD", "NgayBatDau", "NgayKetThuc", "NgayKetThucGoc", "MucLuong", "TrangThai")
+      `INSERT INTO "HOPDONG"("MaHD", "MaNV", "LoaiHD", "NgayBatDau", "NgayKetThuc", "NgayKetThucGoc", "MucLuong", "TrangThai")
        VALUES($1, $2, 'Xác định thời hạn', $3, $4, $4, 10_000_000, 'Hiệu lực')`,
       [`FUTURE-${z.MaNV}`, z.MaNV, futureContractStart, shift(futureContractStart, 90)]
     );
@@ -310,7 +310,7 @@ test('Employee accounts, directors, contract appendices and termination', async 
     let data = await state();
     assert.equal(data.contracts.find((item) => item.MaHD === zc.MaHD).TrangThai, 'Hiệu lực');
     assert.equal(data.employees.find((item) => item.MaNV === z.MaNV).TrangThai, 'Đang làm việc');
-    await pool.query('UPDATE hopdong SET "NgayChamDut" = $1 WHERE "MaHD" = $2', [shift(date, -1), zc.MaHD]);
+    await pool.query('UPDATE "HOPDONG" SET "NgayChamDut" = $1 WHERE "MaHD" = $2', [shift(date, -1), zc.MaHD]);
     await (await import('../dist/services/jobs.js')).runScheduledJobs(true);
     data = await state();
     assert.equal(data.contracts.find((item) => item.MaHD === zc.MaHD).TrangThai, 'Đã chấm dứt');
@@ -343,7 +343,7 @@ test('Employee accounts, directors, contract appendices and termination', async 
   await t.test('Accounts: password reset, role change, username sync, optimistic lock, duplicates and lockout', async () => {
     const v = employee();
     const account = await addEmployee(v);
-    const MaTK = (await pool.query('SELECT "MaTK" FROM taikhoan WHERE "MaNV" = $1', [v.MaNV])).rows[0].MaTK;
+    const MaTK = (await pool.query('SELECT "MaTK" FROM "TAIKHOAN" WHERE "MaNV" = $1', [v.MaNV])).rows[0].MaTK;
 
     const reset = await request(`/users/${MaTK}/reset-password`, {}, admin);
     assert.equal(reset.status, 200);

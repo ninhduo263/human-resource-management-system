@@ -56,7 +56,7 @@ employeesRouter.post(
     const Email = text(b, 'Email', 150);
     assertContact(SoDienThoai, Email);
 
-    const pos = await existsInTable(db, 'chucvu', text(b, 'MaCV'));
+    const pos = await existsInTable(db, 'CHUCVU', text(b, 'MaCV'));
     if (pos.HoatDong === false) fail('Chức vụ này đã ngừng sử dụng.');
     const VaiTro = choice(
       { VaiTro: b.VaiTro || (pos.LaDieuHanh ? 'director' : pos.VaiTroMacDinh || 'employee') },
@@ -69,14 +69,14 @@ employeesRouter.post(
     const dept =
       VaiTro === 'director' || pos.LaDieuHanh
         ? null
-        : await existsInTable(db, 'phongban', text(b, 'MaPB'));
+        : await existsInTable(db, 'PHONGBAN', text(b, 'MaPB'));
     if (dept && dept.HoatDong === false) fail('Phòng ban này đã ngừng sử dụng.');
     const TrangThai = choice(b, 'TrangThai', ['Đang làm việc', 'Thử việc'] as const);
     const DiaChi = optional(b, 'DiaChi');
 
     if (b.confirm_duplicate !== true) {
       const dup = await db.one<{ MaNV: string; HoTen: string }>(
-        `SELECT "MaNV", "HoTen" FROM nhanvien
+        `SELECT "MaNV", "HoTen" FROM "NHANVIEN"
          WHERE (LOWER("HoTen") = LOWER($1) AND "NgaySinh" = $2) OR "SoDienThoai" = $3
          LIMIT 1`,
         [HoTen, NgaySinh, SoDienThoai]
@@ -93,23 +93,23 @@ employeesRouter.post(
     const MaTK = generateId('U');
 
     const MaNV = await withTransaction(async (tx) => {
-      const MaNV = await nextBusinessId(tx, 'nhanvien');
+      const MaNV = await nextBusinessId(tx, 'NHANVIEN');
       await tx.run(
-        `INSERT INTO nhanvien("MaNV", "HoTen", "NgaySinh", "GioiTinh", "DiaChi", "SoDienThoai", "Email", "NgayVaoLam", "TrangThai", "NgayLuuTru", "MaPB", "MaCV")
+        `INSERT INTO "NHANVIEN"("MaNV", "HoTen", "NgaySinh", "GioiTinh", "DiaChi", "SoDienThoai", "Email", "NgayVaoLam", "TrangThai", "NgayLuuTru", "MaPB", "MaCV")
          VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11)`,
         [MaNV, HoTen, NgaySinh, GioiTinh, DiaChi, SoDienThoai, Email, NgayVaoLam, TrangThai, dept?.MaPB ?? null, pos.MaCV]
       );
       await tx.run(
-        'INSERT INTO taikhoan("MaTK", "TenDangNhap", "MatKhau", "VaiTro", "MaNV", "HoatDong") VALUES($1, $2, $3, $4, $5, 1)',
+        'INSERT INTO "TAIKHOAN"("MaTK", "TenDangNhap", "MatKhau", "VaiTro", "MaNV", "HoatDong") VALUES($1, $2, $3, $4, $5, 1)',
         [MaTK, Email, passwordHash(MatKhau), VaiTro, MaNV]
       );
       const Nam = Number(currentDay.slice(0, 4));
       await tx.run(
-        'INSERT INTO songayphep("MaNV", "Nam", "TongSoNgayPhep") VALUES($1, $2, $3) ON CONFLICT DO NOTHING',
+        'INSERT INTO "SONGAYPHEP"("MaNV", "Nam", "TongSoNgayPhep") VALUES($1, $2, $3) ON CONFLICT DO NOTHING',
         [MaNV, Nam, defaultEntitlement(NgayVaoLam, Nam)]
       );
       if (VaiTro === 'manager' && dept) {
-        await tx.run('UPDATE phongban SET "MaTruongPhong" = $1 WHERE "MaPB" = $2 AND "MaTruongPhong" IS NULL', [
+        await tx.run('UPDATE "PHONGBAN" SET "MaTruongPhong" = $1 WHERE "MaPB" = $2 AND "MaTruongPhong" IS NULL', [
           MaNV,
           dept.MaPB,
         ]);
@@ -142,12 +142,12 @@ employeesRouter.put(
       assertContact(SoDienThoai, Email);
 
       await withTransaction(async (tx) => {
-        const old = await tx.one<any>('SELECT * FROM nhanvien WHERE "MaNV" = $1 FOR UPDATE', [rid]);
+        const old = await tx.one<any>('SELECT * FROM "NHANVIEN" WHERE "MaNV" = $1 FOR UPDATE', [rid]);
         if (!old) fail('Không tìm thấy dữ liệu.', 404);
         await requireActiveEmployee(tx, rid);
         assertVersion(old, b);
         await tx.run(
-          `UPDATE nhanvien SET "SoDienThoai" = $1, "Email" = $2, "DiaChi" = $3, "PhienBan" = "PhienBan" + 1 WHERE "MaNV" = $4`,
+          `UPDATE "NHANVIEN" SET "SoDienThoai" = $1, "Email" = $2, "DiaChi" = $3, "PhienBan" = "PhienBan" + 1 WHERE "MaNV" = $4`,
           [SoDienThoai, Email, DiaChi, rid]
         );
         await syncUsername(tx, rid, old.Email, Email);
@@ -176,22 +176,22 @@ employeesRouter.put(
     const DiaChi = optional(b, 'DiaChi');
 
     await withTransaction(async (tx) => {
-      const old = await tx.one<any>('SELECT * FROM nhanvien WHERE "MaNV" = $1 FOR UPDATE', [rid]);
+      const old = await tx.one<any>('SELECT * FROM "NHANVIEN" WHERE "MaNV" = $1 FOR UPDATE', [rid]);
       if (!old) fail('Không tìm thấy dữ liệu.', 404);
       await requireActiveEmployee(tx, rid);
       assertVersion(old, b);
 
-      const dept = old.MaPB === null ? null : await existsInTable(tx, 'phongban', text(b, 'MaPB'));
-      const pos = await existsInTable(tx, 'chucvu', text(b, 'MaCV'));
+      const dept = old.MaPB === null ? null : await existsInTable(tx, 'PHONGBAN', text(b, 'MaPB'));
+      const pos = await existsInTable(tx, 'CHUCVU', text(b, 'MaCV'));
       if (old.MaPB !== (dept?.MaPB ?? null) || old.MaCV !== pos.MaCV) {
         fail('Hãy dùng chức năng Công tác để điều chuyển hoặc bổ nhiệm và lưu quyết định.');
       }
 
       const history = await tx.one(
         `SELECT 1 AS x WHERE
-           EXISTS (SELECT 1 FROM hopdong WHERE "MaNV" = $1 AND "NgayBatDau" < $2)
-        OR EXISTS (SELECT 1 FROM quatrinhcongtac WHERE "MaNV" = $1 AND "NgayHieuLuc" < $2 AND "TrangThai" <> 'Đã hủy')
-        OR EXISTS (SELECT 1 FROM donnghiphep WHERE "MaNV" = $1 AND "TuNgay" < $2)`,
+           EXISTS (SELECT 1 FROM "HOPDONG" WHERE "MaNV" = $1 AND "NgayBatDau" < $2)
+        OR EXISTS (SELECT 1 FROM "QUATRINHCONGTAC" WHERE "MaNV" = $1 AND "NgayHieuLuc" < $2 AND "TrangThai" <> 'Đã hủy')
+        OR EXISTS (SELECT 1 FROM "DONNGHIPHEP" WHERE "MaNV" = $1 AND "TuNgay" < $2)`,
         [rid, NgayVaoLam]
       );
       if (history) {
@@ -200,7 +200,7 @@ employeesRouter.put(
 
       // Trạng thái làm việc do hợp đồng quyết định; không cho sửa tay ở đây.
       await tx.run(
-        `UPDATE nhanvien
+        `UPDATE "NHANVIEN"
          SET "HoTen" = $1, "NgaySinh" = $2, "GioiTinh" = $3, "DiaChi" = $4, "SoDienThoai" = $5, "Email" = $6,
              "NgayVaoLam" = $7, "PhienBan" = "PhienBan" + 1
          WHERE "MaNV" = $8`,
@@ -234,7 +234,7 @@ async function syncUsername(
 ): Promise<void> {
   if (oldEmail.toLowerCase() === newEmail.toLowerCase()) return;
   await tx.run(
-    `UPDATE taikhoan SET "TenDangNhap" = $1 WHERE "MaNV" = $2 AND LOWER("TenDangNhap") = LOWER($3)`,
+    `UPDATE "TAIKHOAN" SET "TenDangNhap" = $1 WHERE "MaNV" = $2 AND LOWER("TenDangNhap") = LOWER($3)`,
     [newEmail, MaNV, oldEmail]
   );
 }
@@ -248,14 +248,14 @@ employeesRouter.post(
     const rid = paramId(req);
 
     await withTransaction(async (tx) => {
-      const e = await tx.one<any>('SELECT * FROM nhanvien WHERE "MaNV" = $1 FOR UPDATE', [rid]);
+      const e = await tx.one<any>('SELECT * FROM "NHANVIEN" WHERE "MaNV" = $1 FOR UPDATE', [rid]);
       if (!e) fail('Không tìm thấy dữ liệu.', 404);
       if (e.TrangThai === 'Đã lưu trữ') fail('Hồ sơ nhân viên đã lưu trữ.');
       if (e.MaNV === u.MaNV) fail('Không thể lưu trữ hồ sơ của chính bạn.');
 
       const currentDay = today();
       const activeContract = await tx.one(
-        `SELECT "MaHD" FROM hopdong
+        `SELECT "MaHD" FROM "HOPDONG"
          WHERE "MaNV" = $1 AND ${LIVE_CONTRACT}
            AND ("NgayKetThuc" IS NULL OR "NgayKetThuc" >= $2)`,
         [rid, currentDay]
@@ -263,25 +263,25 @@ employeesRouter.post(
       if (activeContract) fail('Cần chấm dứt các hợp đồng hiện hành trước khi lưu trữ.');
 
       const pendingLeave = await tx.one(
-        `SELECT "MaDon" FROM donnghiphep WHERE "MaNV" = $1 AND "TrangThai" = 'Chờ duyệt'`,
+        `SELECT "MaDon" FROM "DONNGHIPHEP" WHERE "MaNV" = $1 AND "TrangThai" = 'Chờ duyệt'`,
         [rid]
       );
       if (pendingLeave) fail('Cần xử lý các đơn nghỉ phép chờ duyệt trước khi lưu trữ.');
 
       const pendingAssignment = await tx.one(
-        `SELECT "MaQT" FROM quatrinhcongtac WHERE "MaNV" = $1 AND "TrangThai" = 'Chờ hiệu lực'`,
+        `SELECT "MaQT" FROM "QUATRINHCONGTAC" WHERE "MaNV" = $1 AND "TrangThai" = 'Chờ hiệu lực'`,
         [rid]
       );
       if (pendingAssignment) fail('Cần hủy các quyết định công tác chờ hiệu lực trước khi lưu trữ.');
 
       await tx.run(
-        `UPDATE nhanvien SET "TrangThai" = 'Đã lưu trữ', "NgayLuuTru" = $1, "PhienBan" = "PhienBan" + 1 WHERE "MaNV" = $2`,
+        `UPDATE "NHANVIEN" SET "TrangThai" = 'Đã lưu trữ', "NgayLuuTru" = $1, "PhienBan" = "PhienBan" + 1 WHERE "MaNV" = $2`,
         [currentDay, rid]
       );
-      await tx.run('UPDATE phongban SET "MaTruongPhong" = NULL WHERE "MaTruongPhong" = $1', [rid]);
-      await tx.run('UPDATE taikhoan SET "HoatDong" = 0 WHERE "MaNV" = $1', [rid]);
+      await tx.run('UPDATE "PHONGBAN" SET "MaTruongPhong" = NULL WHERE "MaTruongPhong" = $1', [rid]);
+      await tx.run('UPDATE "TAIKHOAN" SET "HoatDong" = 0 WHERE "MaNV" = $1', [rid]);
       await tx.run(
-        'DELETE FROM phiendangnhap WHERE "MaTK" IN (SELECT "MaTK" FROM taikhoan WHERE "MaNV" = $1)',
+        'DELETE FROM "PHIENDANGNHAP" WHERE "MaTK" IN (SELECT "MaTK" FROM "TAIKHOAN" WHERE "MaNV" = $1)',
         [rid]
       );
       await auditLog(tx, u.MaTK, 'Lưu trữ hồ sơ', rid);
@@ -300,12 +300,12 @@ employeesRouter.post(
     const rid = paramId(req);
 
     await withTransaction(async (tx) => {
-      const archived = await tx.one<any>('SELECT * FROM nhanvien WHERE "MaNV" = $1 FOR UPDATE', [rid]);
+      const archived = await tx.one<any>('SELECT * FROM "NHANVIEN" WHERE "MaNV" = $1 FOR UPDATE', [rid]);
       if (!archived) fail('Không tìm thấy dữ liệu.', 404);
       if (archived.TrangThai !== 'Đã lưu trữ') fail('Chỉ khôi phục hồ sơ đã lưu trữ.');
 
       await tx.run(
-        `UPDATE nhanvien SET "TrangThai" = 'Đang làm việc', "NgayLuuTru" = NULL, "PhienBan" = "PhienBan" + 1
+        `UPDATE "NHANVIEN" SET "TrangThai" = 'Đang làm việc', "NgayLuuTru" = NULL, "PhienBan" = "PhienBan" + 1
          WHERE "MaNV" = $1`,
         [rid]
       );

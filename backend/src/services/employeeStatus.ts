@@ -11,11 +11,11 @@ export const LIVE_CONTRACT = `"TrangThai" NOT IN ('Đã chấm dứt', 'Đã h�
  */
 export async function syncEmployeeStatuses(tx: DbExecutor, MaNV?: string): Promise<void> {
   await tx.run(
-    `UPDATE nhanvien n SET "TrangThai" = t.target, "PhienBan" = n."PhienBan" + 1
+    `UPDATE "NHANVIEN" n SET "TrangThai" = t.target, "PhienBan" = n."PhienBan" + 1
      FROM (
        SELECT DISTINCT ON (h."MaNV") h."MaNV",
               CASE WHEN h."LoaiHD" = 'Thử việc' THEN 'Thử việc' ELSE 'Đang làm việc' END AS target
-       FROM hopdong h
+       FROM "HOPDONG" h
        WHERE h.${LIVE_CONTRACT}
          AND h."NgayBatDau" <= $1
          AND (h."NgayKetThuc" IS NULL OR h."NgayKetThuc" >= $1)
@@ -42,9 +42,9 @@ export async function finalizeTermination(
   LoaiChamDut?: string | null
 ): Promise<void> {
   const day = today();
-  await tx.run(`UPDATE hopdong SET "TrangThai" = 'Đã chấm dứt' WHERE "MaHD" = $1`, [contract.MaHD]);
+  await tx.run(`UPDATE "HOPDONG" SET "TrangThai" = 'Đã chấm dứt' WHERE "MaHD" = $1`, [contract.MaHD]);
   const remaining = await tx.one<{ MaHD: string }>(
-    `SELECT "MaHD" FROM hopdong
+    `SELECT "MaHD" FROM "HOPDONG"
      WHERE "MaNV" = $1 AND "MaHD" != $2 AND ${LIVE_CONTRACT}
        AND "NgayBatDau" <= $3
        AND ("NgayKetThuc" IS NULL OR "NgayKetThuc" >= $3)`,
@@ -52,12 +52,12 @@ export async function finalizeTermination(
   );
   if (LoaiChamDut === 'Người lao động xin nghỉ' || !remaining) {
     await tx.run(
-      `UPDATE nhanvien SET "TrangThai" = 'Đã nghỉ việc', "PhienBan" = "PhienBan" + 1
+      `UPDATE "NHANVIEN" SET "TrangThai" = 'Đã nghỉ việc', "PhienBan" = "PhienBan" + 1
        WHERE "MaNV" = $1 AND "TrangThai" IN ('Đang làm việc', 'Thử việc')`,
       [contract.MaNV]
     );
     await tx.run(
-      'DELETE FROM phiendangnhap WHERE "MaTK" IN (SELECT "MaTK" FROM taikhoan WHERE "MaNV" = $1)',
+      'DELETE FROM "PHIENDANGNHAP" WHERE "MaTK" IN (SELECT "MaTK" FROM "TAIKHOAN" WHERE "MaNV" = $1)',
       [contract.MaNV]
     );
   } else {

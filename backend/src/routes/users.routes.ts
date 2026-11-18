@@ -35,12 +35,12 @@ usersRouter.post(
     const pw = text(req.body, 'MatKhau');
     if (pw.length < 10) fail('Mật khẩu phải có ít nhất 10 ký tự.');
 
-    const hasAccount = await db.one('SELECT "MaTK" FROM taikhoan WHERE "MaNV" = $1', [MaNV]);
+    const hasAccount = await db.one('SELECT "MaTK" FROM "TAIKHOAN" WHERE "MaNV" = $1', [MaNV]);
     if (hasAccount) fail('Nhân viên này đã có tài khoản; hãy đổi vai trò hoặc khóa/mở tài khoản đó.', 409);
 
     const MaTK = generateId('U');
     await db.run(
-      'INSERT INTO taikhoan("MaTK", "TenDangNhap", "MatKhau", "VaiTro", "MaNV", "HoatDong") VALUES($1, $2, $3, $4, $5, 1)',
+      'INSERT INTO "TAIKHOAN"("MaTK", "TenDangNhap", "MatKhau", "VaiTro", "MaNV", "HoatDong") VALUES($1, $2, $3, $4, $5, 1)',
       [MaTK, TenDangNhap, passwordHash(pw), VaiTro, MaNV]
     );
     await auditLog(db, u.MaTK, 'Tạo tài khoản', TenDangNhap);
@@ -61,13 +61,13 @@ usersRouter.post(
         TenDangNhap: string;
         HoatDong: number;
         MaNV: string;
-      }>(tx, 'taikhoan', targetId);
+      }>(tx, 'TAIKHOAN', targetId);
       if (target.MaTK === u.MaTK) fail('Không thể khóa tài khoản của chính bạn.');
 
       const next = target.HoatDong ? 0 : 1;
       if (next === 1) await requireActiveEmployee(tx, target.MaNV);
-      await tx.run('UPDATE taikhoan SET "HoatDong" = $1 WHERE "MaTK" = $2', [next, target.MaTK]);
-      await tx.run('DELETE FROM phiendangnhap WHERE "MaTK" = $1', [target.MaTK]);
+      await tx.run('UPDATE "TAIKHOAN" SET "HoatDong" = $1 WHERE "MaTK" = $2', [next, target.MaTK]);
+      await tx.run('DELETE FROM "PHIENDANGNHAP" WHERE "MaTK" = $1', [target.MaTK]);
       await auditLog(tx, u.MaTK, 'Đổi trạng thái tài khoản', target.TenDangNhap, {
         HoatDong: { from: target.HoatDong, to: next },
       });
@@ -86,9 +86,9 @@ usersRouter.post(
     const MatKhau = `Nv@${randomBytes(9).toString('base64url')}`;
 
     await withTransaction(async (tx) => {
-      const target = await existsInTable<{ MaTK: string; TenDangNhap: string }>(tx, 'taikhoan', targetId);
-      await tx.run('UPDATE taikhoan SET "MatKhau" = $1 WHERE "MaTK" = $2', [passwordHash(MatKhau), target.MaTK]);
-      await tx.run('DELETE FROM phiendangnhap WHERE "MaTK" = $1', [target.MaTK]);
+      const target = await existsInTable<{ MaTK: string; TenDangNhap: string }>(tx, 'TAIKHOAN', targetId);
+      await tx.run('UPDATE "TAIKHOAN" SET "MatKhau" = $1 WHERE "MaTK" = $2', [passwordHash(MatKhau), target.MaTK]);
+      await tx.run('DELETE FROM "PHIENDANGNHAP" WHERE "MaTK" = $1', [target.MaTK]);
       await auditLog(tx, u.MaTK, 'Đặt lại mật khẩu', target.TenDangNhap);
     });
     res.json({ ok: true, MatKhau });
@@ -110,19 +110,19 @@ usersRouter.put(
         TenDangNhap: string;
         VaiTro: string;
         MaNV: string;
-      }>(tx, 'taikhoan', targetId);
+      }>(tx, 'TAIKHOAN', targetId);
       if (target.MaTK === u.MaTK) fail('Không thể tự đổi vai trò của chính bạn.');
       if (target.VaiTro === VaiTro) return;
 
-      await tx.run('UPDATE taikhoan SET "VaiTro" = $1 WHERE "MaTK" = $2', [VaiTro, target.MaTK]);
-      await tx.run('DELETE FROM phiendangnhap WHERE "MaTK" = $1', [target.MaTK]);
+      await tx.run('UPDATE "TAIKHOAN" SET "VaiTro" = $1 WHERE "MaTK" = $2', [VaiTro, target.MaTK]);
+      await tx.run('DELETE FROM "PHIENDANGNHAP" WHERE "MaTK" = $1', [target.MaTK]);
       // Rời vai trò trưởng phòng thì không còn là trưởng phòng; nhận vai trò đó thì làm trưởng phòng nếu phòng chưa có.
       if (VaiTro !== 'manager') {
-        await tx.run('UPDATE phongban SET "MaTruongPhong" = NULL WHERE "MaTruongPhong" = $1', [target.MaNV]);
+        await tx.run('UPDATE "PHONGBAN" SET "MaTruongPhong" = NULL WHERE "MaTruongPhong" = $1', [target.MaNV]);
       } else {
         await tx.run(
-          `UPDATE phongban SET "MaTruongPhong" = $1
-           WHERE "MaTruongPhong" IS NULL AND "MaPB" = (SELECT "MaPB" FROM nhanvien WHERE "MaNV" = $1)`,
+          `UPDATE "PHONGBAN" SET "MaTruongPhong" = $1
+           WHERE "MaTruongPhong" IS NULL AND "MaPB" = (SELECT "MaPB" FROM "NHANVIEN" WHERE "MaNV" = $1)`,
           [target.MaNV]
         );
       }

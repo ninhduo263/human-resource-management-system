@@ -14,25 +14,25 @@ DECLARE
   r RECORD;
 BEGIN
   FOR r IN SELECT * FROM (VALUES
-    ('departments', 'phongban'),
-    ('positions', 'chucvu'),
-    ('employees', 'nhanvien'),
-    ('contracts', 'hopdong'),
-    ('extensions', 'giahanhopdong'),
-    ('decisions', 'quyetdinh'),
-    ('assignments', 'quatrinhcongtac'),
-    ('leave_types', 'loainghiphep'),
-    ('leave_requests', 'donnghiphep'),
-    ('leave_balances', 'songayphep'),
-    ('users', 'taikhoan'),
-    ('sessions', 'phiendangnhap'),
-    ('audit_log', 'nhatkyhethong'),
-    ('holidays', 'ngayle'),
-    ('login_attempts', 'dangnhapthatbai')
+    ('departments', 'PHONGBAN'), ('phongban', 'PHONGBAN'),
+    ('positions', 'CHUCVU'), ('chucvu', 'CHUCVU'),
+    ('employees', 'NHANVIEN'), ('nhanvien', 'NHANVIEN'),
+    ('contracts', 'HOPDONG'), ('hopdong', 'HOPDONG'),
+    ('extensions', 'GIAHANHOPDONG'), ('giahanhopdong', 'GIAHANHOPDONG'),
+    ('decisions', 'QUYETDINH'), ('quyetdinh', 'QUYETDINH'),
+    ('assignments', 'QUATRINHCONGTAC'), ('quatrinhcongtac', 'QUATRINHCONGTAC'),
+    ('leave_types', 'LOAINGHIPHEP'), ('loainghiphep', 'LOAINGHIPHEP'),
+    ('leave_requests', 'DONNGHIPHEP'), ('donnghiphep', 'DONNGHIPHEP'),
+    ('leave_balances', 'SONGAYPHEP'), ('songayphep', 'SONGAYPHEP'),
+    ('users', 'TAIKHOAN'), ('taikhoan', 'TAIKHOAN'),
+    ('sessions', 'PHIENDANGNHAP'), ('phiendangnhap', 'PHIENDANGNHAP'),
+    ('audit_log', 'NHATKYHETHONG'), ('nhatkyhethong', 'NHATKYHETHONG'),
+    ('holidays', 'NGAYLE'), ('ngayle', 'NGAYLE'),
+    ('login_attempts', 'DANGNHAPTHATBAI'), ('dangnhapthatbai', 'DANGNHAPTHATBAI')
   ) AS m(old_name, new_name)
   LOOP
-    IF to_regclass('public.' || r.old_name) IS NOT NULL
-       AND to_regclass('public.' || r.new_name) IS NULL THEN
+    IF to_regclass('public.' || quote_ident(r.old_name)) IS NOT NULL
+       AND to_regclass('public.' || quote_ident(r.new_name)) IS NULL THEN
       EXECUTE format('ALTER TABLE public.%I RENAME TO %I', r.old_name, r.new_name);
     END IF;
   END LOOP;
@@ -44,58 +44,58 @@ DECLARE
   r RECORD;
 BEGIN
   FOR r IN SELECT * FROM (VALUES
-    ('phongban', 'id', 'MaPB'), ('phongban', 'mapb', 'MaPB'), ('phongban', 'name', 'TenPB'), ('phongban', 'tenpb', 'TenPB'), ('phongban', 'description', 'MoTa'), ('phongban', 'mota', 'MoTa'),
-    ('phongban', 'founded_date', 'NgayThanhLap'), ('phongban', 'ngaythanhlap', 'NgayThanhLap'), ('phongban', 'head_id', 'MaTruongPhong'), ('phongban', 'matruongphong', 'MaTruongPhong'),
-    ('phongban', 'active', 'HoatDong'), ('phongban', 'hoatdong', 'HoatDong'),
-    ('chucvu', 'id', 'MaCV'), ('chucvu', 'macv', 'MaCV'), ('chucvu', 'name', 'TenCV'), ('chucvu', 'tencv', 'TenCV'), ('chucvu', 'description', 'MoTa'), ('chucvu', 'mota', 'MoTa'),
-    ('chucvu', 'level', 'CapBac'), ('chucvu', 'capbac', 'CapBac'), ('chucvu', 'is_executive', 'LaDieuHanh'), ('chucvu', 'ladieuhanh', 'LaDieuHanh'),
-    ('chucvu', 'default_role', 'VaiTroMacDinh'), ('chucvu', 'vaitromacdinh', 'VaiTroMacDinh'), ('chucvu', 'active', 'HoatDong'), ('chucvu', 'hoatdong', 'HoatDong'),
-    ('nhanvien', 'id', 'MaNV'), ('nhanvien', 'manv', 'MaNV'), ('nhanvien', 'name', 'HoTen'), ('nhanvien', 'hoten', 'HoTen'), ('nhanvien', 'birth_date', 'NgaySinh'), ('nhanvien', 'ngaysinh', 'NgaySinh'),
-    ('nhanvien', 'gender', 'GioiTinh'), ('nhanvien', 'gioitinh', 'GioiTinh'), ('nhanvien', 'address', 'DiaChi'), ('nhanvien', 'diachi', 'DiaChi'), ('nhanvien', 'phone', 'SoDienThoai'), ('nhanvien', 'sodienthoai', 'SoDienThoai'),
-    ('nhanvien', 'join_date', 'NgayVaoLam'), ('nhanvien', 'ngayvaolam', 'NgayVaoLam'), ('nhanvien', 'status', 'TrangThai'), ('nhanvien', 'trangthai', 'TrangThai'),
-    ('nhanvien', 'archived_date', 'NgayLuuTru'), ('nhanvien', 'ngayluutru', 'NgayLuuTru'), ('nhanvien', 'department_id', 'MaPB'), ('nhanvien', 'mapb', 'MaPB'),
-    ('nhanvien', 'position_id', 'MaCV'), ('nhanvien', 'macv', 'MaCV'), ('nhanvien', 'version', 'PhienBan'), ('nhanvien', 'phienban', 'PhienBan'), ('nhanvien', 'email', 'Email'),
-    ('hopdong', 'id', 'MaHD'), ('hopdong', 'mahd', 'MaHD'), ('hopdong', 'employee_id', 'MaNV'), ('hopdong', 'manv', 'MaNV'), ('hopdong', 'type', 'LoaiHD'), ('hopdong', 'loaihd', 'LoaiHD'),
-    ('hopdong', 'start_date', 'NgayBatDau'), ('hopdong', 'ngaybatdau', 'NgayBatDau'), ('hopdong', 'end_date', 'NgayKetThuc'), ('hopdong', 'ngayketthuc', 'NgayKetThuc'), ('hopdong', 'salary', 'MucLuong'), ('hopdong', 'mucluong', 'MucLuong'),
-    ('hopdong', 'status', 'TrangThai'), ('hopdong', 'trangthai', 'TrangThai'), ('hopdong', 'terminated_date', 'NgayChamDut'), ('hopdong', 'ngaychamdut', 'NgayChamDut'),
-    ('hopdong', 'termination_reason', 'LyDoChamDut'), ('hopdong', 'lydochamdut', 'LyDoChamDut'), ('hopdong', 'contract_number', 'SoHD'), ('hopdong', 'sohd', 'SoHD'),
-    ('hopdong', 'termination_type', 'LoaiChamDut'), ('hopdong', 'loaichamdut', 'LoaiChamDut'), ('hopdong', 'termination_decision_id', 'MaQDChamDut'), ('hopdong', 'maqdchamdut', 'MaQDChamDut'),
-    ('hopdong', 'original_end_date', 'NgayKetThucGoc'), ('hopdong', 'ngayketthucgoc', 'NgayKetThucGoc'),
-    ('giahanhopdong', 'id', 'MaGH'), ('giahanhopdong', 'magh', 'MaGH'), ('giahanhopdong', 'contract_id', 'MaHD'), ('giahanhopdong', 'mahd', 'MaHD'),
-    ('giahanhopdong', 'sequence', 'LanGiaHan'), ('giahanhopdong', 'langiahan', 'LanGiaHan'), ('giahanhopdong', 'created_date', 'NgayLap'), ('giahanhopdong', 'ngaylap', 'NgayLap'),
-    ('giahanhopdong', 'old_end_date', 'NgayKetThucCu'), ('giahanhopdong', 'ngayketthuccu', 'NgayKetThucCu'), ('giahanhopdong', 'new_end_date', 'NgayKetThucMoi'), ('giahanhopdong', 'ngayketthucmoi', 'NgayKetThucMoi'),
-    ('giahanhopdong', 'reason', 'LyDo'), ('giahanhopdong', 'lydo', 'LyDo'), ('giahanhopdong', 'amendment_type', 'LoaiPhuLuc'), ('giahanhopdong', 'loaiphuluc', 'LoaiPhuLuc'),
-    ('giahanhopdong', 'old_salary', 'LuongCu'), ('giahanhopdong', 'luongcu', 'LuongCu'), ('giahanhopdong', 'new_salary', 'LuongMoi'), ('giahanhopdong', 'luongmoi', 'LuongMoi'),
-    ('giahanhopdong', 'effective_date', 'NgayHieuLuc'), ('giahanhopdong', 'ngayhieuluc', 'NgayHieuLuc'), ('giahanhopdong', 'applied', 'DaApDung'), ('giahanhopdong', 'daapdung', 'DaApDung'),
-    ('giahanhopdong', 'decision_id', 'MaQD'), ('giahanhopdong', 'maqd', 'MaQD'),
-    ('quyetdinh', 'id', 'MaQD'), ('quyetdinh', 'maqd', 'MaQD'), ('quyetdinh', 'number', 'SoQD'), ('quyetdinh', 'soqd', 'SoQD'), ('quyetdinh', 'type', 'LoaiQD'), ('quyetdinh', 'loaiqd', 'LoaiQD'),
-    ('quyetdinh', 'signed_date', 'NgayKy'), ('quyetdinh', 'ngayky', 'NgayKy'), ('quyetdinh', 'effective_date', 'NgayHieuLuc'), ('quyetdinh', 'ngayhieuluc', 'NgayHieuLuc'),
-    ('quyetdinh', 'signer', 'NguoiKy'), ('quyetdinh', 'nguoiky', 'NguoiKy'), ('quyetdinh', 'content', 'NoiDung'), ('quyetdinh', 'noidung', 'NoiDung'),
-    ('quatrinhcongtac', 'id', 'MaQT'), ('quatrinhcongtac', 'maqt', 'MaQT'), ('quatrinhcongtac', 'employee_id', 'MaNV'), ('quatrinhcongtac', 'manv', 'MaNV'),
-    ('quatrinhcongtac', 'decision_id', 'MaQD'), ('quatrinhcongtac', 'maqd', 'MaQD'), ('quatrinhcongtac', 'type', 'LoaiBienDong'), ('quatrinhcongtac', 'loaibiendong', 'LoaiBienDong'),
-    ('quatrinhcongtac', 'old_department_id', 'MaPBCu'), ('quatrinhcongtac', 'mapbcu', 'MaPBCu'), ('quatrinhcongtac', 'new_department_id', 'MaPBMoi'), ('quatrinhcongtac', 'mapbmoi', 'MaPBMoi'),
-    ('quatrinhcongtac', 'old_position_id', 'MaCVCu'), ('quatrinhcongtac', 'macvcu', 'MaCVCu'), ('quatrinhcongtac', 'new_position_id', 'MaCVMoi'), ('quatrinhcongtac', 'macvmoi', 'MaCVMoi'),
-    ('quatrinhcongtac', 'effective_date', 'NgayHieuLuc'), ('quatrinhcongtac', 'ngayhieuluc', 'NgayHieuLuc'), ('quatrinhcongtac', 'reason', 'LyDo'), ('quatrinhcongtac', 'lydo', 'LyDo'),
-    ('quatrinhcongtac', 'status', 'TrangThai'), ('quatrinhcongtac', 'trangthai', 'TrangThai'), ('quatrinhcongtac', 'cancelled_date', 'NgayHuy'), ('quatrinhcongtac', 'ngayhuy', 'NgayHuy'),
-    ('quatrinhcongtac', 'cancel_reason', 'LyDoHuy'), ('quatrinhcongtac', 'lydohuy', 'LyDoHuy'),
-    ('loainghiphep', 'id', 'MaLoai'), ('loainghiphep', 'maloai', 'MaLoai'), ('loainghiphep', 'name', 'TenLoai'), ('loainghiphep', 'tenloai', 'TenLoai'),
-    ('loainghiphep', 'max_days', 'SoNgayToiDa'), ('loainghiphep', 'songaytoida', 'SoNgayToiDa'), ('loainghiphep', 'deduct_annual', 'TruPhepNam'), ('loainghiphep', 'truphepnam', 'TruPhepNam'),
-    ('donnghiphep', 'id', 'MaDon'), ('donnghiphep', 'madon', 'MaDon'), ('donnghiphep', 'employee_id', 'MaNV'), ('donnghiphep', 'manv', 'MaNV'), ('donnghiphep', 'type_id', 'MaLoai'), ('donnghiphep', 'maloai', 'MaLoai'),
-    ('donnghiphep', 'submitted_date', 'NgayNop'), ('donnghiphep', 'ngaynop', 'NgayNop'), ('donnghiphep', 'start_date', 'TuNgay'), ('donnghiphep', 'tungay', 'TuNgay'),
-    ('donnghiphep', 'end_date', 'DenNgay'), ('donnghiphep', 'denngay', 'DenNgay'), ('donnghiphep', 'days', 'SoNgay'), ('donnghiphep', 'songay', 'SoNgay'), ('donnghiphep', 'reason', 'LyDo'), ('donnghiphep', 'lydo', 'LyDo'),
-    ('donnghiphep', 'status', 'TrangThai'), ('donnghiphep', 'trangthai', 'TrangThai'), ('donnghiphep', 'approver_id', 'MaNVDuyet'), ('donnghiphep', 'manvduyet', 'MaNVDuyet'),
-    ('donnghiphep', 'approved_date', 'NgayDuyet'), ('donnghiphep', 'ngayduyet', 'NgayDuyet'), ('donnghiphep', 'review_note', 'GhiChuDuyet'), ('donnghiphep', 'ghichuduyet', 'GhiChuDuyet'),
-    ('songayphep', 'employee_id', 'MaNV'), ('songayphep', 'manv', 'MaNV'), ('songayphep', 'year', 'Nam'), ('songayphep', 'nam', 'Nam'), ('songayphep', 'total', 'TongSoNgayPhep'), ('songayphep', 'tongsongayphep', 'TongSoNgayPhep'),
-    ('taikhoan', 'id', 'MaTK'), ('taikhoan', 'matk', 'MaTK'), ('taikhoan', 'username', 'TenDangNhap'), ('taikhoan', 'tendangnhap', 'TenDangNhap'), ('taikhoan', 'password_hash', 'MatKhau'), ('taikhoan', 'matkhau', 'MatKhau'),
-    ('taikhoan', 'role', 'VaiTro'), ('taikhoan', 'vaitro', 'VaiTro'), ('taikhoan', 'employee_id', 'MaNV'), ('taikhoan', 'manv', 'MaNV'), ('taikhoan', 'active', 'HoatDong'), ('taikhoan', 'hoatdong', 'HoatDong'),
-    ('phiendangnhap', 'token_hash', 'MaPhien'), ('phiendangnhap', 'maphien', 'MaPhien'), ('phiendangnhap', 'user_id', 'MaTK'), ('phiendangnhap', 'matk', 'MaTK'),
-    ('phiendangnhap', 'expires', 'ThoiHan'), ('phiendangnhap', 'thoihan', 'ThoiHan'),
-    ('nhatkyhethong', 'id', 'MaNK'), ('nhatkyhethong', 'mank', 'MaNK'), ('nhatkyhethong', 'user_id', 'MaTK'), ('nhatkyhethong', 'matk', 'MaTK'), ('nhatkyhethong', 'action', 'HanhDong'), ('nhatkyhethong', 'hanhdong', 'HanhDong'),
-    ('nhatkyhethong', 'target', 'DoiTuong'), ('nhatkyhethong', 'doituong', 'DoiTuong'), ('nhatkyhethong', 'created_at', 'ThoiGian'), ('nhatkyhethong', 'thoigian', 'ThoiGian'),
-    ('nhatkyhethong', 'details', 'ChiTiet'), ('nhatkyhethong', 'chitiet', 'ChiTiet'), ('nhatkyhethong', 'ip', 'DiaChiIP'), ('nhatkyhethong', 'diachiip', 'DiaChiIP'),
-    ('ngayle', 'day', 'Ngay'), ('ngayle', 'ngay', 'Ngay'), ('ngayle', 'name', 'TenNgayLe'), ('ngayle', 'tenngayle', 'TenNgayLe'),
-    ('dangnhapthatbai', 'key', 'Khoa'), ('dangnhapthatbai', 'khoa', 'Khoa'), ('dangnhapthatbai', 'count', 'SoLanSai'), ('dangnhapthatbai', 'solansai', 'SoLanSai'),
-    ('dangnhapthatbai', 'until', 'KhoaDen'), ('dangnhapthatbai', 'khoaden', 'KhoaDen')
+    ('PHONGBAN', 'id', 'MaPB'), ('PHONGBAN', 'mapb', 'MaPB'), ('PHONGBAN', 'name', 'TenPB'), ('PHONGBAN', 'tenpb', 'TenPB'), ('PHONGBAN', 'description', 'MoTa'), ('PHONGBAN', 'mota', 'MoTa'),
+    ('PHONGBAN', 'founded_date', 'NgayThanhLap'), ('PHONGBAN', 'ngaythanhlap', 'NgayThanhLap'), ('PHONGBAN', 'head_id', 'MaTruongPhong'), ('PHONGBAN', 'matruongphong', 'MaTruongPhong'),
+    ('PHONGBAN', 'active', 'HoatDong'), ('PHONGBAN', 'hoatdong', 'HoatDong'),
+    ('CHUCVU', 'id', 'MaCV'), ('CHUCVU', 'macv', 'MaCV'), ('CHUCVU', 'name', 'TenCV'), ('CHUCVU', 'tencv', 'TenCV'), ('CHUCVU', 'description', 'MoTa'), ('CHUCVU', 'mota', 'MoTa'),
+    ('CHUCVU', 'level', 'CapBac'), ('CHUCVU', 'capbac', 'CapBac'), ('CHUCVU', 'is_executive', 'LaDieuHanh'), ('CHUCVU', 'ladieuhanh', 'LaDieuHanh'),
+    ('CHUCVU', 'default_role', 'VaiTroMacDinh'), ('CHUCVU', 'vaitromacdinh', 'VaiTroMacDinh'), ('CHUCVU', 'active', 'HoatDong'), ('CHUCVU', 'hoatdong', 'HoatDong'),
+    ('NHANVIEN', 'id', 'MaNV'), ('NHANVIEN', 'manv', 'MaNV'), ('NHANVIEN', 'name', 'HoTen'), ('NHANVIEN', 'hoten', 'HoTen'), ('NHANVIEN', 'birth_date', 'NgaySinh'), ('NHANVIEN', 'ngaysinh', 'NgaySinh'),
+    ('NHANVIEN', 'gender', 'GioiTinh'), ('NHANVIEN', 'gioitinh', 'GioiTinh'), ('NHANVIEN', 'address', 'DiaChi'), ('NHANVIEN', 'diachi', 'DiaChi'), ('NHANVIEN', 'phone', 'SoDienThoai'), ('NHANVIEN', 'sodienthoai', 'SoDienThoai'),
+    ('NHANVIEN', 'join_date', 'NgayVaoLam'), ('NHANVIEN', 'ngayvaolam', 'NgayVaoLam'), ('NHANVIEN', 'status', 'TrangThai'), ('NHANVIEN', 'trangthai', 'TrangThai'),
+    ('NHANVIEN', 'archived_date', 'NgayLuuTru'), ('NHANVIEN', 'ngayluutru', 'NgayLuuTru'), ('NHANVIEN', 'department_id', 'MaPB'), ('NHANVIEN', 'mapb', 'MaPB'),
+    ('NHANVIEN', 'position_id', 'MaCV'), ('NHANVIEN', 'macv', 'MaCV'), ('NHANVIEN', 'version', 'PhienBan'), ('NHANVIEN', 'phienban', 'PhienBan'), ('NHANVIEN', 'email', 'Email'),
+    ('HOPDONG', 'id', 'MaHD'), ('HOPDONG', 'mahd', 'MaHD'), ('HOPDONG', 'employee_id', 'MaNV'), ('HOPDONG', 'manv', 'MaNV'), ('HOPDONG', 'type', 'LoaiHD'), ('HOPDONG', 'loaihd', 'LoaiHD'),
+    ('HOPDONG', 'start_date', 'NgayBatDau'), ('HOPDONG', 'ngaybatdau', 'NgayBatDau'), ('HOPDONG', 'end_date', 'NgayKetThuc'), ('HOPDONG', 'ngayketthuc', 'NgayKetThuc'), ('HOPDONG', 'salary', 'MucLuong'), ('HOPDONG', 'mucluong', 'MucLuong'),
+    ('HOPDONG', 'status', 'TrangThai'), ('HOPDONG', 'trangthai', 'TrangThai'), ('HOPDONG', 'terminated_date', 'NgayChamDut'), ('HOPDONG', 'ngaychamdut', 'NgayChamDut'),
+    ('HOPDONG', 'termination_reason', 'LyDoChamDut'), ('HOPDONG', 'lydochamdut', 'LyDoChamDut'), ('HOPDONG', 'contract_number', 'SoHD'), ('HOPDONG', 'sohd', 'SoHD'),
+    ('HOPDONG', 'termination_type', 'LoaiChamDut'), ('HOPDONG', 'loaichamdut', 'LoaiChamDut'), ('HOPDONG', 'termination_decision_id', 'MaQDChamDut'), ('HOPDONG', 'maqdchamdut', 'MaQDChamDut'),
+    ('HOPDONG', 'original_end_date', 'NgayKetThucGoc'), ('HOPDONG', 'ngayketthucgoc', 'NgayKetThucGoc'),
+    ('GIAHANHOPDONG', 'id', 'MaGH'), ('GIAHANHOPDONG', 'magh', 'MaGH'), ('GIAHANHOPDONG', 'contract_id', 'MaHD'), ('GIAHANHOPDONG', 'mahd', 'MaHD'),
+    ('GIAHANHOPDONG', 'sequence', 'LanGiaHan'), ('GIAHANHOPDONG', 'langiahan', 'LanGiaHan'), ('GIAHANHOPDONG', 'created_date', 'NgayLap'), ('GIAHANHOPDONG', 'ngaylap', 'NgayLap'),
+    ('GIAHANHOPDONG', 'old_end_date', 'NgayKetThucCu'), ('GIAHANHOPDONG', 'ngayketthuccu', 'NgayKetThucCu'), ('GIAHANHOPDONG', 'new_end_date', 'NgayKetThucMoi'), ('GIAHANHOPDONG', 'ngayketthucmoi', 'NgayKetThucMoi'),
+    ('GIAHANHOPDONG', 'reason', 'LyDo'), ('GIAHANHOPDONG', 'lydo', 'LyDo'), ('GIAHANHOPDONG', 'amendment_type', 'LoaiPhuLuc'), ('GIAHANHOPDONG', 'loaiphuluc', 'LoaiPhuLuc'),
+    ('GIAHANHOPDONG', 'old_salary', 'LuongCu'), ('GIAHANHOPDONG', 'luongcu', 'LuongCu'), ('GIAHANHOPDONG', 'new_salary', 'LuongMoi'), ('GIAHANHOPDONG', 'luongmoi', 'LuongMoi'),
+    ('GIAHANHOPDONG', 'effective_date', 'NgayHieuLuc'), ('GIAHANHOPDONG', 'ngayhieuluc', 'NgayHieuLuc'), ('GIAHANHOPDONG', 'applied', 'DaApDung'), ('GIAHANHOPDONG', 'daapdung', 'DaApDung'),
+    ('GIAHANHOPDONG', 'decision_id', 'MaQD'), ('GIAHANHOPDONG', 'maqd', 'MaQD'),
+    ('QUYETDINH', 'id', 'MaQD'), ('QUYETDINH', 'maqd', 'MaQD'), ('QUYETDINH', 'number', 'SoQD'), ('QUYETDINH', 'soqd', 'SoQD'), ('QUYETDINH', 'type', 'LoaiQD'), ('QUYETDINH', 'loaiqd', 'LoaiQD'),
+    ('QUYETDINH', 'signed_date', 'NgayKy'), ('QUYETDINH', 'ngayky', 'NgayKy'), ('QUYETDINH', 'effective_date', 'NgayHieuLuc'), ('QUYETDINH', 'ngayhieuluc', 'NgayHieuLuc'),
+    ('QUYETDINH', 'signer', 'NguoiKy'), ('QUYETDINH', 'nguoiky', 'NguoiKy'), ('QUYETDINH', 'content', 'NoiDung'), ('QUYETDINH', 'noidung', 'NoiDung'),
+    ('QUATRINHCONGTAC', 'id', 'MaQT'), ('QUATRINHCONGTAC', 'maqt', 'MaQT'), ('QUATRINHCONGTAC', 'employee_id', 'MaNV'), ('QUATRINHCONGTAC', 'manv', 'MaNV'),
+    ('QUATRINHCONGTAC', 'decision_id', 'MaQD'), ('QUATRINHCONGTAC', 'maqd', 'MaQD'), ('QUATRINHCONGTAC', 'type', 'LoaiBienDong'), ('QUATRINHCONGTAC', 'loaibiendong', 'LoaiBienDong'),
+    ('QUATRINHCONGTAC', 'old_department_id', 'MaPBCu'), ('QUATRINHCONGTAC', 'mapbcu', 'MaPBCu'), ('QUATRINHCONGTAC', 'new_department_id', 'MaPBMoi'), ('QUATRINHCONGTAC', 'mapbmoi', 'MaPBMoi'),
+    ('QUATRINHCONGTAC', 'old_position_id', 'MaCVCu'), ('QUATRINHCONGTAC', 'macvcu', 'MaCVCu'), ('QUATRINHCONGTAC', 'new_position_id', 'MaCVMoi'), ('QUATRINHCONGTAC', 'macvmoi', 'MaCVMoi'),
+    ('QUATRINHCONGTAC', 'effective_date', 'NgayHieuLuc'), ('QUATRINHCONGTAC', 'ngayhieuluc', 'NgayHieuLuc'), ('QUATRINHCONGTAC', 'reason', 'LyDo'), ('QUATRINHCONGTAC', 'lydo', 'LyDo'),
+    ('QUATRINHCONGTAC', 'status', 'TrangThai'), ('QUATRINHCONGTAC', 'trangthai', 'TrangThai'), ('QUATRINHCONGTAC', 'cancelled_date', 'NgayHuy'), ('QUATRINHCONGTAC', 'ngayhuy', 'NgayHuy'),
+    ('QUATRINHCONGTAC', 'cancel_reason', 'LyDoHuy'), ('QUATRINHCONGTAC', 'lydohuy', 'LyDoHuy'),
+    ('LOAINGHIPHEP', 'id', 'MaLoai'), ('LOAINGHIPHEP', 'maloai', 'MaLoai'), ('LOAINGHIPHEP', 'name', 'TenLoai'), ('LOAINGHIPHEP', 'tenloai', 'TenLoai'),
+    ('LOAINGHIPHEP', 'max_days', 'SoNgayToiDa'), ('LOAINGHIPHEP', 'songaytoida', 'SoNgayToiDa'), ('LOAINGHIPHEP', 'deduct_annual', 'TruPhepNam'), ('LOAINGHIPHEP', 'truphepnam', 'TruPhepNam'),
+    ('DONNGHIPHEP', 'id', 'MaDon'), ('DONNGHIPHEP', 'madon', 'MaDon'), ('DONNGHIPHEP', 'employee_id', 'MaNV'), ('DONNGHIPHEP', 'manv', 'MaNV'), ('DONNGHIPHEP', 'type_id', 'MaLoai'), ('DONNGHIPHEP', 'maloai', 'MaLoai'),
+    ('DONNGHIPHEP', 'submitted_date', 'NgayNop'), ('DONNGHIPHEP', 'ngaynop', 'NgayNop'), ('DONNGHIPHEP', 'start_date', 'TuNgay'), ('DONNGHIPHEP', 'tungay', 'TuNgay'),
+    ('DONNGHIPHEP', 'end_date', 'DenNgay'), ('DONNGHIPHEP', 'denngay', 'DenNgay'), ('DONNGHIPHEP', 'days', 'SoNgay'), ('DONNGHIPHEP', 'songay', 'SoNgay'), ('DONNGHIPHEP', 'reason', 'LyDo'), ('DONNGHIPHEP', 'lydo', 'LyDo'),
+    ('DONNGHIPHEP', 'status', 'TrangThai'), ('DONNGHIPHEP', 'trangthai', 'TrangThai'), ('DONNGHIPHEP', 'approver_id', 'MaNVDuyet'), ('DONNGHIPHEP', 'manvduyet', 'MaNVDuyet'),
+    ('DONNGHIPHEP', 'approved_date', 'NgayDuyet'), ('DONNGHIPHEP', 'ngayduyet', 'NgayDuyet'), ('DONNGHIPHEP', 'review_note', 'GhiChuDuyet'), ('DONNGHIPHEP', 'ghichuduyet', 'GhiChuDuyet'),
+    ('SONGAYPHEP', 'employee_id', 'MaNV'), ('SONGAYPHEP', 'manv', 'MaNV'), ('SONGAYPHEP', 'year', 'Nam'), ('SONGAYPHEP', 'nam', 'Nam'), ('SONGAYPHEP', 'total', 'TongSoNgayPhep'), ('SONGAYPHEP', 'tongsongayphep', 'TongSoNgayPhep'),
+    ('TAIKHOAN', 'id', 'MaTK'), ('TAIKHOAN', 'matk', 'MaTK'), ('TAIKHOAN', 'username', 'TenDangNhap'), ('TAIKHOAN', 'tendangnhap', 'TenDangNhap'), ('TAIKHOAN', 'password_hash', 'MatKhau'), ('TAIKHOAN', 'matkhau', 'MatKhau'),
+    ('TAIKHOAN', 'role', 'VaiTro'), ('TAIKHOAN', 'vaitro', 'VaiTro'), ('TAIKHOAN', 'employee_id', 'MaNV'), ('TAIKHOAN', 'manv', 'MaNV'), ('TAIKHOAN', 'active', 'HoatDong'), ('TAIKHOAN', 'hoatdong', 'HoatDong'),
+    ('PHIENDANGNHAP', 'token_hash', 'MaPhien'), ('PHIENDANGNHAP', 'maphien', 'MaPhien'), ('PHIENDANGNHAP', 'user_id', 'MaTK'), ('PHIENDANGNHAP', 'matk', 'MaTK'),
+    ('PHIENDANGNHAP', 'expires', 'ThoiHan'), ('PHIENDANGNHAP', 'thoihan', 'ThoiHan'),
+    ('NHATKYHETHONG', 'id', 'MaNK'), ('NHATKYHETHONG', 'mank', 'MaNK'), ('NHATKYHETHONG', 'user_id', 'MaTK'), ('NHATKYHETHONG', 'matk', 'MaTK'), ('NHATKYHETHONG', 'action', 'HanhDong'), ('NHATKYHETHONG', 'hanhdong', 'HanhDong'),
+    ('NHATKYHETHONG', 'target', 'DoiTuong'), ('NHATKYHETHONG', 'doituong', 'DoiTuong'), ('NHATKYHETHONG', 'created_at', 'ThoiGian'), ('NHATKYHETHONG', 'thoigian', 'ThoiGian'),
+    ('NHATKYHETHONG', 'details', 'ChiTiet'), ('NHATKYHETHONG', 'chitiet', 'ChiTiet'), ('NHATKYHETHONG', 'ip', 'DiaChiIP'), ('NHATKYHETHONG', 'diachiip', 'DiaChiIP'),
+    ('NGAYLE', 'day', 'Ngay'), ('NGAYLE', 'ngay', 'Ngay'), ('NGAYLE', 'name', 'TenNgayLe'), ('NGAYLE', 'tenngayle', 'TenNgayLe'),
+    ('DANGNHAPTHATBAI', 'key', 'Khoa'), ('DANGNHAPTHATBAI', 'khoa', 'Khoa'), ('DANGNHAPTHATBAI', 'count', 'SoLanSai'), ('DANGNHAPTHATBAI', 'solansai', 'SoLanSai'),
+    ('DANGNHAPTHATBAI', 'until', 'KhoaDen'), ('DANGNHAPTHATBAI', 'khoaden', 'KhoaDen')
   ) AS m(tbl, old_col, new_col)
   LOOP
     IF EXISTS (SELECT 1 FROM information_schema.columns
@@ -115,7 +115,7 @@ DROP TABLE IF EXISTS rewards_disciplines CASCADE;
 DROP TABLE IF EXISTS khenthuongkyluat CASCADE;
 
 -- 1. PHONGBAN (Phòng ban)
-CREATE TABLE IF NOT EXISTS phongban (
+CREATE TABLE IF NOT EXISTS "PHONGBAN" (
   "MaPB" VARCHAR(25) PRIMARY KEY,
   "TenPB" VARCHAR(120) NOT NULL UNIQUE,
   "MoTa" TEXT NOT NULL DEFAULT '',
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS phongban (
 );
 
 -- 2. CHUCVU (Chức vụ)
-CREATE TABLE IF NOT EXISTS chucvu (
+CREATE TABLE IF NOT EXISTS "CHUCVU" (
   "MaCV" VARCHAR(25) PRIMARY KEY,
   "TenCV" VARCHAR(120) NOT NULL UNIQUE,
   "MoTa" TEXT NOT NULL DEFAULT '',
@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS chucvu (
 );
 
 -- 3. NHANVIEN (Nhân viên)
-CREATE TABLE IF NOT EXISTS nhanvien (
+CREATE TABLE IF NOT EXISTS "NHANVIEN" (
   "MaNV" VARCHAR(25) PRIMARY KEY,
   "HoTen" VARCHAR(120) NOT NULL,
   "NgaySinh" DATE NOT NULL,
@@ -148,13 +148,13 @@ CREATE TABLE IF NOT EXISTS nhanvien (
   "NgayVaoLam" DATE NOT NULL,
   "TrangThai" VARCHAR(30) NOT NULL,
   "NgayLuuTru" DATE,
-  "MaPB" VARCHAR(25) REFERENCES phongban("MaPB") ON DELETE RESTRICT,
-  "MaCV" VARCHAR(25) NOT NULL REFERENCES chucvu("MaCV") ON DELETE RESTRICT,
+  "MaPB" VARCHAR(25) REFERENCES "PHONGBAN"("MaPB") ON DELETE RESTRICT,
+  "MaCV" VARCHAR(25) NOT NULL REFERENCES "CHUCVU"("MaCV") ON DELETE RESTRICT,
   "PhienBan" INTEGER NOT NULL DEFAULT 1
 );
 
 -- 4. QUYETDINH (Quyết định)
-CREATE TABLE IF NOT EXISTS quyetdinh (
+CREATE TABLE IF NOT EXISTS "QUYETDINH" (
   "MaQD" VARCHAR(30) PRIMARY KEY,
   "SoQD" VARCHAR(60) NOT NULL UNIQUE,
   "LoaiQD" VARCHAR(40) NOT NULL,
@@ -165,9 +165,9 @@ CREATE TABLE IF NOT EXISTS quyetdinh (
 );
 
 -- 5. HOPDONG (Hợp đồng lao động)
-CREATE TABLE IF NOT EXISTS hopdong (
+CREATE TABLE IF NOT EXISTS "HOPDONG" (
   "MaHD" VARCHAR(30) PRIMARY KEY,
-  "MaNV" VARCHAR(25) NOT NULL REFERENCES nhanvien("MaNV") ON DELETE RESTRICT,
+  "MaNV" VARCHAR(25) NOT NULL REFERENCES "NHANVIEN"("MaNV") ON DELETE RESTRICT,
   "LoaiHD" VARCHAR(40) NOT NULL CHECK ("LoaiHD" IN ('Thử việc', 'Xác định thời hạn', 'Không xác định thời hạn')),
   "NgayBatDau" DATE NOT NULL,
   "NgayKetThuc" DATE,
@@ -177,14 +177,14 @@ CREATE TABLE IF NOT EXISTS hopdong (
   "LyDoChamDut" TEXT,
   "SoHD" VARCHAR(60),
   "LoaiChamDut" VARCHAR(40),
-  "MaQDChamDut" VARCHAR(30) REFERENCES quyetdinh("MaQD") ON DELETE SET NULL,
+  "MaQDChamDut" VARCHAR(30) REFERENCES "QUYETDINH"("MaQD") ON DELETE SET NULL,
   "NgayKetThucGoc" DATE
 );
 
 -- 6. GIAHANHOPDONG (Gia hạn / phụ lục hợp đồng)
-CREATE TABLE IF NOT EXISTS giahanhopdong (
+CREATE TABLE IF NOT EXISTS "GIAHANHOPDONG" (
   "MaGH" VARCHAR(30) PRIMARY KEY,
-  "MaHD" VARCHAR(30) NOT NULL REFERENCES hopdong("MaHD") ON DELETE RESTRICT,
+  "MaHD" VARCHAR(30) NOT NULL REFERENCES "HOPDONG"("MaHD") ON DELETE RESTRICT,
   "LanGiaHan" INTEGER NOT NULL,
   "NgayLap" DATE NOT NULL,
   "NgayKetThucCu" DATE,
@@ -195,20 +195,20 @@ CREATE TABLE IF NOT EXISTS giahanhopdong (
   "LuongMoi" NUMERIC(15,2),
   "NgayHieuLuc" DATE,
   "DaApDung" BOOLEAN NOT NULL DEFAULT TRUE,
-  "MaQD" VARCHAR(30) REFERENCES quyetdinh("MaQD") ON DELETE SET NULL,
+  "MaQD" VARCHAR(30) REFERENCES "QUYETDINH"("MaQD") ON DELETE SET NULL,
   UNIQUE ("MaHD", "LanGiaHan")
 );
 
 -- 7. QUATRINHCONGTAC (Quá trình công tác)
-CREATE TABLE IF NOT EXISTS quatrinhcongtac (
+CREATE TABLE IF NOT EXISTS "QUATRINHCONGTAC" (
   "MaQT" VARCHAR(30) PRIMARY KEY,
-  "MaNV" VARCHAR(25) NOT NULL REFERENCES nhanvien("MaNV") ON DELETE RESTRICT,
-  "MaQD" VARCHAR(30) NOT NULL REFERENCES quyetdinh("MaQD") ON DELETE RESTRICT,
+  "MaNV" VARCHAR(25) NOT NULL REFERENCES "NHANVIEN"("MaNV") ON DELETE RESTRICT,
+  "MaQD" VARCHAR(30) NOT NULL REFERENCES "QUYETDINH"("MaQD") ON DELETE RESTRICT,
   "LoaiBienDong" VARCHAR(40) NOT NULL,
-  "MaPBCu" VARCHAR(25) REFERENCES phongban("MaPB") ON DELETE RESTRICT,
-  "MaPBMoi" VARCHAR(25) NOT NULL REFERENCES phongban("MaPB") ON DELETE RESTRICT,
-  "MaCVCu" VARCHAR(25) REFERENCES chucvu("MaCV") ON DELETE RESTRICT,
-  "MaCVMoi" VARCHAR(25) NOT NULL REFERENCES chucvu("MaCV") ON DELETE RESTRICT,
+  "MaPBCu" VARCHAR(25) REFERENCES "PHONGBAN"("MaPB") ON DELETE RESTRICT,
+  "MaPBMoi" VARCHAR(25) NOT NULL REFERENCES "PHONGBAN"("MaPB") ON DELETE RESTRICT,
+  "MaCVCu" VARCHAR(25) REFERENCES "CHUCVU"("MaCV") ON DELETE RESTRICT,
+  "MaCVMoi" VARCHAR(25) NOT NULL REFERENCES "CHUCVU"("MaCV") ON DELETE RESTRICT,
   "NgayHieuLuc" DATE NOT NULL,
   "LyDo" TEXT NOT NULL,
   "TrangThai" VARCHAR(20) NOT NULL DEFAULT 'Hiệu lực',
@@ -217,7 +217,7 @@ CREATE TABLE IF NOT EXISTS quatrinhcongtac (
 );
 
 -- 8. LOAINGHIPHEP (Loại nghỉ phép)
-CREATE TABLE IF NOT EXISTS loainghiphep (
+CREATE TABLE IF NOT EXISTS "LOAINGHIPHEP" (
   "MaLoai" VARCHAR(25) PRIMARY KEY,
   "TenLoai" VARCHAR(100) NOT NULL,
   "SoNgayToiDa" INTEGER NOT NULL CHECK ("SoNgayToiDa" > 0),
@@ -225,10 +225,10 @@ CREATE TABLE IF NOT EXISTS loainghiphep (
 );
 
 -- 9. DONNGHIPHEP (Đơn nghỉ phép)
-CREATE TABLE IF NOT EXISTS donnghiphep (
+CREATE TABLE IF NOT EXISTS "DONNGHIPHEP" (
   "MaDon" VARCHAR(30) PRIMARY KEY,
-  "MaNV" VARCHAR(25) NOT NULL REFERENCES nhanvien("MaNV") ON DELETE RESTRICT,
-  "MaLoai" VARCHAR(25) NOT NULL REFERENCES loainghiphep("MaLoai") ON DELETE RESTRICT,
+  "MaNV" VARCHAR(25) NOT NULL REFERENCES "NHANVIEN"("MaNV") ON DELETE RESTRICT,
+  "MaLoai" VARCHAR(25) NOT NULL REFERENCES "LOAINGHIPHEP"("MaLoai") ON DELETE RESTRICT,
   "NgayNop" DATE NOT NULL,
   "TuNgay" DATE NOT NULL,
   "DenNgay" DATE NOT NULL,
@@ -236,40 +236,40 @@ CREATE TABLE IF NOT EXISTS donnghiphep (
   "LyDo" TEXT NOT NULL,
   "TrangThai" VARCHAR(30) NOT NULL DEFAULT 'Chờ duyệt'
     CHECK ("TrangThai" IN ('Chờ duyệt', 'Đã duyệt', 'Từ chối', 'Đã hủy')),
-  "MaNVDuyet" VARCHAR(25) REFERENCES nhanvien("MaNV") ON DELETE RESTRICT,
+  "MaNVDuyet" VARCHAR(25) REFERENCES "NHANVIEN"("MaNV") ON DELETE RESTRICT,
   "NgayDuyet" DATE,
   "GhiChuDuyet" TEXT
 );
 
 -- 10. SONGAYPHEP (Số ngày phép năm; số ngày đã nghỉ/còn lại tính ở view v_songayphep)
-CREATE TABLE IF NOT EXISTS songayphep (
-  "MaNV" VARCHAR(25) NOT NULL REFERENCES nhanvien("MaNV") ON DELETE RESTRICT,
+CREATE TABLE IF NOT EXISTS "SONGAYPHEP" (
+  "MaNV" VARCHAR(25) NOT NULL REFERENCES "NHANVIEN"("MaNV") ON DELETE RESTRICT,
   "Nam" INTEGER NOT NULL,
   "TongSoNgayPhep" INTEGER NOT NULL DEFAULT 12 CHECK ("TongSoNgayPhep" >= 0),
   PRIMARY KEY ("MaNV", "Nam")
 );
 
 -- Bảng hệ thống 1: TAIKHOAN (Tài khoản & Phân quyền)
-CREATE TABLE IF NOT EXISTS taikhoan (
+CREATE TABLE IF NOT EXISTS "TAIKHOAN" (
   "MaTK" VARCHAR(30) PRIMARY KEY,
   "TenDangNhap" VARCHAR(150) NOT NULL UNIQUE,
   "MatKhau" TEXT NOT NULL,
   "VaiTro" VARCHAR(20) NOT NULL CHECK ("VaiTro" IN ('admin', 'hr', 'manager', 'employee', 'director')),
-  "MaNV" VARCHAR(25) NOT NULL REFERENCES nhanvien("MaNV") ON DELETE RESTRICT,
+  "MaNV" VARCHAR(25) NOT NULL REFERENCES "NHANVIEN"("MaNV") ON DELETE RESTRICT,
   "HoatDong" INTEGER NOT NULL DEFAULT 1
 );
 
 -- Bảng hệ thống 2: PHIENDANGNHAP (Phiên đăng nhập)
-CREATE TABLE IF NOT EXISTS phiendangnhap (
+CREATE TABLE IF NOT EXISTS "PHIENDANGNHAP" (
   "MaPhien" VARCHAR(64) PRIMARY KEY,
-  "MaTK" VARCHAR(30) NOT NULL REFERENCES taikhoan("MaTK") ON DELETE CASCADE,
+  "MaTK" VARCHAR(30) NOT NULL REFERENCES "TAIKHOAN"("MaTK") ON DELETE CASCADE,
   "ThoiHan" BIGINT NOT NULL
 );
 
 -- Bảng hệ thống 3: NHATKYHETHONG (Nhật ký hệ thống)
-CREATE TABLE IF NOT EXISTS nhatkyhethong (
+CREATE TABLE IF NOT EXISTS "NHATKYHETHONG" (
   "MaNK" SERIAL PRIMARY KEY,
-  "MaTK" VARCHAR(30) REFERENCES taikhoan("MaTK") ON DELETE SET NULL,
+  "MaTK" VARCHAR(30) REFERENCES "TAIKHOAN"("MaTK") ON DELETE SET NULL,
   "HanhDong" VARCHAR(120) NOT NULL,
   "DoiTuong" VARCHAR(250) NOT NULL,
   "ThoiGian" VARCHAR(40) NOT NULL,
@@ -278,13 +278,13 @@ CREATE TABLE IF NOT EXISTS nhatkyhethong (
 );
 
 -- Bảng hệ thống 4: NGAYLE (Ngày lễ)
-CREATE TABLE IF NOT EXISTS ngayle (
+CREATE TABLE IF NOT EXISTS "NGAYLE" (
   "Ngay" DATE PRIMARY KEY,
   "TenNgayLe" VARCHAR(120) NOT NULL
 );
 
 -- Bảng hệ thống 5: DANGNHAPTHATBAI (Giới hạn đăng nhập sai)
-CREATE TABLE IF NOT EXISTS dangnhapthatbai (
+CREATE TABLE IF NOT EXISTS "DANGNHAPTHATBAI" (
   "Khoa" VARCHAR(250) PRIMARY KEY,
   "SoLanSai" INTEGER NOT NULL,
   "KhoaDen" BIGINT NOT NULL
@@ -296,42 +296,42 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM information_schema.table_constraints tc
     JOIN information_schema.key_column_usage k ON k.constraint_name = tc.constraint_name
-    WHERE tc.table_name = 'phongban' AND tc.constraint_type = 'FOREIGN KEY' AND k.column_name = 'MaTruongPhong'
+    WHERE tc.table_name = 'PHONGBAN' AND tc.constraint_type = 'FOREIGN KEY' AND k.column_name = 'MaTruongPhong'
   ) THEN
-    ALTER TABLE phongban ADD CONSTRAINT phongban_matruongphong_fkey
-      FOREIGN KEY ("MaTruongPhong") REFERENCES nhanvien("MaNV") ON DELETE SET NULL;
+    ALTER TABLE "PHONGBAN" ADD CONSTRAINT phongban_matruongphong_fkey
+      FOREIGN KEY ("MaTruongPhong") REFERENCES "NHANVIEN"("MaNV") ON DELETE SET NULL;
   END IF;
 END $$;
 
 -- Ràng buộc giá trị (đặt lại tên theo bảng mới, xóa tên cũ nếu có)
-ALTER TABLE nhanvien DROP CONSTRAINT IF EXISTS employees_status_check;
-ALTER TABLE nhanvien DROP CONSTRAINT IF EXISTS nhanvien_status_check;
-ALTER TABLE nhanvien DROP CONSTRAINT IF EXISTS nhanvien_trangthai_check;
-ALTER TABLE nhanvien ADD CONSTRAINT nhanvien_trangthai_check
+ALTER TABLE "NHANVIEN" DROP CONSTRAINT IF EXISTS employees_status_check;
+ALTER TABLE "NHANVIEN" DROP CONSTRAINT IF EXISTS nhanvien_status_check;
+ALTER TABLE "NHANVIEN" DROP CONSTRAINT IF EXISTS nhanvien_trangthai_check;
+ALTER TABLE "NHANVIEN" ADD CONSTRAINT nhanvien_trangthai_check
   CHECK ("TrangThai" IN ('Đang làm việc', 'Thử việc', 'Đã nghỉ việc', 'Đã lưu trữ'));
-ALTER TABLE quatrinhcongtac DROP CONSTRAINT IF EXISTS assignments_type_check;
-ALTER TABLE quatrinhcongtac DROP CONSTRAINT IF EXISTS quatrinhcongtac_type_check;
-ALTER TABLE quatrinhcongtac DROP CONSTRAINT IF EXISTS quatrinhcongtac_loaibiendong_check;
-ALTER TABLE quatrinhcongtac ADD CONSTRAINT quatrinhcongtac_loaibiendong_check
+ALTER TABLE "QUATRINHCONGTAC" DROP CONSTRAINT IF EXISTS assignments_type_check;
+ALTER TABLE "QUATRINHCONGTAC" DROP CONSTRAINT IF EXISTS quatrinhcongtac_type_check;
+ALTER TABLE "QUATRINHCONGTAC" DROP CONSTRAINT IF EXISTS quatrinhcongtac_loaibiendong_check;
+ALTER TABLE "QUATRINHCONGTAC" ADD CONSTRAINT quatrinhcongtac_loaibiendong_check
   CHECK ("LoaiBienDong" IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm'));
 
 -- Mỗi nhân viên tối đa một tài khoản (liên kết 1-1 "Có tài khoản")
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname IN ('users_employee_unique', 'taikhoan_manv_unique'))
-     AND NOT EXISTS (SELECT 1 FROM taikhoan GROUP BY "MaNV" HAVING COUNT(*) > 1) THEN
-    ALTER TABLE taikhoan ADD CONSTRAINT taikhoan_manv_unique UNIQUE ("MaNV");
+     AND NOT EXISTS (SELECT 1 FROM "TAIKHOAN" GROUP BY "MaNV" HAVING COUNT(*) > 1) THEN
+    ALTER TABLE "TAIKHOAN" ADD CONSTRAINT taikhoan_manv_unique UNIQUE ("MaNV");
   END IF;
 END $$;
 
 -- View v_songayphep (SoNgayDaNghi, SoNgayConLai) được tạo sau migration: xem LEAVE_BALANCE_VIEW trong migrations.ts.
 
 -- Indexes phục vụ truy vấn nhanh
-CREATE INDEX IF NOT EXISTS idx_nhanvien_mapb ON nhanvien("MaPB");
-CREATE INDEX IF NOT EXISTS idx_donnghiphep_manv ON donnghiphep("MaNV", "TuNgay", "DenNgay");
-CREATE INDEX IF NOT EXISTS idx_hopdong_manv ON hopdong("MaNV");
-CREATE INDEX IF NOT EXISTS idx_quatrinhcongtac_manv ON quatrinhcongtac("MaNV");
-CREATE INDEX IF NOT EXISTS idx_quatrinhcongtac_cho ON quatrinhcongtac("TrangThai", "NgayHieuLuc");
-CREATE INDEX IF NOT EXISTS idx_phongban_matruongphong ON phongban("MaTruongPhong");
-CREATE INDEX IF NOT EXISTS idx_hopdong_maqdchamdut ON hopdong("MaQDChamDut");
-CREATE INDEX IF NOT EXISTS idx_nhatkyhethong_mank ON nhatkyhethong("MaNK" DESC);
+CREATE INDEX IF NOT EXISTS idx_nhanvien_mapb ON "NHANVIEN"("MaPB");
+CREATE INDEX IF NOT EXISTS idx_donnghiphep_manv ON "DONNGHIPHEP"("MaNV", "TuNgay", "DenNgay");
+CREATE INDEX IF NOT EXISTS idx_hopdong_manv ON "HOPDONG"("MaNV");
+CREATE INDEX IF NOT EXISTS idx_quatrinhcongtac_manv ON "QUATRINHCONGTAC"("MaNV");
+CREATE INDEX IF NOT EXISTS idx_quatrinhcongtac_cho ON "QUATRINHCONGTAC"("TrangThai", "NgayHieuLuc");
+CREATE INDEX IF NOT EXISTS idx_phongban_matruongphong ON "PHONGBAN"("MaTruongPhong");
+CREATE INDEX IF NOT EXISTS idx_hopdong_maqdchamdut ON "HOPDONG"("MaQDChamDut");
+CREATE INDEX IF NOT EXISTS idx_nhatkyhethong_mank ON "NHATKYHETHONG"("MaNK" DESC);

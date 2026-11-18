@@ -26,7 +26,7 @@ async function readHead(
 ): Promise<string | null> {
   if (!('MaTruongPhong' in b)) return current;
   if (b.MaTruongPhong === null || b.MaTruongPhong === '') return null;
-  const head = await existsInTable<any>(tx, 'nhanvien', text(b, 'MaTruongPhong'));
+  const head = await existsInTable<any>(tx, 'NHANVIEN', text(b, 'MaTruongPhong'));
   if (head.MaPB !== MaPB) {
     fail('Trưởng phòng phải là nhân viên thuộc chính phòng ban này.');
   }
@@ -58,8 +58,8 @@ catalogsRouter.post(
     const NgayThanhLap = date(b, 'NgayThanhLap');
 
     const MaPB = await withTransaction(async (tx) => {
-      const MaPB = await nextBusinessId(tx, 'phongban');
-      await tx.run('INSERT INTO phongban("MaPB", "TenPB", "MoTa", "NgayThanhLap") VALUES($1, $2, $3, $4)', [
+      const MaPB = await nextBusinessId(tx, 'PHONGBAN');
+      await tx.run('INSERT INTO "PHONGBAN"("MaPB", "TenPB", "MoTa", "NgayThanhLap") VALUES($1, $2, $3, $4)', [
         MaPB,
         TenPB,
         MoTa,
@@ -84,11 +84,11 @@ catalogsRouter.put(
     const NgayThanhLap = date(b, 'NgayThanhLap');
 
     await withTransaction(async (tx) => {
-      const old = await existsInTable<any>(tx, 'phongban', rid);
+      const old = await existsInTable<any>(tx, 'PHONGBAN', rid);
       const HoatDong = readFlag(b, 'HoatDong', old.HoatDong);
       const MaTruongPhong = await readHead(tx, b, rid, old.MaTruongPhong);
       await tx.run(
-        `UPDATE phongban SET "TenPB" = $1, "MoTa" = $2, "NgayThanhLap" = $3, "HoatDong" = $4, "MaTruongPhong" = $5
+        `UPDATE "PHONGBAN" SET "TenPB" = $1, "MoTa" = $2, "NgayThanhLap" = $3, "HoatDong" = $4, "MaTruongPhong" = $5
          WHERE "MaPB" = $6`,
         [TenPB, MoTa, NgayThanhLap, HoatDong, MaTruongPhong, rid]
       );
@@ -112,12 +112,12 @@ catalogsRouter.delete(
     const rid = paramId(req);
 
     await withTransaction(async (tx) => {
-      await existsInTable(tx, 'phongban', rid);
+      await existsInTable(tx, 'PHONGBAN', rid);
       const used = await usageSummary(tx, [
-        ['nhân viên', 'SELECT COUNT(*) AS n FROM nhanvien WHERE "MaPB" = $1', [rid]],
+        ['nhân viên', 'SELECT COUNT(*) AS n FROM "NHANVIEN" WHERE "MaPB" = $1', [rid]],
         [
           'quyết định công tác',
-          'SELECT COUNT(*) AS n FROM quatrinhcongtac WHERE "MaPBCu" = $1 OR "MaPBMoi" = $1',
+          'SELECT COUNT(*) AS n FROM "QUATRINHCONGTAC" WHERE "MaPBCu" = $1 OR "MaPBMoi" = $1',
           [rid],
         ],
       ]);
@@ -127,7 +127,7 @@ catalogsRouter.delete(
           409
         );
       }
-      await tx.run('DELETE FROM phongban WHERE "MaPB" = $1', [rid]);
+      await tx.run('DELETE FROM "PHONGBAN" WHERE "MaPB" = $1', [rid]);
       await auditLog(tx, u.MaTK, 'Xóa phòng ban', rid);
     });
     res.json({ ok: true });
@@ -165,9 +165,9 @@ catalogsRouter.post(
     const p = readPosition(req.body);
 
     const MaCV = await withTransaction(async (tx) => {
-      const MaCV = await nextBusinessId(tx, 'chucvu');
+      const MaCV = await nextBusinessId(tx, 'CHUCVU');
       await tx.run(
-        `INSERT INTO chucvu("MaCV", "TenCV", "MoTa", "CapBac", "LaDieuHanh", "VaiTroMacDinh", "HoatDong")
+        `INSERT INTO "CHUCVU"("MaCV", "TenCV", "MoTa", "CapBac", "LaDieuHanh", "VaiTroMacDinh", "HoatDong")
          VALUES($1, $2, $3, $4, $5, $6, $7)`,
         [MaCV, p.TenCV, p.MoTa, p.CapBac, p.LaDieuHanh, p.VaiTroMacDinh, p.HoatDong]
       );
@@ -186,10 +186,10 @@ catalogsRouter.put(
     const rid = paramId(req);
 
     await withTransaction(async (tx) => {
-      const old = await existsInTable<any>(tx, 'chucvu', rid);
+      const old = await existsInTable<any>(tx, 'CHUCVU', rid);
       const p = readPosition(req.body, old);
       await tx.run(
-        `UPDATE chucvu SET "TenCV" = $1, "MoTa" = $2, "CapBac" = $3, "LaDieuHanh" = $4,
+        `UPDATE "CHUCVU" SET "TenCV" = $1, "MoTa" = $2, "CapBac" = $3, "LaDieuHanh" = $4,
                 "VaiTroMacDinh" = $5, "HoatDong" = $6 WHERE "MaCV" = $7`,
         [p.TenCV, p.MoTa, p.CapBac, p.LaDieuHanh, p.VaiTroMacDinh, p.HoatDong, rid]
       );
@@ -207,12 +207,12 @@ catalogsRouter.delete(
     const rid = paramId(req);
 
     await withTransaction(async (tx) => {
-      await existsInTable(tx, 'chucvu', rid);
+      await existsInTable(tx, 'CHUCVU', rid);
       const used = await usageSummary(tx, [
-        ['nhân viên', 'SELECT COUNT(*) AS n FROM nhanvien WHERE "MaCV" = $1', [rid]],
+        ['nhân viên', 'SELECT COUNT(*) AS n FROM "NHANVIEN" WHERE "MaCV" = $1', [rid]],
         [
           'quyết định công tác',
-          'SELECT COUNT(*) AS n FROM quatrinhcongtac WHERE "MaCVCu" = $1 OR "MaCVMoi" = $1',
+          'SELECT COUNT(*) AS n FROM "QUATRINHCONGTAC" WHERE "MaCVCu" = $1 OR "MaCVMoi" = $1',
           [rid],
         ],
       ]);
@@ -222,7 +222,7 @@ catalogsRouter.delete(
           409
         );
       }
-      await tx.run('DELETE FROM chucvu WHERE "MaCV" = $1', [rid]);
+      await tx.run('DELETE FROM "CHUCVU" WHERE "MaCV" = $1', [rid]);
       await auditLog(tx, u.MaTK, 'Xóa chức vụ', rid);
     });
     res.json({ ok: true });

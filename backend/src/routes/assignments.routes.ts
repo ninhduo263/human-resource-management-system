@@ -44,22 +44,22 @@ assignmentsRouter.post(
 
     const MaQT = await withTransaction(async (tx) => {
       const MaNV = text(b, 'MaNV');
-      await tx.query('SELECT "MaNV" FROM nhanvien WHERE "MaNV" = $1 FOR UPDATE', [MaNV]);
+      await tx.query('SELECT "MaNV" FROM "NHANVIEN" WHERE "MaNV" = $1 FOR UPDATE', [MaNV]);
       const e = await requireActiveEmployee(tx, MaNV);
-      const dept = await existsInTable(tx, 'phongban', text(b, 'MaPBMoi'));
-      const pos = await existsInTable(tx, 'chucvu', text(b, 'MaCVMoi'));
+      const dept = await existsInTable(tx, 'PHONGBAN', text(b, 'MaPBMoi'));
+      const pos = await existsInTable(tx, 'CHUCVU', text(b, 'MaCVMoi'));
       if (dept.HoatDong === false) fail('Phòng ban này đã ngừng sử dụng.');
       if (pos.HoatDong === false) fail('Chức vụ này đã ngừng sử dụng.');
       if (NgayHieuLuc < e.NgayVaoLam) fail('Ngày hiệu lực không được trước ngày vào làm.');
 
       const pending = await tx.one(
-        `SELECT "MaQT" FROM quatrinhcongtac WHERE "MaNV" = $1 AND "TrangThai" = 'Chờ hiệu lực'`,
+        `SELECT "MaQT" FROM "QUATRINHCONGTAC" WHERE "MaNV" = $1 AND "TrangThai" = 'Chờ hiệu lực'`,
         [e.MaNV]
       );
       if (pending) fail('Nhân viên đang có quyết định công tác chờ hiệu lực; hãy hủy hoặc chờ áp dụng.');
 
       const last = await tx.one<{ d: string | null }>(
-        `SELECT MAX("NgayHieuLuc") AS d FROM quatrinhcongtac WHERE "MaNV" = $1 AND "TrangThai" = 'Hiệu lực'`,
+        `SELECT MAX("NgayHieuLuc") AS d FROM "QUATRINHCONGTAC" WHERE "MaNV" = $1 AND "TrangThai" = 'Hiệu lực'`,
         [e.MaNV]
       );
       if (last?.d && NgayHieuLuc < last.d) {
@@ -85,12 +85,12 @@ assignmentsRouter.post(
       }
 
       await tx.run(
-        `INSERT INTO quyetdinh("MaQD", "SoQD", "LoaiQD", "NgayKy", "NgayHieuLuc", "NguoiKy", "NoiDung")
+        `INSERT INTO "QUYETDINH"("MaQD", "SoQD", "LoaiQD", "NgayKy", "NgayHieuLuc", "NguoiKy", "NoiDung")
          VALUES($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT ("SoQD") DO NOTHING`,
         [generateId('QD'), SoQD, LoaiBienDong, NgayKy, NgayHieuLuc, NguoiKy, LyDo]
       );
-      const decision = (await tx.one<any>('SELECT * FROM quyetdinh WHERE "SoQD" = $1', [SoQD]))!;
+      const decision = (await tx.one<any>('SELECT * FROM "QUYETDINH" WHERE "SoQD" = $1', [SoQD]))!;
       if (
         decision.LoaiQD !== LoaiBienDong ||
         decision.NgayKy !== NgayKy ||
@@ -103,7 +103,7 @@ assignmentsRouter.post(
 
       const MaQT = generateId('QT');
       await tx.run(
-        `INSERT INTO quatrinhcongtac("MaQT", "MaNV", "MaQD", "LoaiBienDong", "MaPBCu", "MaPBMoi",
+        `INSERT INTO "QUATRINHCONGTAC"("MaQT", "MaNV", "MaQD", "LoaiBienDong", "MaPBCu", "MaPBMoi",
            "MaCVCu", "MaCVMoi", "NgayHieuLuc", "LyDo", "TrangThai")
          VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Chờ hiệu lực')`,
         [MaQT, e.MaNV, decision.MaQD, LoaiBienDong, e.MaPB, dept.MaPB, e.MaCV, pos.MaCV, NgayHieuLuc, LyDo]
@@ -134,10 +134,10 @@ assignmentsRouter.post(
     const LyDoHuy = text(req.body, 'LyDoHuy', 1000);
 
     await withTransaction(async (tx) => {
-      const a = await tx.one<any>('SELECT * FROM quatrinhcongtac WHERE "MaQT" = $1 FOR UPDATE', [rid]);
+      const a = await tx.one<any>('SELECT * FROM "QUATRINHCONGTAC" WHERE "MaQT" = $1 FOR UPDATE', [rid]);
       if (!a) fail('Không tìm thấy dữ liệu.', 404);
       if (a.TrangThai === 'Đã hủy') fail('Quyết định công tác đã bị hủy.');
-      const e = await tx.one<any>('SELECT * FROM nhanvien WHERE "MaNV" = $1 FOR UPDATE', [a.MaNV]);
+      const e = await tx.one<any>('SELECT * FROM "NHANVIEN" WHERE "MaNV" = $1 FOR UPDATE', [a.MaNV]);
       if (!e) fail('Không tìm thấy dữ liệu.', 404);
 
       if (a.TrangThai === 'Hiệu lực') {
@@ -145,7 +145,7 @@ assignmentsRouter.post(
           fail('Nhân viên đã nghỉ việc hoặc lưu trữ; không thể hoàn tác công tác.');
         }
         const latest = await tx.one<{ MaQT: string }>(
-          `SELECT "MaQT" FROM quatrinhcongtac
+          `SELECT "MaQT" FROM "QUATRINHCONGTAC"
            WHERE "MaNV" = $1 AND "TrangThai" = 'Hiệu lực'
            ORDER BY "NgayHieuLuc" DESC, "MaQT" DESC LIMIT 1`,
           [e.MaNV]
@@ -154,8 +154,8 @@ assignmentsRouter.post(
         if (e.MaPB !== a.MaPBMoi || e.MaCV !== a.MaCVMoi) {
           fail('Hồ sơ đã thay đổi sau quyết định này; không thể hoàn tác.');
         }
-        const oldPos = await existsInTable<any>(tx, 'chucvu', a.MaCVCu);
-        await tx.run('UPDATE nhanvien SET "MaPB" = $1, "MaCV" = $2, "PhienBan" = "PhienBan" + 1 WHERE "MaNV" = $3', [
+        const oldPos = await existsInTable<any>(tx, 'CHUCVU', a.MaCVCu);
+        await tx.run('UPDATE "NHANVIEN" SET "MaPB" = $1, "MaCV" = $2, "PhienBan" = "PhienBan" + 1 WHERE "MaNV" = $3', [
           a.MaPBCu,
           a.MaCVCu,
           e.MaNV,
@@ -164,7 +164,7 @@ assignmentsRouter.post(
       }
 
       await tx.run(
-        `UPDATE quatrinhcongtac SET "TrangThai" = 'Đã hủy', "NgayHuy" = $1, "LyDoHuy" = $2 WHERE "MaQT" = $3`,
+        `UPDATE "QUATRINHCONGTAC" SET "TrangThai" = 'Đã hủy', "NgayHuy" = $1, "LyDoHuy" = $2 WHERE "MaQT" = $3`,
         [today(), LyDoHuy, rid]
       );
       await auditLog(tx, u.MaTK, 'Hủy quyết định công tác', rid, { LyDoHuy, trangthaitruoc: a.TrangThai });

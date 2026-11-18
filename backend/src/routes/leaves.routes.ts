@@ -18,7 +18,7 @@ export const leavesRouter = Router();
 leavesRouter.use(requireAuth);
 
 async function lockEmployee(tx: DbExecutor, MaNV: string): Promise<void> {
-  await tx.query('SELECT "MaNV" FROM nhanvien WHERE "MaNV" = $1 FOR UPDATE', [MaNV]);
+  await tx.query('SELECT "MaNV" FROM "NHANVIEN" WHERE "MaNV" = $1 FOR UPDATE', [MaNV]);
 }
 
 /** Tách khoảng nghỉ thành các đoạn theo từng năm dương lịch. */
@@ -60,7 +60,7 @@ leavesRouter.post(
       const e = await requireActiveEmployee(tx, MaNV);
       const loai = await existsInTable<{ MaLoai: string; SoNgayToiDa: number }>(
         tx,
-        'loainghiphep',
+        'LOAINGHIPHEP',
         text(b, 'MaLoai')
       );
       if (TuNgay < e.NgayVaoLam) fail('Ngày nghỉ không được trước ngày vào làm.');
@@ -77,7 +77,7 @@ leavesRouter.post(
       }
 
       const overlap = await tx.one(
-        `SELECT "MaDon" FROM donnghiphep
+        `SELECT "MaDon" FROM "DONNGHIPHEP"
          WHERE "MaNV" = $1 AND "TrangThai" IN ('Chờ duyệt', 'Đã duyệt')
            AND "TuNgay" <= $2 AND "DenNgay" >= $3`,
         [MaNV, DenNgay, TuNgay]
@@ -88,7 +88,7 @@ leavesRouter.post(
       for (const s of segments) {
         const MaDon = generateId('NP');
         await tx.run(
-          `INSERT INTO donnghiphep("MaDon", "MaNV", "MaLoai", "NgayNop", "TuNgay", "DenNgay", "SoNgay", "LyDo", "TrangThai")
+          `INSERT INTO "DONNGHIPHEP"("MaDon", "MaNV", "MaLoai", "NgayNop", "TuNgay", "DenNgay", "SoNgay", "LyDo", "TrangThai")
            VALUES($1, $2, $3, $4, $5, $6, $7, $8, 'Chờ duyệt')`,
           [MaDon, MaNV, loai.MaLoai, currentDay, s.from, s.to, s.SoNgay, LyDo]
         );
@@ -114,9 +114,9 @@ leavesRouter.post(
     const rid = paramId(req);
 
     await withTransaction(async (tx) => {
-      const probe = await existsInTable<any>(tx, 'donnghiphep', rid);
+      const probe = await existsInTable<any>(tx, 'DONNGHIPHEP', rid);
       await lockEmployee(tx, probe.MaNV);
-      const leave = (await tx.one<any>('SELECT * FROM donnghiphep WHERE "MaDon" = $1 FOR UPDATE', [rid]))!;
+      const leave = (await tx.one<any>('SELECT * FROM "DONNGHIPHEP" WHERE "MaDon" = $1 FOR UPDATE', [rid]))!;
       const privileged = ['admin', 'hr'].includes(u.VaiTro);
       const owner = leave.MaNV === u.MaNV;
       if (!owner && !privileged) fail('Bạn không có quyền hủy đơn này.', 403);
@@ -131,7 +131,7 @@ leavesRouter.post(
         fail('Đơn đã được xử lý.');
       }
 
-      await tx.run(`UPDATE donnghiphep SET "TrangThai" = 'Đã hủy' WHERE "MaDon" = $1`, [rid]);
+      await tx.run(`UPDATE "DONNGHIPHEP" SET "TrangThai" = 'Đã hủy' WHERE "MaDon" = $1`, [rid]);
       await auditLog(tx, u.MaTK, 'Hủy đơn nghỉ phép', rid, { trangthaitruoc: leave.TrangThai });
     });
     res.json({ ok: true });
@@ -151,29 +151,29 @@ leavesRouter.post(
     if (TrangThai === 'Từ chối' && !GhiChuDuyet) fail('Vui lòng nhập lý do từ chối.');
 
     await withTransaction(async (tx) => {
-      const probe = await existsInTable<any>(tx, 'donnghiphep', rid);
+      const probe = await existsInTable<any>(tx, 'DONNGHIPHEP', rid);
       // Khóa nhân viên để các lần duyệt đồng thời cùng một người được thực hiện lần lượt.
       await lockEmployee(tx, probe.MaNV);
-      const leave = (await tx.one<any>('SELECT * FROM donnghiphep WHERE "MaDon" = $1 FOR UPDATE', [rid]))!;
+      const leave = (await tx.one<any>('SELECT * FROM "DONNGHIPHEP" WHERE "MaDon" = $1 FOR UPDATE', [rid]))!;
       if (leave.TrangThai !== 'Chờ duyệt') fail('Đơn đã được xử lý.');
 
-      const e = await existsInTable<any>(tx, 'nhanvien', leave.MaNV);
+      const e = await existsInTable<any>(tx, 'NHANVIEN', leave.MaNV);
       if (e.MaNV === u.MaNV) fail('Không được tự duyệt đơn nghỉ phép.');
 
       const target = await tx.one<{ CapBac: number }>(
-        `SELECT c."CapBac" FROM nhanvien n JOIN chucvu c ON c."MaCV" = n."MaCV" WHERE n."MaNV" = $1`,
+        `SELECT c."CapBac" FROM "NHANVIEN" n JOIN "CHUCVU" c ON c."MaCV" = n."MaCV" WHERE n."MaNV" = $1`,
         [e.MaNV]
       );
       const reviewer = await tx.one<SessionUser & { CapBac: number }>(
         `SELECT t."MaTK", t."TenDangNhap", t."VaiTro", t."MaNV", n."HoTen", n."MaPB", c."CapBac"
-         FROM taikhoan t
-         JOIN nhanvien n ON n."MaNV" = t."MaNV"
-         JOIN chucvu c ON c."MaCV" = n."MaCV"
+         FROM "TAIKHOAN" t
+         JOIN "NHANVIEN" n ON n."MaNV" = t."MaNV"
+         JOIN "CHUCVU" c ON c."MaCV" = n."MaCV"
          WHERE t."MaTK" = $1`,
         [u.MaTK]
       );
       const deptHead = e.MaPB
-        ? await tx.one<{ MaTruongPhong: string | null }>('SELECT "MaTruongPhong" FROM phongban WHERE "MaPB" = $1', [
+        ? await tx.one<{ MaTruongPhong: string | null }>('SELECT "MaTruongPhong" FROM "PHONGBAN" WHERE "MaPB" = $1', [
             e.MaPB,
           ])
         : null;
@@ -189,7 +189,7 @@ leavesRouter.post(
         fail('Bạn không có quyền duyệt đơn nghỉ phép này.', 403);
       }
 
-      const loai = await existsInTable<{ MaLoai: string; TruPhepNam: number }>(tx, 'loainghiphep', leave.MaLoai);
+      const loai = await existsInTable<{ MaLoai: string; TruPhepNam: number }>(tx, 'LOAINGHIPHEP', leave.MaLoai);
 
       if (TrangThai === 'Đã duyệt' && Number(loai.TruPhepNam) === 1) {
         const Nam = Number(leave.TuNgay.slice(0, 4));
@@ -199,14 +199,14 @@ leavesRouter.post(
           fail(`Nhân viên chỉ còn ${Math.max(tong - daNghi, 0)} ngày phép năm.`);
         }
         await tx.run(
-          `INSERT INTO songayphep("MaNV", "Nam", "TongSoNgayPhep") VALUES($1, $2, $3)
+          `INSERT INTO "SONGAYPHEP"("MaNV", "Nam", "TongSoNgayPhep") VALUES($1, $2, $3)
            ON CONFLICT ("MaNV", "Nam") DO NOTHING`,
           [e.MaNV, Nam, tong]
         );
       }
 
       await tx.run(
-        `UPDATE donnghiphep
+        `UPDATE "DONNGHIPHEP"
          SET "TrangThai" = $1, "MaNVDuyet" = $2, "NgayDuyet" = $3, "GhiChuDuyet" = $4
          WHERE "MaDon" = $5`,
         [TrangThai, u.MaNV, today(), GhiChuDuyet, rid]
@@ -241,7 +241,7 @@ leavesRouter.post(
 
       const before = await annualTotal(tx, e, Nam);
       await tx.run(
-        `INSERT INTO songayphep("MaNV", "Nam", "TongSoNgayPhep") VALUES($1, $2, $3)
+        `INSERT INTO "SONGAYPHEP"("MaNV", "Nam", "TongSoNgayPhep") VALUES($1, $2, $3)
          ON CONFLICT ("MaNV", "Nam") DO UPDATE SET "TongSoNgayPhep" = EXCLUDED."TongSoNgayPhep"`,
         [e.MaNV, Nam, TongSoNgayPhep]
       );
@@ -259,8 +259,8 @@ leavesRouter.get(
   asyncHandler(async (req, res) => {
     const Nam = Number(req.query.year ?? req.query.Nam);
     const rows = Number.isInteger(Nam)
-      ? await db.all('SELECT "Ngay", "TenNgayLe" FROM ngayle WHERE EXTRACT(YEAR FROM "Ngay") = $1 ORDER BY "Ngay"', [Nam])
-      : await db.all('SELECT "Ngay", "TenNgayLe" FROM ngayle ORDER BY "Ngay"');
+      ? await db.all('SELECT "Ngay", "TenNgayLe" FROM "NGAYLE" WHERE EXTRACT(YEAR FROM "Ngay") = $1 ORDER BY "Ngay"', [Nam])
+      : await db.all('SELECT "Ngay", "TenNgayLe" FROM "NGAYLE" ORDER BY "Ngay"');
     res.json(rows);
   })
 );
@@ -273,7 +273,7 @@ leavesRouter.post(
     const Ngay = date(req.body, 'Ngay');
     const TenNgayLe = text(req.body, 'TenNgayLe', 120);
     await db.run(
-      `INSERT INTO ngayle("Ngay", "TenNgayLe") VALUES($1, $2)
+      `INSERT INTO "NGAYLE"("Ngay", "TenNgayLe") VALUES($1, $2)
        ON CONFLICT ("Ngay") DO UPDATE SET "TenNgayLe" = EXCLUDED."TenNgayLe"`,
       [Ngay, TenNgayLe]
     );
@@ -289,7 +289,7 @@ leavesRouter.delete(
     requireRole(u, ['admin', 'hr']);
     const Ngay = paramId(req, 'day');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(Ngay)) fail('Ngày không hợp lệ.');
-    await db.run('DELETE FROM ngayle WHERE "Ngay" = $1', [Ngay]);
+    await db.run('DELETE FROM "NGAYLE" WHERE "Ngay" = $1', [Ngay]);
     await auditLog(db, u.MaTK, 'Xóa ngày lễ', Ngay);
     res.json({ ok: true });
   })

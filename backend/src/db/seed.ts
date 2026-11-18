@@ -3,7 +3,7 @@ import { passwordHash } from '../utils/crypto.js';
 import { today, shift, countWorkingDays, nextWorkingDay } from '../utils/validation.js';
 
 async function seedHolidays(): Promise<void> {
-  const any = await db.one<{ n: string }>('SELECT COUNT(*) AS n FROM ngayle');
+  const any = await db.one<{ n: string }>('SELECT COUNT(*) AS n FROM "NGAYLE"');
   if (any && Number(any.n) > 0) return;
   const year = Number(today().slice(0, 4));
   for (const y of [year - 1, year, year + 1]) {
@@ -13,14 +13,14 @@ async function seedHolidays(): Promise<void> {
       ['05-01', 'Ngày Quốc tế Lao động'],
       ['09-02', 'Quốc khánh'],
     ]) {
-      await db.run('INSERT INTO ngayle("Ngay", "TenNgayLe") VALUES($1, $2) ON CONFLICT DO NOTHING', [`${y}-${md}`, name]);
+      await db.run('INSERT INTO "NGAYLE"("Ngay", "TenNgayLe") VALUES($1, $2) ON CONFLICT DO NOTHING', [`${y}-${md}`, name]);
     }
   }
 }
 
 export async function seedDatabase(): Promise<void> {
   await seedHolidays();
-  const existing = await db.one<{ n: string }>('SELECT COUNT(*) AS n FROM phongban');
+  const existing = await db.one<{ n: string }>('SELECT COUNT(*) AS n FROM "PHONGBAN"');
   if (existing && Number(existing.n) > 0) {
     return;
   }
@@ -40,7 +40,7 @@ export async function seedDatabase(): Promise<void> {
 
     for (const [id, name, desc] of departments) {
       await tx.run(
-        'INSERT INTO phongban("MaPB", "TenPB", "MoTa", "NgayThanhLap") VALUES($1, $2, $3, $4)',
+        'INSERT INTO "PHONGBAN"("MaPB", "TenPB", "MoTa", "NgayThanhLap") VALUES($1, $2, $3, $4)',
         [id, name, desc, `${year - 4}-01-01`]
       );
     }
@@ -56,7 +56,7 @@ export async function seedDatabase(): Promise<void> {
 
     for (const [id, name, level, executive, defaultRole] of positions) {
       await tx.run(
-        'INSERT INTO chucvu("MaCV", "TenCV", "MoTa", "CapBac", "LaDieuHanh", "VaiTroMacDinh") VALUES($1, $2, $3, $4, $5, $6)',
+        'INSERT INTO "CHUCVU"("MaCV", "TenCV", "MoTa", "CapBac", "LaDieuHanh", "VaiTroMacDinh") VALUES($1, $2, $3, $4, $5, $6)',
         [id, name, '', level, executive, defaultRole]
       );
     }
@@ -85,7 +85,7 @@ export async function seedDatabase(): Promise<void> {
           : `${year - (i % 3)}-${String((i % 9) + 1).padStart(2, '0')}-05`;
 
       await tx.run(
-        `INSERT INTO nhanvien("MaNV", "HoTen", "NgaySinh", "GioiTinh", "DiaChi", "SoDienThoai", "Email", "NgayVaoLam", "TrangThai", "NgayLuuTru", "MaPB", "MaCV")
+        `INSERT INTO "NHANVIEN"("MaNV", "HoTen", "NgaySinh", "GioiTinh", "DiaChi", "SoDienThoai", "Email", "NgayVaoLam", "TrangThai", "NgayLuuTru", "MaPB", "MaCV")
          VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           id,
@@ -104,7 +104,7 @@ export async function seedDatabase(): Promise<void> {
       );
 
       await tx.run(
-        'INSERT INTO songayphep("MaNV", "Nam", "TongSoNgayPhep") VALUES($1, $2, $3)',
+        'INSERT INTO "SONGAYPHEP"("MaNV", "Nam", "TongSoNgayPhep") VALUES($1, $2, $3)',
         [id, year, 12]
       );
 
@@ -116,7 +116,7 @@ export async function seedDatabase(): Promise<void> {
           : `${year + 1}-12-31`;
 
       await tx.run(
-        `INSERT INTO hopdong("MaHD", "MaNV", "LoaiHD", "NgayBatDau", "NgayKetThuc", "NgayKetThucGoc", "MucLuong", "TrangThai")
+        `INSERT INTO "HOPDONG"("MaHD", "MaNV", "LoaiHD", "NgayBatDau", "NgayKetThuc", "NgayKetThucGoc", "MucLuong", "TrangThai")
          VALUES($1, $2, $3, $4, $5, $5, $6, 'Hiệu lực')`,
         [
           `HD${String(i + 1).padStart(3, '0')}`,
@@ -138,7 +138,7 @@ export async function seedDatabase(): Promise<void> {
 
     for (const [id, name, maxDays, deductAnnual] of leaveTypes) {
       await tx.run(
-        'INSERT INTO loainghiphep("MaLoai", "TenLoai", "SoNgayToiDa", "TruPhepNam") VALUES($1, $2, $3, $4)',
+        'INSERT INTO "LOAINGHIPHEP"("MaLoai", "TenLoai", "SoNgayToiDa", "TruPhepNam") VALUES($1, $2, $3, $4)',
         [id, name, maxDays, deductAnnual]
       );
     }
@@ -155,7 +155,7 @@ export async function seedDatabase(): Promise<void> {
 
     for (const [id, empId, typeId, start, end, reason, status] of leaves) {
       await tx.run(
-        `INSERT INTO donnghiphep("MaDon", "MaNV", "MaLoai", "NgayNop", "TuNgay", "DenNgay", "SoNgay", "LyDo", "TrangThai", "MaNVDuyet", "NgayDuyet")
+        `INSERT INTO "DONNGHIPHEP"("MaDon", "MaNV", "MaLoai", "NgayNop", "TuNgay", "DenNgay", "SoNgay", "LyDo", "TrangThai", "MaNVDuyet", "NgayDuyet")
          VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           id,
@@ -177,24 +177,24 @@ export async function seedDatabase(): Promise<void> {
       ['admin', 'admin', 'NV001'],
       ['nhansu', 'hr', 'NV009'],
       ['truongphong', 'manager', 'NV002'],
-      ['nhanvien', 'employee', 'NV003'],
+      ['NHANVIEN', 'employee', 'NV003'],
       ['giamdoc', 'director', 'NV010'],
     ];
 
     for (let i = 0; i < roles.length; i++) {
       const [username, role, empId] = roles[i];
       await tx.run(
-        'INSERT INTO taikhoan("MaTK", "TenDangNhap", "MatKhau", "VaiTro", "MaNV", "HoatDong") VALUES($1, $2, $3, $4, $5, 1)',
+        'INSERT INTO "TAIKHOAN"("MaTK", "TenDangNhap", "MatKhau", "VaiTro", "MaNV", "HoatDong") VALUES($1, $2, $3, $4, $5, 1)',
         [`U${i + 1}`, username, passwordHash(role === 'admin' ? process.env.ADMIN_PASSWORD || 'Demo@12345' : 'Demo@12345'), role, empId]
       );
     }
 
     await tx.run(
-      `UPDATE phongban p SET "MaTruongPhong" = n."MaNV"
-       FROM nhanvien n WHERE n."MaPB" = p."MaPB" AND n."MaCV" = 'CV02'`
+      `UPDATE "PHONGBAN" p SET "MaTruongPhong" = n."MaNV"
+       FROM "NHANVIEN" n WHERE n."MaPB" = p."MaPB" AND n."MaCV" = 'CV02'`
     );
     await tx.run(
-      `UPDATE phongban SET "MaTruongPhong" = 'NV010' WHERE "MaPB" = 'PB06' AND "MaTruongPhong" IS NULL`
+      `UPDATE "PHONGBAN" SET "MaTruongPhong" = 'NV010' WHERE "MaPB" = 'PB06' AND "MaTruongPhong" IS NULL`
     );
 
     const sampleDecisions: [string, string, string, string, string][] = [
@@ -206,7 +206,7 @@ export async function seedDatabase(): Promise<void> {
 
     for (const [id, num, type, signer, content] of sampleDecisions) {
       await tx.run(
-        `INSERT INTO quyetdinh("MaQD", "SoQD", "LoaiQD", "NgayKy", "NgayHieuLuc", "NguoiKy", "NoiDung")
+        `INSERT INTO "QUYETDINH"("MaQD", "SoQD", "LoaiQD", "NgayKy", "NgayHieuLuc", "NguoiKy", "NoiDung")
          VALUES($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT ("MaQD") DO UPDATE SET "SoQD" = EXCLUDED."SoQD", "NoiDung" = EXCLUDED."NoiDung"`,
         [id, num, type, date, date, signer, content]
@@ -221,7 +221,7 @@ export async function seedDatabase(): Promise<void> {
 
     for (const [id, empId, decId, type, oldDept, newDept, oldPos, newPos, reason] of sampleAssignments) {
       await tx.run(
-        `INSERT INTO quatrinhcongtac("MaQT", "MaNV", "MaQD", "LoaiBienDong", "MaPBCu", "MaPBMoi", "MaCVCu", "MaCVMoi", "NgayHieuLuc", "LyDo")
+        `INSERT INTO "QUATRINHCONGTAC"("MaQT", "MaNV", "MaQD", "LoaiBienDong", "MaPBCu", "MaPBMoi", "MaCVCu", "MaCVMoi", "NgayHieuLuc", "LyDo")
          VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          ON CONFLICT ("MaQT") DO NOTHING`,
         [id, empId, decId, type, oldDept, newDept, oldPos, newPos, date, reason]

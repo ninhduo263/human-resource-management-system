@@ -10,7 +10,7 @@ export async function loadHolidays(
   end: string
 ): Promise<Set<string>> {
   const rows = await tx.all<{ Ngay: string }>(
-    'SELECT "Ngay" FROM ngayle WHERE "Ngay" BETWEEN $1 AND $2',
+    'SELECT "Ngay" FROM "NGAYLE" WHERE "Ngay" BETWEEN $1 AND $2',
     [start, end]
   );
   return new Set(rows.map((r) => r.Ngay));
@@ -46,7 +46,7 @@ export async function annualTotal(
   Nam: number
 ): Promise<number> {
   const row = await tx.one<{ TongSoNgayPhep: number }>(
-    'SELECT "TongSoNgayPhep" FROM songayphep WHERE "MaNV" = $1 AND "Nam" = $2',
+    'SELECT "TongSoNgayPhep" FROM "SONGAYPHEP" WHERE "MaNV" = $1 AND "Nam" = $2',
     [employee.MaNV, Nam]
   );
   return row ? Number(row.TongSoNgayPhep) : defaultEntitlement(employee.NgayVaoLam, Nam);
@@ -59,8 +59,8 @@ export async function usedAnnualDays(
 ): Promise<number> {
   const row = await tx.one<{ n: string }>(
     `SELECT COALESCE(SUM(d."SoNgay"), 0) AS n
-     FROM donnghiphep d
-     JOIN loainghiphep l ON l."MaLoai" = d."MaLoai"
+     FROM "DONNGHIPHEP" d
+     JOIN "LOAINGHIPHEP" l ON l."MaLoai" = d."MaLoai"
      WHERE d."MaNV" = $1
        AND d."TrangThai" = 'Đã duyệt'
        AND l."TruPhepNam" = 1
@@ -89,10 +89,10 @@ export function canReviewLeave(
 /** Phòng ban nào đang có trưởng phòng hoặc tài khoản trưởng phòng hoạt động. */
 export async function departmentsWithManager(tx: DbExecutor): Promise<Set<string>> {
   const rows = await tx.all<{ MaPB: string }>(
-    `SELECT "MaPB" FROM phongban WHERE "MaTruongPhong" IS NOT NULL AND "HoatDong" = TRUE
+    `SELECT "MaPB" FROM "PHONGBAN" WHERE "MaTruongPhong" IS NOT NULL AND "HoatDong" = TRUE
      UNION
      SELECT DISTINCT n."MaPB"
-     FROM taikhoan t JOIN nhanvien n ON n."MaNV" = t."MaNV"
+     FROM "TAIKHOAN" t JOIN "NHANVIEN" n ON n."MaNV" = t."MaNV"
      WHERE t."VaiTro" = 'manager' AND t."HoatDong" = 1
        AND n."TrangThai" NOT IN ('Đã lưu trữ', 'Đã nghỉ việc')
        AND n."MaPB" IS NOT NULL`

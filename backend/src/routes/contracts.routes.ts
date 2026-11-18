@@ -61,9 +61,9 @@ interface NewContract {
 async function fixedTermTimes(tx: DbExecutor, MaNV: string): Promise<number> {
   const row = await tx.one<{ n: string }>(
     `SELECT
-       (SELECT COUNT(*) FROM hopdong
+       (SELECT COUNT(*) FROM "HOPDONG"
          WHERE "MaNV" = $1 AND "LoaiHD" = 'Xác định thời hạn' AND "TrangThai" <> 'Đã hủy bỏ')
-     + (SELECT COUNT(*) FROM giahanhopdong g JOIN hopdong h ON h."MaHD" = g."MaHD"
+     + (SELECT COUNT(*) FROM "GIAHANHOPDONG" g JOIN "HOPDONG" h ON h."MaHD" = g."MaHD"
          WHERE h."MaNV" = $1 AND h."LoaiHD" = 'Xác định thời hạn' AND h."TrangThai" <> 'Đã hủy bỏ'
            AND g."NgayKetThucMoi" IS DISTINCT FROM g."NgayKetThucCu") AS n`,
     [MaNV]
@@ -87,7 +87,7 @@ async function insertContract(tx: DbExecutor, c: NewContract, actorId: string): 
       fail(`Thời gian thử việc tối đa ${LABOR_RULES.maxTrialDays} ngày.`);
     }
     const trial = await tx.one(
-      `SELECT "MaHD" FROM hopdong WHERE "MaNV" = $1 AND "LoaiHD" = 'Thử việc' AND "TrangThai" <> 'Đã hủy bỏ'`,
+      `SELECT "MaHD" FROM "HOPDONG" WHERE "MaNV" = $1 AND "LoaiHD" = 'Thử việc' AND "TrangThai" <> 'Đã hủy bỏ'`,
       [c.employee.MaNV]
     );
     if (trial) fail('Nhân viên đã có hợp đồng thử việc; chỉ được thử việc một lần.');
@@ -102,16 +102,16 @@ async function insertContract(tx: DbExecutor, c: NewContract, actorId: string): 
   }
 
   const overlap = await tx.one(
-    `SELECT "MaHD" FROM hopdong
+    `SELECT "MaHD" FROM "HOPDONG"
      WHERE "MaNV" = $1 AND ${LIVE_CONTRACT}
        AND "NgayBatDau" <= $2 AND ("NgayKetThuc" IS NULL OR "NgayKetThuc" >= $3)`,
     [c.employee.MaNV, c.end || '9999-12-31', c.start]
   );
   if (overlap) fail('Khoảng thời gian bị trùng với hợp đồng hiện có.');
 
-  const MaHD = await nextBusinessId(tx, 'hopdong');
+  const MaHD = await nextBusinessId(tx, 'HOPDONG');
   await tx.run(
-    `INSERT INTO hopdong("MaHD", "MaNV", "LoaiHD", "NgayBatDau", "NgayKetThuc", "NgayKetThucGoc", "MucLuong", "TrangThai", "SoHD")
+    `INSERT INTO "HOPDONG"("MaHD", "MaNV", "LoaiHD", "NgayBatDau", "NgayKetThuc", "NgayKetThucGoc", "MucLuong", "TrangThai", "SoHD")
      VALUES($1, $2, $3, $4, $5, $5, $6, 'Hiệu lực', $7)`,
     [MaHD, c.employee.MaNV, c.LoaiHD, c.start, c.end, c.MucLuong, c.SoHD]
   );
@@ -133,7 +133,7 @@ function readNewContract(b: Record<string, any>, employee: { MaNV: string; NgayV
 }
 
 async function lockActiveEmployee(tx: DbExecutor, MaNV: string) {
-  await tx.query('SELECT "MaNV" FROM nhanvien WHERE "MaNV" = $1 FOR UPDATE', [MaNV]);
+  await tx.query('SELECT "MaNV" FROM "NHANVIEN" WHERE "MaNV" = $1 FOR UPDATE', [MaNV]);
   return requireActiveEmployee(tx, MaNV);
 }
 
@@ -150,12 +150,12 @@ async function optionalDecision(
   const NguoiKy = text(b, 'NguoiKy', 120);
   const NgayKy = b.NgayKy ? date(b, 'NgayKy') : today();
   await tx.run(
-    `INSERT INTO quyetdinh("MaQD", "SoQD", "LoaiQD", "NgayKy", "NgayHieuLuc", "NguoiKy", "NoiDung")
+    `INSERT INTO "QUYETDINH"("MaQD", "SoQD", "LoaiQD", "NgayKy", "NgayHieuLuc", "NguoiKy", "NoiDung")
      VALUES($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT ("SoQD") DO NOTHING`,
     [generateId('QD'), SoQD, LoaiQD, NgayKy, NgayHieuLuc, NguoiKy, NoiDung]
   );
-  const d = await tx.one<{ MaQD: string }>('SELECT "MaQD" FROM quyetdinh WHERE "SoQD" = $1', [SoQD]);
+  const d = await tx.one<{ MaQD: string }>('SELECT "MaQD" FROM "QUYETDINH" WHERE "SoQD" = $1', [SoQD]);
   return d?.MaQD ?? null;
 }
 
@@ -183,14 +183,14 @@ function amendContract(extend: boolean) {
     requireRole(u, ['admin', 'hr']);
 
     const rid = paramId(req);
-    const existing = await existsInTable(db, 'hopdong', rid);
+    const existing = await existsInTable(db, 'HOPDONG', rid);
     const b = req.body;
     const LyDo = text(b, 'LyDo', 1000);
     const currentDay = today();
 
     await withTransaction(async (tx) => {
       await lockActiveEmployee(tx, existing.MaNV);
-      const c = (await tx.one<any>('SELECT * FROM hopdong WHERE "MaHD" = $1 FOR UPDATE', [rid]))!;
+      const c = (await tx.one<any>('SELECT * FROM "HOPDONG" WHERE "MaHD" = $1 FOR UPDATE', [rid]))!;
       if (c.TrangThai === 'Đã chấm dứt') fail('Hợp đồng đã chấm dứt.');
       if (c.TrangThai === 'Đã hủy bỏ') fail('Hợp đồng đã bị hủy bỏ.');
       if (extend && !c.NgayKetThuc) fail('Hợp đồng không xác định thời hạn không cần gia hạn.');
@@ -215,7 +215,7 @@ function amendContract(extend: boolean) {
           );
         }
         const overlap = await tx.one(
-          `SELECT "MaHD" FROM hopdong
+          `SELECT "MaHD" FROM "HOPDONG"
            WHERE "MaNV" = $1 AND "MaHD" != $2 AND ${LIVE_CONTRACT}
              AND "NgayBatDau" <= $3 AND ("NgayKetThuc" IS NULL OR "NgayKetThuc" >= $4)`,
           [c.MaNV, rid, newEnd, c.NgayBatDau]
@@ -230,21 +230,21 @@ function amendContract(extend: boolean) {
       const applyNow = NgayHieuLuc <= currentDay;
       if (!extend) {
         const pending = await tx.one(
-          'SELECT "MaGH" FROM giahanhopdong WHERE "MaHD" = $1 AND "DaApDung" = FALSE',
+          'SELECT "MaGH" FROM "GIAHANHOPDONG" WHERE "MaHD" = $1 AND "DaApDung" = FALSE',
           [rid]
         );
         if (pending) fail('Hợp đồng đang có phụ lục lương chờ hiệu lực.');
       }
 
       const seqRow = await tx.one<{ n: number }>(
-        'SELECT COALESCE(MAX("LanGiaHan"), 0) + 1 AS n FROM giahanhopdong WHERE "MaHD" = $1',
+        'SELECT COALESCE(MAX("LanGiaHan"), 0) + 1 AS n FROM "GIAHANHOPDONG" WHERE "MaHD" = $1',
         [rid]
       );
       const LanGiaHan = Number(seqRow?.n ?? 1);
       const MaQD = await optionalDecision(tx, b, 'Gia hạn hợp đồng', NgayHieuLuc, LyDo);
 
       await tx.run(
-        `INSERT INTO giahanhopdong("MaGH", "MaHD", "LanGiaHan", "NgayLap", "NgayKetThucCu", "NgayKetThucMoi", "LyDo",
+        `INSERT INTO "GIAHANHOPDONG"("MaGH", "MaHD", "LanGiaHan", "NgayLap", "NgayKetThucCu", "NgayKetThucMoi", "LyDo",
           "LoaiPhuLuc", "LuongCu", "LuongMoi", "NgayHieuLuc", "DaApDung", "MaQD")
          VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
         [
@@ -263,7 +263,7 @@ function amendContract(extend: boolean) {
           MaQD,
         ]
       );
-      await tx.run('UPDATE hopdong SET "NgayKetThuc" = $1, "MucLuong" = $2 WHERE "MaHD" = $3', [
+      await tx.run('UPDATE "HOPDONG" SET "NgayKetThuc" = $1, "MucLuong" = $2 WHERE "MaHD" = $3', [
         newEnd,
         applyNow ? MucLuong : Number(c.MucLuong),
         rid,
@@ -296,12 +296,12 @@ contractsRouter.post(
     const u = req.user!;
     requireRole(u, ['admin', 'hr']);
     const rid = paramId(req);
-    const existing = await existsInTable(db, 'hopdong', rid);
+    const existing = await existsInTable(db, 'HOPDONG', rid);
     const b = req.body;
 
     const newId = await withTransaction(async (tx) => {
       const e = await lockActiveEmployee(tx, existing.MaNV);
-      const trial = (await tx.one<any>('SELECT * FROM hopdong WHERE "MaHD" = $1 FOR UPDATE', [rid]))!;
+      const trial = (await tx.one<any>('SELECT * FROM "HOPDONG" WHERE "MaHD" = $1 FOR UPDATE', [rid]))!;
       if (trial.LoaiHD !== 'Thử việc') fail('Chỉ chuyển chính thức từ hợp đồng thử việc.');
       if (trial.TrangThai === 'Đã chấm dứt' || trial.TrangThai === 'Đã hủy bỏ') {
         fail('Hợp đồng thử việc không còn hiệu lực.');
@@ -313,7 +313,7 @@ contractsRouter.post(
       // Rút ngắn hợp đồng thử việc đến ngày trước khi hợp đồng chính thức bắt đầu.
       const trialEnd = shift(next.start, -1);
       if (!trial.NgayKetThuc || trial.NgayKetThuc > trialEnd) {
-        await tx.run('UPDATE hopdong SET "NgayKetThuc" = $1 WHERE "MaHD" = $2', [trialEnd, rid]);
+        await tx.run('UPDATE "HOPDONG" SET "NgayKetThuc" = $1 WHERE "MaHD" = $2', [trialEnd, rid]);
       }
       const MaHD = await insertContract(tx, next, u.MaTK);
       await auditLog(tx, u.MaTK, 'Chuyển hợp đồng thử việc thành chính thức', rid, { hopdongmoi: MaHD });
@@ -330,7 +330,7 @@ contractsRouter.post(
     const u = req.user!;
     requireRole(u, ['admin', 'hr']);
     const rid = paramId(req);
-    const existing = await existsInTable(db, 'hopdong', rid);
+    const existing = await existsInTable(db, 'HOPDONG', rid);
     const b = req.body;
     const NgayChamDut = date(b, 'NgayChamDut');
     const LyDoChamDut = text(b, 'LyDoChamDut', 1000);
@@ -343,7 +343,7 @@ contractsRouter.post(
 
     await withTransaction(async (tx) => {
       await lockActiveEmployee(tx, existing.MaNV);
-      const c = (await tx.one<any>('SELECT * FROM hopdong WHERE "MaHD" = $1 FOR UPDATE', [rid]))!;
+      const c = (await tx.one<any>('SELECT * FROM "HOPDONG" WHERE "MaHD" = $1 FOR UPDATE', [rid]))!;
       if (c.TrangThai === 'Đã chấm dứt') fail('Hợp đồng đã chấm dứt.');
       if (c.TrangThai === 'Đã hủy bỏ') fail('Hợp đồng đã bị hủy bỏ.');
       if (NgayChamDut < c.NgayBatDau || (c.NgayKetThuc && NgayChamDut > c.NgayKetThuc)) {
@@ -354,7 +354,7 @@ contractsRouter.post(
       const MaQD = await optionalDecision(tx, b, 'Chấm dứt hợp đồng', NgayChamDut, LyDoChamDut);
 
       await tx.run(
-        `UPDATE hopdong SET "NgayChamDut" = $1, "LyDoChamDut" = $2, "LoaiChamDut" = $3, "MaQDChamDut" = $4
+        `UPDATE "HOPDONG" SET "NgayChamDut" = $1, "LyDoChamDut" = $2, "LoaiChamDut" = $3, "MaQDChamDut" = $4
          WHERE "MaHD" = $5`,
         [NgayChamDut, LyDoChamDut, LoaiChamDut, MaQD, rid]
       );
@@ -381,16 +381,16 @@ contractsRouter.post(
     const u = req.user!;
     requireRole(u, ['admin', 'hr']);
     const rid = paramId(req);
-    const existing = await existsInTable(db, 'hopdong', rid);
+    const existing = await existsInTable(db, 'HOPDONG', rid);
     const LyDo = text(req.body, 'LyDo', 1000);
 
     await withTransaction(async (tx) => {
-      await tx.query('SELECT "MaNV" FROM nhanvien WHERE "MaNV" = $1 FOR UPDATE', [existing.MaNV]);
-      const c = (await tx.one<any>('SELECT * FROM hopdong WHERE "MaHD" = $1 FOR UPDATE', [rid]))!;
+      await tx.query('SELECT "MaNV" FROM "NHANVIEN" WHERE "MaNV" = $1 FOR UPDATE', [existing.MaNV]);
+      const c = (await tx.one<any>('SELECT * FROM "HOPDONG" WHERE "MaHD" = $1 FOR UPDATE', [rid]))!;
       if (c.TrangThai === 'Đã chấm dứt') fail('Hợp đồng đã chấm dứt; không thể hủy bỏ.');
       if (c.TrangThai === 'Đã hủy bỏ') fail('Hợp đồng đã bị hủy bỏ.');
       await tx.run(
-        `UPDATE hopdong SET "TrangThai" = 'Đã hủy bỏ', "LyDoChamDut" = $1, "LoaiChamDut" = 'Hủy bỏ do nhập sai',
+        `UPDATE "HOPDONG" SET "TrangThai" = 'Đã hủy bỏ', "LyDoChamDut" = $1, "LoaiChamDut" = 'Hủy bỏ do nhập sai',
                 "NgayChamDut" = NULL
          WHERE "MaHD" = $2`,
         [LyDo, rid]
