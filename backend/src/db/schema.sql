@@ -1,6 +1,6 @@
 -- ============================================================================
 -- PeopleOps HRMS - Nhom 16
--- PostgreSQL Schema ánh xạ trực tiếp từ ERD_QLNS.drawio.png (8 thực thể)
+-- PostgreSQL Schema ánh xạ trực tiếp từ ERD_QLNS_v2.drawio.pdf (10 thực thể)
 -- và các bảng hệ thống (users, sessions, audit_log)
 -- ============================================================================
 
@@ -49,10 +49,37 @@ CREATE TABLE IF NOT EXISTS contracts (
   termination_reason TEXT
 );
 
--- 5. QUATRINHCONGTAC (assignments)
+-- 5. GIAHANHOPDONG (extensions)
+CREATE TABLE IF NOT EXISTS extensions (
+  id VARCHAR(30) PRIMARY KEY,
+  contract_id VARCHAR(30) NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
+  sequence INTEGER NOT NULL,
+  created_date VARCHAR(10) NOT NULL,
+  old_end_date VARCHAR(10),
+  new_end_date VARCHAR(10),
+  amendment_type VARCHAR(40) NOT NULL DEFAULT 'Gia hạn',
+  old_salary DOUBLE PRECISION,
+  new_salary DOUBLE PRECISION,
+  reason TEXT NOT NULL,
+  UNIQUE (contract_id, sequence)
+);
+
+-- 6. QUYETDINH (decisions)
+CREATE TABLE IF NOT EXISTS decisions (
+  id VARCHAR(30) PRIMARY KEY,
+  number VARCHAR(60) NOT NULL UNIQUE,
+  type VARCHAR(40) NOT NULL,
+  signed_date VARCHAR(10) NOT NULL,
+  effective_date VARCHAR(10) NOT NULL,
+  signer VARCHAR(120) NOT NULL,
+  content TEXT NOT NULL
+);
+
+-- 7. QUATRINHCONGTAC (assignments)
 CREATE TABLE IF NOT EXISTS assignments (
   id VARCHAR(30) PRIMARY KEY,
   employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+  decision_id VARCHAR(30) NOT NULL REFERENCES decisions(id) ON DELETE RESTRICT,
   type VARCHAR(40) NOT NULL CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm')),
   old_department_id VARCHAR(25) REFERENCES departments(id) ON DELETE RESTRICT,
   new_department_id VARCHAR(25) NOT NULL REFERENCES departments(id) ON DELETE RESTRICT,
@@ -128,10 +155,6 @@ CREATE INDEX IF NOT EXISTS idx_assignments_employee ON assignments(employee_id);
 
 -- Cập nhật tương thích cho database đã được khởi tạo trước đây.
 DROP TABLE IF EXISTS rewards_disciplines CASCADE;
-DROP TABLE IF EXISTS extensions CASCADE;
-ALTER TABLE assignments DROP COLUMN IF EXISTS decision_id CASCADE;
-ALTER TABLE contracts DROP COLUMN IF EXISTS termination_decision_id CASCADE;
-DROP TABLE IF EXISTS decisions CASCADE;
 
 ALTER TABLE employees DROP CONSTRAINT IF EXISTS employees_status_check;
 ALTER TABLE employees ADD CONSTRAINT employees_status_check
@@ -141,12 +164,18 @@ ALTER TABLE assignments ALTER COLUMN old_department_id DROP NOT NULL;
 ALTER TABLE assignments ALTER COLUMN old_position_id DROP NOT NULL;
 ALTER TABLE users ALTER COLUMN username TYPE VARCHAR(150);
 ALTER TABLE audit_log ALTER COLUMN target TYPE VARCHAR(250);
+ALTER TABLE extensions ALTER COLUMN new_end_date DROP NOT NULL;
+ALTER TABLE extensions ADD COLUMN IF NOT EXISTS amendment_type VARCHAR(40) NOT NULL DEFAULT 'Gia hạn';
+ALTER TABLE extensions ADD COLUMN IF NOT EXISTS old_salary DOUBLE PRECISION;
+ALTER TABLE extensions ADD COLUMN IF NOT EXISTS new_salary DOUBLE PRECISION;
+ALTER TABLE extensions ADD COLUMN IF NOT EXISTS decision_id VARCHAR(30) REFERENCES decisions(id) ON DELETE SET NULL;
 
 ALTER TABLE departments ADD COLUMN IF NOT EXISTS head_id VARCHAR(25) REFERENCES employees(id) ON DELETE SET NULL;
 ALTER TABLE departments ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
 
 ALTER TABLE contracts ADD COLUMN IF NOT EXISTS contract_number VARCHAR(60);
 ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_type VARCHAR(40);
+ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_decision_id VARCHAR(30) REFERENCES decisions(id) ON DELETE SET NULL;
 ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_end_date DATE;
 ALTER TABLE contracts ALTER COLUMN original_end_date TYPE DATE USING original_end_date::date;
 
@@ -155,3 +184,4 @@ ALTER TABLE assignments ADD CONSTRAINT assignments_type_check
   CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm'));
 
 CREATE INDEX IF NOT EXISTS idx_departments_head ON departments(head_id);
+CREATE INDEX IF NOT EXISTS idx_contracts_termination_decision ON contracts(termination_decision_id);

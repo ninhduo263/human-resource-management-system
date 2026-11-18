@@ -63,9 +63,9 @@ async function fixedTermTimes(tx: DbExecutor, employeeId: string): Promise<numbe
     `SELECT
        (SELECT COUNT(*) FROM contracts
          WHERE employee_id = $1 AND type = 'Xác định thời hạn' AND status <> 'Đã hủy bỏ')
-     + (SELECT COUNT(*) FROM contracts
-         WHERE employee_id = $1 AND type = 'Xác định thời hạn' AND status <> 'Đã hủy bỏ'
-           AND original_end_date IS NOT NULL AND end_date IS DISTINCT FROM original_end_date) AS n`,
+     + (SELECT COUNT(*) FROM extensions x JOIN contracts c ON c.id = x.contract_id
+         WHERE c.employee_id = $1 AND c.type = 'Xác định thời hạn' AND c.status <> 'Đã hủy bỏ'
+           AND x.new_end_date IS DISTINCT FROM x.old_end_date) AS n`,
     [employeeId]
   );
   return Number(row?.n ?? 0);
@@ -163,9 +163,7 @@ function amendContract(extend: boolean) {
     const rid = paramId(req);
     const existing = await existsInTable(db, 'contracts', rid);
     const b = req.body;
-    const reason = b.reason && String(b.reason).trim()
-      ? text(b, 'reason', 1000)
-      : (extend ? 'Gia hạn hợp đồng lao động' : 'Điều chỉnh mức lương');
+    const reason = text(b, 'reason', 1000);
     const currentDay = today();
 
     await withTransaction(async (tx) => {
@@ -208,7 +206,56 @@ function amendContract(extend: boolean) {
       if (effective < c.start_date) fail('Ngày hiệu lực không được trước ngày bắt đầu hợp đồng.');
       if (effective > addMonths(currentDay, 12)) fail('Ngày hiệu lực không được quá 12 tháng sau hôm nay.');
       const applyNow = effective <= currentDay;
+      if (!extend) {
+        const pending = await tx.one(
+          'SELECT id FROM extensions WHERE contract_id = $1 AND applied = FALSE',
+          [rid]
+        );
+        if (pending) fail('Hợp đồng đang có phụ lục lương chờ hiệu lực.');
+      }
 
+      const seqRow = await tx.one<{ n: number }>(
+        'SELECT COALESCE(MAX(sequence), 0) + 1 AS n FROM extensions WHERE contract_id = $1',
+        [rid]
+      );
+      const seq = Number(seqRow?.n ?? 1);
+
+      let decisionId: string | null = null;
+      if (b.decision_number) {
+        const decNum = text(b, 'decision_number', 60);
+        const signer = text(b, 'signer', 120);
+        const signedDate = b.signed_date ? date(b, 'signed_date') : currentDay;
+        const did = generateId('QD');
+        await tx.run(
+          `INSERT INTO decisions(id, number, type, signed_date, effective_date, signer, content)
+           VALUES($1, $2, 'Gia hạn hợp đồng', $3, $4, $5, $6)
+           ON CONFLICT (number) DO NOTHING`,
+          [did, decNum, signedDate, effective, signer, reason]
+        );
+        const d = await tx.one<any>('SELECT id FROM decisions WHERE number = $1', [decNum]);
+        if (d) decisionId = d.id;
+      }
+
+      await tx.run(
+        `INSERT INTO extensions(id, contract_id, sequence, created_date, old_end_date, new_end_date, reason,
+          amendment_type, old_salary, new_salary, effective_date, applied, decision_id)
+         VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+        [
+          generateId('PL'),
+          rid,
+          seq,
+          currentDay,
+          c.end_date,
+          newEnd,
+          reason,
+          extend ? (salaryChanged ? 'Gia hạn và điều chỉnh lương' : 'Gia hạn') : 'Điều chỉnh lương',
+          Number(c.salary),
+          salary,
+          effective,
+          applyNow,
+          decisionId,
+        ]
+      );
       await tx.run('UPDATE contracts SET end_date = $1, salary = $2 WHERE id = $3', [
         newEnd,
         applyNow ? salary : Number(c.salary),
@@ -293,10 +340,26 @@ contractsRouter.post(
       }
       if (ended > addMonths(currentDay, 6)) fail('Chỉ được hẹn chấm dứt trong vòng 6 tháng tới.');
 
+      let decisionId: string | null = null;
+      if (b.decision_number) {
+        const decNum = text(b, 'decision_number', 60);
+        const signer = text(b, 'signer', 120);
+        const signedDate = b.signed_date ? date(b, 'signed_date') : currentDay;
+        const did = generateId('QD');
+        await tx.run(
+          `INSERT INTO decisions(id, number, type, signed_date, effective_date, signer, content)
+           VALUES($1, $2, 'Chấm dứt hợp đồng', $3, $4, $5, $6)
+           ON CONFLICT (number) DO NOTHING`,
+          [did, decNum, signedDate, ended, signer, reason]
+        );
+        const d = await tx.one<any>('SELECT id FROM decisions WHERE number = $1', [decNum]);
+        if (d) decisionId = d.id;
+      }
+
       await tx.run(
-        `UPDATE contracts SET terminated_date = $1, termination_reason = $2, termination_type = $3
-         WHERE id = $4`,
-        [ended, reason, type, rid]
+        `UPDATE contracts SET terminated_date = $1, termination_reason = $2, termination_type = $3, termination_decision_id = $4
+         WHERE id = $5`,
+        [ended, reason, type, decisionId, rid]
       );
       if (ended <= currentDay) {
         await finalizeTermination(

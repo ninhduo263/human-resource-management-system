@@ -243,14 +243,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
 
   const columns = [
     {
-      title: 'Mã HĐ (MaHD)',
-      dataIndex: 'id',
-      key: 'id',
-      width: 110,
-      render: (id: string) => <Text code>{id}</Text>,
-    },
-    {
-      title: 'Nhân viên (MaNV)',
+      title: 'Nhân viên',
       key: 'employee',
       render: (_: unknown, c: Contract) => {
         const e = emp(c.employee_id);
@@ -263,19 +256,18 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               <div className="font-semibold text-slate-900">
                 {e?.name || 'Nhân viên'}
               </div>
-              <div className="text-xs text-slate-400">{c.employee_id}</div>
             </div>
           </Space>
         );
       },
     },
     {
-      title: 'Loại hợp đồng (LoaiHD)',
+      title: 'Loại hợp đồng',
       dataIndex: 'type',
       key: 'type',
     },
     {
-      title: 'Thời hạn (NgayBatDau → NgayKetThuc)',
+      title: 'Thời hạn',
       key: 'duration',
       render: (_: unknown, c: Contract) => (
         <div className="text-xs">
@@ -285,7 +277,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
       ),
     },
     {
-      title: 'Mức lương (MucLuong)',
+      title: 'Mức lương / tháng',
       dataIndex: 'salary',
       key: 'salary',
       render: (salary: number | null) => (
@@ -295,7 +287,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
       ),
     },
     {
-      title: 'Trạng thái (TrangThai)',
+      title: 'Trạng thái',
       key: 'status',
       render: (_: unknown, c: Contract) => {
         const st = getContractStatus(c, state.today);
@@ -524,12 +516,12 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
         </Form>
       </Modal>
 
-      {/* Modal Chi tiết Hợp đồng (Thực thể HOPDONG) */}
+      {/* Modal Chi tiết Hợp đồng */}
       <Modal
         open={!!detailContract}
-        title="Chi tiết hợp đồng lao động (HOPDONG)"
+        title="Chi tiết hợp đồng lao động"
         onCancel={() => setDetailContract(null)}
-        width={740}
+        width={720}
         footer={
           detailContract && (
             <Space wrap>
@@ -538,6 +530,34 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
                 detailContract.status !== 'Đã chấm dứt' &&
                 detailContract.status !== 'Đã hủy bỏ' && (
                   <>
+                    {detailContract.type === 'Thử việc' && (
+                      <Button
+                        onClick={() => {
+                          setFormError('');
+                          setConvertType('Xác định thời hạn');
+                          convertForm.resetFields();
+                          convertForm.setFieldsValue({
+                            type: 'Xác định thời hạn',
+                            start_date: state.today,
+                            salary: detailContract.salary,
+                          });
+                          setConvertTarget(detailContract);
+                        }}
+                      >
+                        Ký chính thức
+                      </Button>
+                    )}
+                    <Button danger type="dashed" onClick={() => handleVoidContract(detailContract)}>
+                      Hủy bỏ HĐ
+                    </Button>
+                    <Button icon={<DollarOutlined />} onClick={() => {
+                      setFormError('');
+                      salaryForm.resetFields();
+                      salaryForm.setFieldsValue({ salary: detailContract.salary });
+                      setSalaryTarget(detailContract);
+                    }}>
+                      Điều chỉnh lương
+                    </Button>
                     <Button
                       danger
                       icon={<CloseCircleOutlined />}
@@ -550,7 +570,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
                         setTerminateTarget(detailContract);
                       }}
                     >
-                      Chấm dứt hợp đồng (3.3)
+                      Chấm dứt HĐ
                     </Button>
                     {detailContract.end_date && (
                       <Button
@@ -562,7 +582,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
                           setExtendTarget(detailContract);
                         }}
                       >
-                        Gia hạn hợp đồng (3.2)
+                        Gia hạn hợp đồng
                       </Button>
                     )}
                   </>
@@ -578,10 +598,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               size="small"
               column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
             >
-              <Descriptions.Item label="Mã hợp đồng (MaHD)">
-                <Text code>{detailContract.id}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="Trạng thái (TrangThai)">
+              <Descriptions.Item label="Trạng thái">
                 <Tag
                   color={getAntTagColor(
                     getContractStatus(detailContract, state.today)
@@ -590,33 +607,94 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
                   {getContractStatus(detailContract, state.today)}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Nhân viên (MaNV)">
+              <Descriptions.Item label="Nhân viên">
                 <strong>
-                  {emp(detailContract.employee_id)?.name || 'Nhân viên'}
+                  {emp(detailContract.employee_id)?.name ||
+                    'Nhân viên'}
                 </strong>{' '}
-                <Text type="secondary">({detailContract.employee_id})</Text>
               </Descriptions.Item>
-              <Descriptions.Item label="Loại hợp đồng (LoaiHD)">
+              <Descriptions.Item label="Loại hợp đồng">
                 {detailContract.type}
               </Descriptions.Item>
-              <Descriptions.Item label="Ngày bắt đầu (NgayBatDau)">
-                {formatDate(detailContract.start_date)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Ngày kết thúc (NgayKetThuc)">
-                {formatDate(detailContract.end_date)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Mức lương (MucLuong)" span={2}>
+              <Descriptions.Item label="Mức lương / tháng">
                 <strong>{formatMoney(detailContract.salary)}</strong>
               </Descriptions.Item>
+              <Descriptions.Item label="Thời hạn gốc ban đầu">
+                {formatDate(detailContract.start_date)} →{' '}
+                {formatDate(detailContract.original_end_date || detailContract.end_date)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Thời hạn hiện tại">
+                {formatDate(detailContract.start_date)} →{' '}
+                {formatDate(detailContract.end_date)}
+              </Descriptions.Item>
+              {detailContract.terminated_date && (
+                <>
+                  <Descriptions.Item label="Ngày chấm dứt">
+                    <Text type="danger">
+                      {formatDate(detailContract.terminated_date)}
+                    </Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Hình thức & Lý do">
+                    <div>
+                      <Tag color="error" className="mr-1">{detailContract.termination_type || 'Thỏa thuận'}</Tag>
+                      {detailContract.termination_reason}
+                    </div>
+                  </Descriptions.Item>
+                  {detailContract.termination_decision_id && (
+                    <Descriptions.Item label="Căn cứ Quyết định">
+                      <Tag color="purple">
+                        {state.decisions.find((d) => d.id === detailContract.termination_decision_id)?.number || detailContract.termination_decision_id}
+                      </Tag>
+                    </Descriptions.Item>
+                  )}
+                </>
+              )}
             </Descriptions>
+
+            <Divider orientation="left" plain>
+              Phụ lục hợp đồng — Gia hạn và điều chỉnh lương
+            </Divider>
+            <div className="space-y-2">
+              {state.extensions
+                .filter((ex) => ex.contract_id === detailContract.id)
+                .map((ex) => (
+                  <Card key={ex.id} size="small">
+                    <div className="flex justify-between font-semibold">
+                      <span>
+                        Phụ lục {ex.sequence} · {ex.amendment_type}
+                      </span>
+                      <span>Ngày lập: {formatDate(ex.created_date)}</span>
+                    </div>
+                    {(ex.new_salary !== null || ex.amendment_type.includes('lương')) && (
+                      <div className="text-xs text-slate-600 mt-1">
+                        Lương cũ: {formatMoney(ex.old_salary)} → Lương mới: <strong>{formatMoney(ex.new_salary)}</strong>
+                      </div>
+                    )}
+                    <div className="text-xs text-slate-600 mt-1">
+                      Hạn cũ: {formatDate(ex.old_end_date)} → Hạn mới:{' '}
+                      <strong className="text-emerald-700">
+                        {formatDate(ex.new_end_date)}
+                      </strong>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      Lý do: {ex.reason}
+                    </div>
+                  </Card>
+                ))}
+              {state.extensions.filter(
+                (ex) => ex.contract_id === detailContract.id
+              ).length === 0 && (
+                <Text type="secondary">Chưa có phụ lục hợp đồng.</Text>
+              )}
+            </div>
           </div>
         )}
       </Modal>
 
-      {/* Modal Gia hạn Hợp đồng (3.2) */}
+      {/* Modal Gia hạn Hợp đồng */}
       <Modal
         open={!!extendTarget}
-        title="Gia hạn hợp đồng lao động (Chức năng 3.2)"
+        title="Gia hạn hợp đồng lao động"
         onCancel={() => setExtendTarget(null)}
         footer={null}
       >
@@ -631,7 +709,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               type="info"
               showIcon
               className="mb-4"
-              message={`Ngày kết thúc hiện tại (NgayKetThuc): ${formatDate(
+              message={`Ngày kết thúc hiện tại: ${formatDate(
                 extendTarget.end_date
               )}`}
             />
@@ -645,25 +723,39 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             )}
             <Form.Item
               name="new_end_date"
-              label="Ngày kết thúc mới (NgayKetThuc)"
+              label="Ngày kết thúc mới"
               rules={[{ required: true, message: 'Chọn ngày kết thúc mới' }]}
             >
               <Input type="date" />
             </Form.Item>
             <Form.Item
-              name="salary"
-              label="Mức lương mới (MucLuong, nếu thay đổi)"
-              extra={`Lương hiện tại: ${formatMoney(extendTarget.salary)}. Để trống để giữ nguyên.`}
+              name="reason"
+              label="Lý do gia hạn"
+              rules={[{ required: true, message: 'Nhập lý do gia hạn' }]}
             >
+              <Input.TextArea rows={3} />
+            </Form.Item>
+            <Form.Item name="salary" label="Mức lương mới / tháng (VND, nếu thay đổi)"
+              extra={`Lương hiện tại: ${formatMoney(extendTarget.salary)}. Để trống để giữ nguyên.`}>
               <InputNumber min={1} max={100000000000} className="w-full" />
             </Form.Item>
-            <Form.Item
-              name="reason"
-              label="Ghi chú gia hạn"
-              initialValue="Gia hạn hợp đồng lao động theo nhu cầu công việc"
-            >
-              <Input.TextArea rows={2} />
-            </Form.Item>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+              <Form.Item
+                name="decision_number"
+                label="Số quyết định/phụ lục (tùy chọn)"
+                extra="Nếu có quyết định gia hạn"
+              >
+                <Input placeholder="VD: PL01/2026/QD-GH" />
+              </Form.Item>
+              <Form.Item
+                name="signer"
+                label="Người ký phụ lục"
+                initialValue="Trần Hải Đăng"
+              >
+                <Input placeholder="Người ký" />
+              </Form.Item>
+            </div>
+            <Alert type="info" showIcon className="mb-4" message="Gia hạn và thay đổi lương được ghi chung vào một phụ lục hợp đồng." />
             <div className="flex justify-end gap-2">
               <Button onClick={() => setExtendTarget(null)}>Hủy</Button>
               <Button type="primary" htmlType="submit" loading={submitting}>
@@ -796,6 +888,22 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             >
               <Input.TextArea rows={3} />
             </Form.Item>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+              <Form.Item
+                name="decision_number"
+                label="Số quyết định chấm dứt (tùy chọn)"
+                extra="Nếu có quyết định do Ban Giám đốc ký"
+              >
+                <Input placeholder="VD: 06/2026/QD-CD" />
+              </Form.Item>
+              <Form.Item
+                name="signer"
+                label="Người ký quyết định"
+                initialValue="Trần Hải Đăng"
+              >
+                <Input placeholder="Người ký" />
+              </Form.Item>
+            </div>
             <div className="flex justify-end gap-2">
               <Button onClick={() => setTerminateTarget(null)}>Hủy</Button>
               <Button

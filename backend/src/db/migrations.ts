@@ -18,6 +18,11 @@ const DATE_COLUMNS: [string, string][] = [
   ['contracts', 'start_date'],
   ['contracts', 'end_date'],
   ['contracts', 'terminated_date'],
+  ['extensions', 'created_date'],
+  ['extensions', 'old_end_date'],
+  ['extensions', 'new_end_date'],
+  ['decisions', 'signed_date'],
+  ['decisions', 'effective_date'],
   ['assignments', 'effective_date'],
   ['leave_requests', 'submitted_date'],
   ['leave_requests', 'start_date'],
@@ -27,6 +32,8 @@ const DATE_COLUMNS: [string, string][] = [
 
 const MONEY_COLUMNS: [string, string][] = [
   ['contracts', 'salary'],
+  ['extensions', 'old_salary'],
+  ['extensions', 'new_salary'],
 ];
 
 const typeConversion = [
@@ -70,6 +77,10 @@ export const migrations: Migration[] = [
       ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_type VARCHAR(40);
       ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_end_date DATE;
       UPDATE contracts SET original_end_date = end_date WHERE original_end_date IS NULL;
+
+      ALTER TABLE extensions ADD COLUMN IF NOT EXISTS effective_date DATE;
+      UPDATE extensions SET effective_date = created_date WHERE effective_date IS NULL;
+      ALTER TABLE extensions ADD COLUMN IF NOT EXISTS applied BOOLEAN NOT NULL DEFAULT TRUE;
 
       ALTER TABLE assignments ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'Hiệu lực';
       ALTER TABLE assignments ADD COLUMN IF NOT EXISTS cancelled_date DATE;
@@ -124,13 +135,51 @@ export const migrations: Migration[] = [
     `,
   },
   {
-    id: '005_strict_8_entity_erd_cleanup',
+    id: '006_restore_10_entity_erd_tables',
     sql: `
       DROP TABLE IF EXISTS rewards_disciplines CASCADE;
-      DROP TABLE IF EXISTS extensions CASCADE;
-      ALTER TABLE assignments DROP COLUMN IF EXISTS decision_id CASCADE;
-      ALTER TABLE contracts DROP COLUMN IF EXISTS termination_decision_id CASCADE;
-      DROP TABLE IF EXISTS decisions CASCADE;
+
+      CREATE TABLE IF NOT EXISTS decisions (
+        id VARCHAR(30) PRIMARY KEY,
+        number VARCHAR(60) NOT NULL UNIQUE,
+        type VARCHAR(40) NOT NULL,
+        signed_date DATE NOT NULL,
+        effective_date DATE NOT NULL,
+        signer VARCHAR(120) NOT NULL,
+        content TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS extensions (
+        id VARCHAR(30) PRIMARY KEY,
+        contract_id VARCHAR(30) NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
+        sequence INTEGER NOT NULL,
+        created_date DATE NOT NULL,
+        old_end_date DATE,
+        new_end_date DATE,
+        amendment_type VARCHAR(40) NOT NULL DEFAULT 'Gia hạn',
+        old_salary NUMERIC(15,2),
+        new_salary NUMERIC(15,2),
+        reason TEXT NOT NULL,
+        effective_date DATE,
+        applied BOOLEAN NOT NULL DEFAULT TRUE,
+        decision_id VARCHAR(30) REFERENCES decisions(id) ON DELETE SET NULL,
+        UNIQUE (contract_id, sequence)
+      );
+
+      ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_decision_id VARCHAR(30)
+        REFERENCES decisions(id) ON DELETE SET NULL;
+
+      INSERT INTO decisions(id, number, type, signed_date, effective_date, signer, content)
+      VALUES
+        ('QD001', '01/2026/QD-NS', 'Bổ nhiệm', CURRENT_DATE, CURRENT_DATE, 'Trần Hải Đăng', 'Bổ nhiệm Trưởng phòng Marketing'),
+        ('QD002', '02/2026/QD-DC', 'Điều chuyển', CURRENT_DATE, CURRENT_DATE, 'Trần Hải Đăng', 'Điều chuyển nhân sự hỗ trợ dự án'),
+        ('QD003', '03/2026/QD-MN', 'Miễn nhiệm', CURRENT_DATE, CURRENT_DATE, 'Trần Hải Đăng', 'Miễn nhiệm chức vụ phó phòng theo nguyện vọng')
+      ON CONFLICT (id) DO NOTHING;
+
+      ALTER TABLE assignments ADD COLUMN IF NOT EXISTS decision_id VARCHAR(30)
+        REFERENCES decisions(id) ON DELETE RESTRICT;
+      UPDATE assignments SET decision_id = 'QD001' WHERE decision_id IS NULL;
+      ALTER TABLE assignments ALTER COLUMN decision_id SET NOT NULL;
     `,
   },
 ];

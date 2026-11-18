@@ -182,6 +182,7 @@ export async function buildScopedState(u: SessionUser) {
     'SELECT * FROM assignments WHERE employee_id = ANY($1::text[]) ORDER BY effective_date DESC',
     [ids]
   );
+  const decisionIds = assignments.map((a) => a.decision_id);
 
   const employeeById = new Map(employees.map((e) => [e.id, e]));
   const deptHeadRows = await db.all<{ id: string; head_id: string | null }>('SELECT id, head_id FROM departments');
@@ -259,8 +260,26 @@ export async function buildScopedState(u: SessionUser) {
 
   const departments = await db.all('SELECT * FROM departments ORDER BY id');
   const positions = await db.all('SELECT * FROM positions ORDER BY level DESC, id ASC');
-  const extensions: any[] = [];
-  const decisions: any[] = [];
+  const rawExtensions = await db.all(
+    'SELECT * FROM extensions WHERE contract_id = ANY($1::text[]) ORDER BY sequence DESC',
+    [contracts.map((c) => c.id)]
+  );
+  const extensions = rawExtensions.map((x) => {
+    const contract = contractById.get(x.contract_id)!;
+    const canViewSalary = fullAccess || contract.employee_id === u.employee_id;
+    return {
+      ...x,
+      old_salary: canViewSalary && x.old_salary != null ? Number(x.old_salary) : null,
+      new_salary: canViewSalary && x.new_salary != null ? Number(x.new_salary) : null,
+    };
+  });
+
+  const decisions = fullAccess
+    ? await db.all('SELECT * FROM decisions ORDER BY effective_date DESC')
+    : await db.all(
+        'SELECT * FROM decisions WHERE id = ANY($1::text[]) ORDER BY effective_date DESC',
+        [decisionIds.filter(Boolean)]
+      );
 
   const users =
     u.role === 'admin'

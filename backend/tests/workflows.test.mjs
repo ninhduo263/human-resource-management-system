@@ -156,7 +156,7 @@ test('Employee accounts, directors, contract appendices and termination', async 
   const e = employee();
   const account = await addEmployee(e);
   const c = await addContract(e);
-  await t.test('Salary changes and extensions update contracts directly according to 8-entity ERD', async () => {
+  await t.test('Salary changes and extensions create appendices with old and new values', async () => {
     assert.equal((await request(`/contracts/${c.id}/salary`, { salary: 12_000_000, reason: 'Tăng lương' }, admin)).status, 200);
     assert.equal((await request(`/contracts/${c.id}/extend`, { new_end_date: shift(date, 180), reason: 'Gia hạn' }, admin)).status, 200);
     // Luật: hợp đồng xác định thời hạn chỉ được ký/gia hạn tối đa 2 lần.
@@ -166,30 +166,34 @@ test('Employee accounts, directors, contract appendices and termination', async 
     const contract = data.contracts.find((item) => item.id === c.id);
     assert.equal(contract.salary, 15_000_000);
     assert.equal(contract.end_date, shift(date, 180));
+    const appendices = data.extensions.filter((item) => item.contract_id === c.id).sort((a, b) => a.sequence - b.sequence);
+    assert.deepEqual(appendices.map((item) => item.amendment_type), ['Điều chỉnh lương', 'Gia hạn', 'Điều chỉnh lương']);
+    assert.deepEqual(appendices.map((item) => [item.old_salary, item.new_salary]), [[10_000_000, 12_000_000], [12_000_000, 12_000_000], [12_000_000, 15_000_000]]);
+    assert.equal(appendices[0].old_end_date, appendices[0].new_end_date);
     const own = await state(await login(account.username, account.password));
-    assert.equal(own.contracts.find((item) => item.id === c.id).salary, 15_000_000);
+    assert.equal(own.extensions.find((item) => item.contract_id === c.id).new_salary, 15_000_000);
     const scoped = await state(manager);
-    assert.equal(scoped.contracts.find((item) => item.id === c.id)?.salary ?? null, null);
+    assert.ok(scoped.extensions.filter((item) => item.contract_id === c.id).every((item) => item.old_salary === null && item.new_salary === null));
     assert.equal((await request(`/contracts/${c.id}/salary`, { salary: 20_000_000, reason: 'Không có quyền' }, manager)).status, 403);
   });
 
-  await t.test('Invalid amendments leave contract unchanged', async () => {
-    for (const body of [{ salary: 0, reason: 'Sai' }, { salary: 15_000_000, reason: 'Không đổi' }, { salary: -100 }]) {
+  await t.test('Invalid amendments leave both contract and appendix history unchanged', async () => {
+    for (const body of [{ salary: 0, reason: 'Sai' }, { salary: 15_000_000, reason: 'Không đổi' }, { salary: 20_000_000 }]) {
       assert.equal((await request(`/contracts/${c.id}/salary`, body, admin)).status, 400);
     }
-    assert.equal((await request(`/contracts/${c.id}/extend`, { new_end_date: shift(date, 200), salary: 20_000_000, reason: 'Quá số lần gia hạn' }, admin)).status, 400);
+    assert.equal((await request(`/contracts/${c.id}/extend`, { new_end_date: shift(date, 200), salary: 20_000_000, reason: 'Ngày sai' }, admin)).status, 400);
     const data = await state();
     assert.equal(data.contracts.find((item) => item.id === c.id).salary, 15_000_000);
+    assert.equal(data.extensions.filter((item) => item.contract_id === c.id).length, 3);
   });
 
-  await t.test('Indefinite contracts support salary updates without an end date', async () => {
+  await t.test('Indefinite contracts support salary appendices without an end date', async () => {
     const indefinite = employee();
     await addEmployee(indefinite);
     const contract = await addContract(indefinite, { type: 'Không xác định thời hạn', end_date: null });
     assert.equal((await request(`/contracts/${contract.id}/salary`, { salary: 11_000_000, reason: 'Tăng lương' }, admin)).status, 200);
-    const updated = (await state()).contracts.find((item) => item.id === contract.id);
-    assert.equal(updated.end_date, null);
-    assert.equal(updated.salary, 11_000_000);
+    const appendix = (await state()).extensions.find((item) => item.contract_id === contract.id);
+    assert.equal(appendix.new_end_date, null);
     assert.equal((await request(`/contracts/${contract.id}/extend`, { new_end_date: shift(date, 300), reason: 'Không cần gia hạn' }, admin)).status, 400);
   });
 
@@ -198,6 +202,7 @@ test('Employee accounts, directors, contract appendices and termination', async 
     assert.equal((await request(`/contracts/${c.id}/terminate`, { terminated_date: date, reason: 'Nghỉ việc' }, admin)).status, 200);
     const data = await state();
     assert.equal(data.employees.find((item) => item.id === e.id).status, 'Đã nghỉ việc');
+    assert.equal(data.extensions.filter((item) => item.contract_id === c.id).length, 3);
     assert.equal((await request('/state', undefined, employeeCookie)).status, 401);
     assert.equal((await request('/login', { username: account.username, password: account.password })).status, 401);
     assert.equal((await request(`/contracts/${c.id}/salary`, { salary: 20_000_000, reason: 'Đã nghỉ' }, admin)).status, 400);
@@ -362,10 +367,10 @@ test('Employee accounts, directors, contract appendices and termination', async 
     assert.equal((await request('/login', { username: 'khoa-thu', password: 'sai-mat-khau-dai' })).status, 429);
   });
 
-  await t.test('Schema upgrades can be applied again while retaining records', async () => {
+  await t.test('Schema upgrades can be applied again while retaining records and appendices', async () => {
     await database.initSchema();
     const data = await state();
-    assert.equal(data.contracts.find((item) => item.id === c.id).salary, 15_000_000);
+    assert.equal(data.extensions.filter((item) => item.contract_id === c.id).length, 3);
     assert.equal(data.employees.find((item) => item.id === e.id).status, 'Đã lưu trữ');
   });
 
@@ -403,7 +408,7 @@ test('Employee accounts, directors, contract appendices and termination', async 
     assert.equal(wrongHead.status, 400);
   });
 
-  await t.test('Contract original_end_date preservation and termination fields on extend/terminate (04)', async () => {
+  await t.test('Contract original_end_date preservation and decision links on extend/terminate (04)', async () => {
     const emp4 = employee();
     await addEmployee(emp4);
     const initialEnd = shift(date, 90);
@@ -411,7 +416,10 @@ test('Employee accounts, directors, contract appendices and termination', async 
 
     const extRes = await request(`/contracts/${c4.id}/extend`, {
       new_end_date: shift(date, 180),
-      reason: 'Gia hạn hợp đồng',
+      reason: 'Gia hạn theo quyết định',
+      decision_number: `QD-GH-${c4.id}`,
+      signer: 'Trần Hải Đăng',
+      signed_date: date,
     }, admin);
     assert.equal(extRes.status, 200, JSON.stringify(extRes.body));
 
@@ -419,15 +427,20 @@ test('Employee accounts, directors, contract appendices and termination', async 
     const updatedC4 = data.contracts.find((item) => item.id === c4.id);
     assert.equal(updatedC4.original_end_date, initialEnd);
     assert.equal(updatedC4.end_date, shift(date, 180));
+    const extRecord = data.extensions.find((item) => item.contract_id === c4.id);
+    assert.ok(extRecord.decision_id);
 
     const termRes = await request(`/contracts/${c4.id}/terminate`, {
       terminated_date: date,
       termination_type: 'Thỏa thuận chấm dứt',
       reason: 'Chấm dứt theo thỏa thuận',
+      decision_number: `QD-CD-${c4.id}`,
+      signer: 'Trần Hải Đăng',
+      signed_date: date,
     }, admin);
     assert.equal(termRes.status, 200, JSON.stringify(termRes.body));
     data = await state();
-    assert.equal(data.contracts.find((item) => item.id === c4.id).termination_type, 'Thỏa thuận chấm dứt');
+    assert.ok(data.contracts.find((item) => item.id === c4.id).termination_decision_id);
   });
 
   await t.test('Shared 1-N decisions, Mien nhiem assignment, Holidays API and Leave Balances (05)', async () => {

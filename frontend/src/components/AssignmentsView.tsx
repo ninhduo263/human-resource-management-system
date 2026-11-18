@@ -9,15 +9,18 @@ import {
   Modal,
   Space,
   Avatar,
+  Descriptions,
   Alert,
   Typography,
+  Divider,
 } from 'antd';
 import {
   PlusOutlined,
   DownloadOutlined,
   SearchOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
-import { AppState, Assignment } from '../types';
+import { AppState, Assignment, Decision } from '../types';
 import { apiRequest } from '../api';
 import {
   canAssign,
@@ -46,6 +49,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
   const [deptFilter, setDeptFilter] = useState('');
 
   const [formOpen, setFormOpen] = useState(false);
+  const [detailDecision, setDetailDecision] = useState<Decision | null>(null);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,7 +62,10 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
   const [newDeptId, setNewDeptId] = useState(state.departments[0]?.id || '');
   const [newPosId, setNewPosId] = useState(state.positions[0]?.id || '');
   const [moveType, setMoveType] = useState<string>('Điều chuyển');
+  const [decisionNumber, setDecisionNumber] = useState('');
+  const [signedDate, setSignedDate] = useState(state.today);
   const [effectiveDate, setEffectiveDate] = useState(state.today);
+  const [signer, setSigner] = useState('Trần Hải Đăng');
   const [reason, setReason] = useState('');
 
   const emp = (id: string) => state.employees.find((e) => e.id === id);
@@ -77,7 +84,10 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
     setNewDeptId(first?.department_id || state.departments[0]?.id || '');
     setNewPosId(first?.position_id || state.positions[0]?.id || '');
     setMoveType('Điều chuyển');
+    setDecisionNumber('');
+    setSignedDate(state.today);
     setEffectiveDate(state.today);
+    setSigner('Trần Hải Đăng');
     setReason('');
     setFormError('');
     setFormOpen(true);
@@ -95,6 +105,17 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
     }
   };
 
+  const handleSelectExistingDecision = (decId: string) => {
+    const d = state.decisions.find((x) => x.id === decId);
+    if (!d) return;
+    setDecisionNumber(d.number);
+    setMoveType(d.type);
+    setSignedDate(d.signed_date);
+    setEffectiveDate(d.effective_date);
+    setSigner(d.signer);
+    setReason(d.content);
+  };
+
   const handleSaveAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
@@ -105,15 +126,18 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
         {
           employee_id: selectedEmpId,
           type: moveType,
+          number: decisionNumber,
           new_department_id: newDeptId,
           new_position_id: newPosId,
+          signed_date: signedDate,
           effective_date: effectiveDate,
+          signer,
           reason,
         },
         'POST'
       );
       setFormOpen(false);
-      notify('Đã ghi nhận quá trình công tác và cập nhật hồ sơ nhân viên.');
+      notify('Đã ghi nhận quyết định công tác và cập nhật hồ sơ nhân viên.');
       await onRefresh();
     } catch (err: any) {
       setFormError(err.message);
@@ -122,40 +146,56 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
     }
   };
 
+  const handleCancelAssignment = async (a: Assignment) => {
+    const reason = window.prompt(
+      a.status === 'Chờ hiệu lực'
+        ? 'Lý do hủy quyết định chờ hiệu lực:'
+        : 'Lý do hoàn tác quyết định (hồ sơ sẽ trở về phòng ban/chức vụ cũ):'
+    );
+    if (!reason || !reason.trim()) return;
+    try {
+      await apiRequest(
+        `/api/assignments/${encodeURIComponent(a.id)}/cancel`,
+        { reason: reason.trim() },
+        'POST'
+      );
+      notify('Đã hủy quyết định công tác.');
+      await onRefresh();
+    } catch (err: any) {
+      notify(err.message, true);
+    }
+  };
+
   const handleExport = () => {
     downloadCsv(
-      `peopleops-quatrinhcongtac-${state.today}.csv`,
+      `peopleops-assignments-${state.today}.csv`,
       [
-        'Mã QT (MaQT)',
-        'Nhân viên (MaNV)',
-        'Loại sự kiện (LoaiSuKien)',
-        'Phòng ban chuyển đến (MaPB)',
-        'Chức vụ bổ nhiệm (MaCV)',
-        'Ngày hiệu lực (NgayHieuLuc)',
-        'Ghi chú (GhiChu)',
+        'Nhân viên',
+        'Loại biến động',
+        'Phòng ban cũ',
+        'Phòng ban mới',
+        'Chức vụ cũ',
+        'Chức vụ mới',
+        'Ngày hiệu lực',
+        'Số quyết định',
       ],
       filtered.map((a) => [
-        a.id,
-        emp(a.employee_id)?.name || a.employee_id,
+        emp(a.employee_id)?.name || 'Nhân viên',
         a.type,
+        deptName(a.old_department_id),
         deptName(a.new_department_id),
+        posName(a.old_position_id),
         posName(a.new_position_id),
         a.effective_date,
-        a.reason,
+        state.decisions.find((d) => d.id === a.decision_id)?.number ||
+          a.decision_id,
       ])
     );
   };
 
   const columns = [
     {
-      title: 'Mã QT (MaQT)',
-      dataIndex: 'id',
-      key: 'id',
-      width: 110,
-      render: (id: string) => <Text code>{id}</Text>,
-    },
-    {
-      title: 'Nhân viên (MaNV)',
+      title: 'Nhân viên',
       key: 'employee',
       render: (_: unknown, a: Assignment) => {
         const e = emp(a.employee_id);
@@ -166,47 +206,93 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
             </Avatar>
             <div>
               <div className="font-semibold text-slate-900">
-                {e?.name || a.employee_id}
+                {e?.name || 'Nhân viên'}
               </div>
-              <div className="text-xs text-slate-400">{a.employee_id}</div>
             </div>
           </Space>
         );
       },
     },
     {
-      title: 'Loại sự kiện (LoaiSuKien)',
+      title: 'Loại biến động',
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => <Tag color={getAntTagColor(type)}>{type}</Tag>,
     },
     {
-      title: 'Phòng ban chuyển đến (MaPB)',
+      title: 'Phòng ban (Cũ → Mới)',
       key: 'dept',
       render: (_: unknown, a: Assignment) => (
-        <strong>{deptName(a.new_department_id)}</strong>
+        <span className="text-xs">
+          <Text type="secondary">{deptName(a.old_department_id)}</Text> →{' '}
+          <strong>{deptName(a.new_department_id)}</strong>
+        </span>
       ),
     },
     {
-      title: 'Chức vụ bổ nhiệm (MaCV)',
+      title: 'Chức vụ (Cũ → Mới)',
       key: 'pos',
       render: (_: unknown, a: Assignment) => (
-        <strong>{posName(a.new_position_id)}</strong>
+        <span className="text-xs">
+          <Text type="secondary">{posName(a.old_position_id)}</Text> →{' '}
+          <strong>{posName(a.new_position_id)}</strong>
+        </span>
       ),
     },
     {
-      title: 'Ngày hiệu lực (NgayHieuLuc)',
+      title: 'Ngày hiệu lực',
       dataIndex: 'effective_date',
       key: 'effective_date',
       render: (d: string) => formatDate(d),
     },
     {
-      title: 'Ghi chú (GhiChu)',
-      dataIndex: 'reason',
-      key: 'reason',
-      render: (r: string) => (
-        <span className="text-xs text-slate-600">{r || '—'}</span>
-      ),
+      title: 'Trạng thái',
+      key: 'status',
+      render: (_: unknown, a: Assignment) => {
+        const status = a.status || 'Hiệu lực';
+        return (
+          <Tag color={status === 'Hiệu lực' ? 'success' : status === 'Chờ hiệu lực' ? 'warning' : 'default'}>
+            {status}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: 'Số quyết định',
+      key: 'decision',
+      render: (_: unknown, a: Assignment) => {
+        const dec = state.decisions.find((d) => d.id === a.decision_id);
+        return <Text code>{dec?.number || a.decision_id}</Text>;
+      },
+    },
+    {
+      title: 'Thao tác',
+      key: 'actions',
+      align: 'right' as const,
+      render: (_: unknown, a: Assignment) => {
+        const dec = state.decisions.find((d) => d.id === a.decision_id);
+        const canCancel =
+          ['admin', 'hr', 'director'].includes(state.user.role) && a.status !== 'Đã hủy';
+        return (
+          <Space size={0}>
+            {dec && (
+              <Button
+                size="small"
+                type="link"
+                icon={<FileTextOutlined />}
+                onClick={() => setDetailDecision(dec)}
+              >
+                Xem QĐ
+              </Button>
+            )}
+            {canCancel && (
+              <Button size="small" type="link" danger onClick={() => handleCancelAssignment(a)}>
+                Hủy QĐ
+              </Button>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -215,10 +301,10 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Title level={3} style={{ margin: '4px 0' }}>
-            Quá trình công tác
+            Quá trình công tác & Quyết định
           </Title>
           <Text type="secondary">
-            Ghi nhận quá trình công tác (4.1), phân bổ nhân sự (2.3) và bổ nhiệm chức vụ (2.4) theo thực thể QUATRINHCONGTAC.
+            Lưu vết điều chuyển phòng ban, bổ nhiệm chức vụ và quyết định nhân sự 1–N.
           </Text>
         </div>
 
@@ -238,9 +324,15 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
         </Space>
       </div>
 
+      <Alert
+        type="info"
+        showIcon
+        message="Mỗi thay đổi phòng ban hoặc chức vụ đều gắn với một Quyết định (QUYETDINH) và cập nhật đồng thời vào hồ sơ nhân viên trong cùng một giao dịch. Nhiều nhân viên có thể dùng chung một Quyết định (quan hệ 1–N)."
+      />
+
       <Card bordered={false} className="shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <Text strong>Lịch sử quá trình công tác ({filtered.length})</Text>
+          <Text strong>Lịch sử biến động nhân sự ({filtered.length})</Text>
           <Space wrap className="w-full sm:w-auto">
             <Input
               prefix={<SearchOutlined className="text-slate-400" />}
@@ -275,23 +367,41 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
         />
       </Card>
 
-      {/* Modal Ghi nhận quá trình công tác (Thực thể QUATRINHCONGTAC) */}
+      {/* Modal Ghi nhận công tác */}
       <Modal
         open={formOpen}
-        title="Ghi nhận quá trình công tác (QUATRINHCONGTAC)"
+        title="Ghi nhận quá trình công tác & Quyết định"
         onCancel={() => setFormOpen(false)}
         footer={null}
-        width={620}
+        width={680}
       >
         <form onSubmit={handleSaveAssignment} className="space-y-4 mt-3">
           {formError && (
             <Alert type="error" showIcon message={formError} />
           )}
 
+          {state.decisions.length > 0 && (
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
+              <div className="text-xs font-semibold text-slate-700 mb-1.5">
+                Dùng chung Quyết định đã ban hành (Quan hệ ERD 1 Quyết định – Nhiều Quá trình công tác)
+              </div>
+              <Select
+                className="w-full"
+                placeholder="— Tạo quyết định mới hoặc chọn quyết định có sẵn để điền nhanh —"
+                allowClear
+                onChange={(val) => val && handleSelectExistingDecision(val)}
+                options={state.decisions.map((d) => ({
+                  value: d.id,
+                  label: `${d.number} · ${d.type} · Ngày HL: ${d.effective_date} (Người ký: ${d.signer})`,
+                }))}
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Nhân viên (MaNV) *
+                Nhân viên *
               </label>
               <Select
                 value={selectedEmpId}
@@ -306,16 +416,16 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                 className="w-full"
                 options={activeEmployees.map((e) => ({
                   value: e.id,
-                  label: `${e.name} (${e.id}) — Hiện tại: ${deptName(
+                  label: `${e.name} (${e.email}) (Hiện tại: ${deptName(
                     e.department_id
-                  )} · ${posName(e.position_id)}`,
+                  )} · ${posName(e.position_id)})`,
                 }))}
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Phòng ban chuyển đến (MaPB) *
+                Phòng ban mới *
               </label>
               <Select
                 value={newDeptId}
@@ -333,7 +443,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Chức vụ bổ nhiệm (MaCV) *
+                Chức vụ mới *
               </label>
               <Select
                 value={newPosId}
@@ -351,23 +461,52 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Loại sự kiện (LoaiSuKien) *
+                Loại biến động *
               </label>
               <Select
                 value={moveType}
                 onChange={setMoveType}
                 className="w-full"
                 options={[
-                  { value: 'Điều chuyển', label: 'Điều chuyển (Phân bổ nhân sự 2.3)' },
-                  { value: 'Bổ nhiệm', label: 'Bổ nhiệm chức vụ (2.4)' },
-                  { value: 'Điều chuyển và bổ nhiệm', label: 'Điều chuyển và bổ nhiệm' },
+                  { value: 'Điều chuyển', label: 'Điều chuyển' },
+                  { value: 'Bổ nhiệm', label: 'Bổ nhiệm' },
+                  { value: 'Miễn nhiệm', label: 'Miễn nhiệm' },
+                  {
+                    value: 'Điều chuyển và bổ nhiệm',
+                    label: 'Điều chuyển và bổ nhiệm',
+                  },
                 ]}
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ngày hiệu lực (NgayHieuLuc) *
+                Số quyết định *
+              </label>
+              <Input
+                required
+                value={decisionNumber}
+                onChange={(e) => setDecisionNumber(e.target.value)}
+                placeholder="VD: 02/2026/QD-NS"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Ngày ký quyết định *
+              </label>
+              <Input
+                type="date"
+                required
+                max={state.today}
+                value={signedDate}
+                onChange={(e) => setSignedDate(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Ngày hiệu lực *
               </label>
               <Input
                 type="date"
@@ -379,14 +518,24 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
 
             <div className="sm:col-span-2">
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Ghi chú (GhiChu) *
+                Người ký quyết định *
+              </label>
+              <Input
+                required
+                value={signer}
+                onChange={(e) => setSigner(e.target.value)}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Nội dung quyết định / Lý do biến động *
               </label>
               <Input.TextArea
-                required
                 rows={3}
+                required
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Ghi chú nội dung điều chuyển phòng ban hoặc bổ nhiệm chức vụ..."
               />
             </div>
           </div>
@@ -394,10 +543,76 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
           <div className="flex justify-end gap-2 pt-2">
             <Button onClick={() => setFormOpen(false)}>Đóng</Button>
             <Button type="primary" htmlType="submit" loading={submitting}>
-              Lưu quá trình công tác
+              Lưu quyết định & Cập nhật hồ sơ
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal Chi tiết Quyết định */}
+      <Modal
+        open={!!detailDecision}
+        title="Chi tiết Quyết định nhân sự (Thực thể QUYETDINH)"
+        onCancel={() => setDetailDecision(null)}
+        width={640}
+        footer={
+          <Button onClick={() => setDetailDecision(null)}>Đóng</Button>
+        }
+      >
+        {detailDecision && (
+          <div className="space-y-4">
+            <Descriptions
+              bordered
+              size="small"
+              column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
+            >
+              <Descriptions.Item label="Mã bản ghi">
+                <Text code>{detailDecision.id}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Số quyết định">
+                <Text code>{detailDecision.number}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Loại quyết định">
+                {detailDecision.type}
+              </Descriptions.Item>
+              <Descriptions.Item label="Người ký">
+                {detailDecision.signer}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày ký">
+                {formatDate(detailDecision.signed_date)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày hiệu lực">
+                {formatDate(detailDecision.effective_date)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Nội dung" span={2}>
+                {detailDecision.content}
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Divider orientation="left" plain>
+              Nhân sự áp dụng theo quyết định này
+            </Divider>
+            <div className="space-y-2">
+              {state.assignments
+                .filter((a) => a.decision_id === detailDecision.id)
+                .map((a) => (
+                  <Card key={a.id} size="small">
+                    <div className="flex justify-between text-xs">
+                      <strong>
+                        {emp(a.employee_id)?.name || 'Nhân viên'}
+                      </strong>
+                      <Text type="secondary">
+                        {deptName(a.old_department_id)} →{' '}
+                        {deptName(a.new_department_id)} |{' '}
+                        {posName(a.old_position_id)} →{' '}
+                        {posName(a.new_position_id)}
+                      </Text>
+                    </div>
+                  </Card>
+                ))}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );
