@@ -76,9 +76,11 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   const selectedRole = Form.useWatch('vaitro', empForm);
   const selectedPosition = Form.useWatch('macv', empForm);
   const accountEmail = Form.useWatch('email', empForm);
-  const isDirector = selectedRole === 'director' ||
-    state.positions.find((p) => p.macv === selectedPosition)?.tencv === 'Giám đốc' ||
-    (!!editingEmp && editingEmp.mapb === null);
+  const isDirector = editingEmp
+    ? editingEmp.mapb === null ||
+      !!state.positions.find((p) => p.macv === editingEmp.macv)?.ladieuhanh
+    : selectedRole === 'director' ||
+      !!state.positions.find((p) => p.macv === selectedPosition)?.ladieuhanh;
 
   const deptName = (id: string | null) =>
     state.departments.find((d) => d.mapb === id)?.tenpb || id || 'Không thuộc phòng ban';
@@ -745,8 +747,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             {!isDirector && <Form.Item
               name="mapb"
               label="Phòng ban"
-              rules={[{ required: true }]}
-              preserve={false}
+              rules={[{ required: !editingEmp, message: 'Chọn phòng ban' }]}
             >
               <Select
                 disabled={!!editingEmp}
