@@ -1,156 +1,156 @@
 export type UserRole = 'admin' | 'hr' | 'manager' | 'employee' | 'director';
 
 export interface SessionUser {
-  matk: string;
-  tendangnhap: string;
-  vaitro: UserRole;
-  manv: string;
-  hoten: string;
-  mapb: string | null;
+  MaTK: string;
+  TenDangNhap: string;
+  VaiTro: UserRole;
+  MaNV: string;
+  HoTen: string;
+  MaPB: string | null;
 }
 
 export interface Department {
-  mapb: string;
-  tenpb: string;
-  mota: string;
-  ngaythanhlap: string;
-  matruongphong?: string | null;
-  hoatdong?: boolean;
+  MaPB: string;
+  TenPB: string;
+  MoTa: string;
+  NgayThanhLap: string;
+  MaTruongPhong?: string | null;
+  HoatDong?: boolean;
 }
 
 export interface Position {
-  macv: string;
-  tencv: string;
-  mota: string;
-  capbac: number;
-  ladieuhanh?: boolean;
-  vaitromacdinh?: string | null;
-  hoatdong?: boolean;
+  MaCV: string;
+  TenCV: string;
+  MoTa: string;
+  CapBac: number;
+  LaDieuHanh?: boolean;
+  VaiTroMacDinh?: string | null;
+  HoatDong?: boolean;
 }
 
 export interface Employee {
-  manv: string;
-  hoten: string;
-  ngaysinh: string;
-  gioitinh: 'Nam' | 'Nữ' | 'Khác';
-  diachi: string;
-  sodienthoai: string;
-  email: string;
-  ngayvaolam: string;
-  trangthai: 'Đang làm việc' | 'Thử việc' | 'Đã nghỉ việc' | 'Đã lưu trữ';
-  ngayluutru: string | null;
-  mapb: string | null;
-  macv: string;
-  phienban?: number;
+  MaNV: string;
+  HoTen: string;
+  NgaySinh: string;
+  GioiTinh: 'Nam' | 'Nữ' | 'Khác';
+  DiaChi: string;
+  SoDienThoai: string;
+  Email: string;
+  NgayVaoLam: string;
+  TrangThai: 'Đang làm việc' | 'Thử việc' | 'Đã nghỉ việc' | 'Đã lưu trữ';
+  NgayLuuTru: string | null;
+  MaPB: string | null;
+  MaCV: string;
+  PhienBan?: number;
 }
 
 export interface Contract {
-  mahd: string;
-  manv: string;
-  loaihd: 'Thử việc' | 'Xác định thời hạn' | 'Không xác định thời hạn';
-  ngaybatdau: string;
-  ngayketthuc: string | null;
-  ngayketthucgoc?: string | null;
-  mucluong: number | null;
-  trangthai: string;
-  ngaychamdut: string | null;
-  lydochamdut: string | null;
-  loaichamdut?: string | null;
-  maqdchamdut?: string | null;
-  sohd?: string | null;
+  MaHD: string;
+  MaNV: string;
+  LoaiHD: 'Thử việc' | 'Xác định thời hạn' | 'Không xác định thời hạn';
+  NgayBatDau: string;
+  NgayKetThuc: string | null;
+  NgayKetThucGoc?: string | null;
+  MucLuong: number | null;
+  TrangThai: string;
+  NgayChamDut: string | null;
+  LyDoChamDut: string | null;
+  LoaiChamDut?: string | null;
+  MaQDChamDut?: string | null;
+  SoHD?: string | null;
 }
 
 export interface ContractExtension {
-  magh: string;
-  mahd: string;
-  langiahan: number;
-  ngaylap: string;
-  ngayketthuccu: string | null;
-  ngayketthucmoi: string | null;
-  loaiphuluc: string;
-  luongcu: number | null;
-  luongmoi: number | null;
-  lydo: string;
-  ngayhieuluc?: string | null;
-  daapdung?: boolean;
-  maqd?: string | null;
+  MaGH: string;
+  MaHD: string;
+  LanGiaHan: number;
+  NgayLap: string;
+  NgayKetThucCu: string | null;
+  NgayKetThucMoi: string | null;
+  LoaiPhuLuc: string;
+  LuongCu: number | null;
+  LuongMoi: number | null;
+  LyDo: string;
+  NgayHieuLuc?: string | null;
+  DaApDung?: boolean;
+  MaQD?: string | null;
 }
 
 export interface Decision {
-  maqd: string;
-  soqd: string;
-  loaiqd: string;
-  ngayky: string;
-  ngayhieuluc: string;
-  nguoiky: string;
-  noidung: string;
+  MaQD: string;
+  SoQD: string;
+  LoaiQD: string;
+  NgayKy: string;
+  NgayHieuLuc: string;
+  NguoiKy: string;
+  NoiDung: string;
 }
 
 export interface Assignment {
-  maqt: string;
-  manv: string;
-  maqd: string;
-  loaibiendong: 'Điều chuyển' | 'Bổ nhiệm' | 'Miễn nhiệm' | 'Điều chuyển và bổ nhiệm';
-  mapbcu: string | null;
-  mapbmoi: string;
-  macvcu: string;
-  macvmoi: string;
-  ngayhieuluc: string;
-  lydo: string;
-  trangthai?: 'Chờ hiệu lực' | 'Hiệu lực' | 'Đã hủy';
-  lydohuy?: string | null;
+  MaQT: string;
+  MaNV: string;
+  MaQD: string;
+  LoaiBienDong: 'Điều chuyển' | 'Bổ nhiệm' | 'Miễn nhiệm' | 'Điều chuyển và bổ nhiệm';
+  MaPBCu: string | null;
+  MaPBMoi: string;
+  MaCVCu: string;
+  MaCVMoi: string;
+  NgayHieuLuc: string;
+  LyDo: string;
+  TrangThai?: 'Chờ hiệu lực' | 'Hiệu lực' | 'Đã hủy';
+  LyDoHuy?: string | null;
 }
 
 export interface LeaveType {
-  maloai: string;
-  tenloai: string;
-  songaytoida: number;
-  truphepnam: number;
+  MaLoai: string;
+  TenLoai: string;
+  SoNgayToiDa: number;
+  TruPhepNam: number;
 }
 
 export interface LeaveRequest {
-  madon: string;
-  manv: string;
-  maloai: string;
-  ngaynop: string;
-  tungay: string;
-  denngay: string;
-  songay: number;
-  lydo: string;
-  trangthai: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối' | 'Đã hủy';
-  manvduyet: string | null;
+  MaDon: string;
+  MaNV: string;
+  MaLoai: string;
+  NgayNop: string;
+  TuNgay: string;
+  DenNgay: string;
+  SoNgay: number;
+  LyDo: string;
+  TrangThai: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối' | 'Đã hủy';
+  MaNVDuyet: string | null;
   tennguoiduyet?: string | null;
-  ngayduyet: string | null;
-  ghichuduyet: string | null;
+  NgayDuyet: string | null;
+  GhiChuDuyet: string | null;
   coquyenduyet?: boolean;
 }
 
 export interface LeaveBalance {
-  manv: string;
-  nam: number;
-  tongsongayphep: number;
-  songaydanghi: number;
-  songayconlai: number;
+  MaNV: string;
+  Nam: number;
+  TongSoNgayPhep: number;
+  SoNgayDaNghi: number;
+  SoNgayConLai: number;
 }
 
 export interface UserAccount {
-  matk: string;
-  tendangnhap: string;
-  vaitro: UserRole;
-  manv: string;
-  hoatdong: number;
-  hoten: string;
+  MaTK: string;
+  TenDangNhap: string;
+  VaiTro: UserRole;
+  MaNV: string;
+  HoatDong: number;
+  HoTen: string;
 }
 
 export interface AuditEntry {
-  mank: number;
-  matk: string | null;
-  tendangnhap: string | null;
-  hanhdong: string;
-  doituong: string;
-  thoigian: string;
-  chitiet?: Record<string, unknown> | null;
-  diachiip?: string | null;
+  MaNK: number;
+  MaTK: string | null;
+  TenDangNhap: string | null;
+  HanhDong: string;
+  DoiTuong: string;
+  ThoiGian: string;
+  ChiTiet?: Record<string, unknown> | null;
+  DiaChiIP?: string | null;
 }
 
 export interface AppState {

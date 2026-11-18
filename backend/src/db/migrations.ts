@@ -14,35 +14,35 @@ interface Migration {
 }
 
 const DATE_COLUMNS: [string, string][] = [
-  ['phongban', 'ngaythanhlap'],
-  ['nhanvien', 'ngaysinh'],
-  ['nhanvien', 'ngayvaolam'],
-  ['nhanvien', 'ngayluutru'],
-  ['hopdong', 'ngaybatdau'],
-  ['hopdong', 'ngayketthuc'],
-  ['hopdong', 'ngaychamdut'],
-  ['giahanhopdong', 'ngaylap'],
-  ['giahanhopdong', 'ngayketthuccu'],
-  ['giahanhopdong', 'ngayketthucmoi'],
-  ['quyetdinh', 'ngayky'],
-  ['quyetdinh', 'ngayhieuluc'],
-  ['quatrinhcongtac', 'ngayhieuluc'],
-  ['donnghiphep', 'ngaynop'],
-  ['donnghiphep', 'tungay'],
-  ['donnghiphep', 'denngay'],
-  ['donnghiphep', 'ngayduyet'],
+  ['phongban', 'NgayThanhLap'],
+  ['nhanvien', 'NgaySinh'],
+  ['nhanvien', 'NgayVaoLam'],
+  ['nhanvien', 'NgayLuuTru'],
+  ['hopdong', 'NgayBatDau'],
+  ['hopdong', 'NgayKetThuc'],
+  ['hopdong', 'NgayChamDut'],
+  ['giahanhopdong', 'NgayLap'],
+  ['giahanhopdong', 'NgayKetThucCu'],
+  ['giahanhopdong', 'NgayKetThucMoi'],
+  ['quyetdinh', 'NgayKy'],
+  ['quyetdinh', 'NgayHieuLuc'],
+  ['quatrinhcongtac', 'NgayHieuLuc'],
+  ['donnghiphep', 'NgayNop'],
+  ['donnghiphep', 'TuNgay'],
+  ['donnghiphep', 'DenNgay'],
+  ['donnghiphep', 'NgayDuyet'],
 ];
 
 const MONEY_COLUMNS: [string, string][] = [
-  ['hopdong', 'mucluong'],
-  ['giahanhopdong', 'luongcu'],
-  ['giahanhopdong', 'luongmoi'],
+  ['hopdong', 'MucLuong'],
+  ['giahanhopdong', 'LuongCu'],
+  ['giahanhopdong', 'LuongMoi'],
 ];
 
 const typeConversion = [
-  ...DATE_COLUMNS.map(([t, c]) => `ALTER TABLE ${t} ALTER COLUMN ${c} TYPE DATE USING ${c}::date;`),
+  ...DATE_COLUMNS.map(([t, c]) => `ALTER TABLE ${t} ALTER COLUMN "${c}" TYPE DATE USING "${c}"::date;`),
   ...MONEY_COLUMNS.map(
-    ([t, c]) => `ALTER TABLE ${t} ALTER COLUMN ${c} TYPE NUMERIC(15,2) USING ${c}::numeric;`
+    ([t, c]) => `ALTER TABLE ${t} ALTER COLUMN "${c}" TYPE NUMERIC(15,2) USING "${c}"::numeric;`
   ),
 ].join('\n');
 
@@ -55,16 +55,16 @@ export const migrations: Migration[] = [
   {
     id: '002_domain_extensions',
     sql: `
-      UPDATE chucvu SET ladieuhanh = TRUE, vaitromacdinh = 'director' WHERE tencv = 'Giám đốc';
-      UPDATE chucvu SET vaitromacdinh = 'manager' WHERE tencv = 'Trưởng phòng' AND vaitromacdinh IS NULL;
-      UPDATE chucvu SET vaitromacdinh = 'employee'
-        WHERE tencv IN ('Chuyên viên', 'Thực tập sinh') AND vaitromacdinh IS NULL;
-      UPDATE phongban p SET matruongphong = t.manv
-        FROM taikhoan t JOIN nhanvien n ON n.manv = t.manv
-        WHERE t.vaitro = 'manager' AND t.hoatdong = 1 AND n.mapb = p.mapb
-          AND n.trangthai NOT IN ('Đã lưu trữ', 'Đã nghỉ việc') AND p.matruongphong IS NULL;
-      UPDATE hopdong SET ngayketthucgoc = ngayketthuc WHERE ngayketthucgoc IS NULL;
-      UPDATE giahanhopdong SET ngayhieuluc = ngaylap WHERE ngayhieuluc IS NULL;
+      UPDATE chucvu SET "LaDieuHanh" = TRUE, "VaiTroMacDinh" = 'director' WHERE "TenCV" = 'Giám đốc';
+      UPDATE chucvu SET "VaiTroMacDinh" = 'manager' WHERE "TenCV" = 'Trưởng phòng' AND "VaiTroMacDinh" IS NULL;
+      UPDATE chucvu SET "VaiTroMacDinh" = 'employee'
+        WHERE "TenCV" IN ('Chuyên viên', 'Thực tập sinh') AND "VaiTroMacDinh" IS NULL;
+      UPDATE phongban p SET "MaTruongPhong" = t."MaNV"
+        FROM taikhoan t JOIN nhanvien n ON n."MaNV" = t."MaNV"
+        WHERE t."VaiTro" = 'manager' AND t."HoatDong" = 1 AND n."MaPB" = p."MaPB"
+          AND n."TrangThai" NOT IN ('Đã lưu trữ', 'Đã nghỉ việc') AND p."MaTruongPhong" IS NULL;
+      UPDATE hopdong SET "NgayKetThucGoc" = "NgayKetThuc" WHERE "NgayKetThucGoc" IS NULL;
+      UPDATE giahanhopdong SET "NgayHieuLuc" = "NgayLap" WHERE "NgayHieuLuc" IS NULL;
     `,
   },
   {
@@ -75,13 +75,13 @@ export const migrations: Migration[] = [
   {
     id: '006_restore_10_entity_erd_tables',
     sql: `
-      INSERT INTO quyetdinh(maqd, soqd, loaiqd, ngayky, ngayhieuluc, nguoiky, noidung)
+      INSERT INTO quyetdinh("MaQD", "SoQD", "LoaiQD", "NgayKy", "NgayHieuLuc", "NguoiKy", "NoiDung")
       VALUES
         ('QD001', '01/2026/QD-NS', 'Bổ nhiệm', CURRENT_DATE, CURRENT_DATE, 'Trần Hải Đăng', 'Bổ nhiệm Trưởng phòng Marketing'),
         ('QD002', '02/2026/QD-DC', 'Điều chuyển', CURRENT_DATE, CURRENT_DATE, 'Trần Hải Đăng', 'Điều chuyển nhân sự hỗ trợ dự án'),
         ('QD003', '03/2026/QD-MN', 'Miễn nhiệm', CURRENT_DATE, CURRENT_DATE, 'Trần Hải Đăng', 'Miễn nhiệm chức vụ phó phòng theo nguyện vọng')
-      ON CONFLICT (maqd) DO NOTHING;
-      UPDATE quatrinhcongtac SET maqd = 'QD001' WHERE maqd IS NULL;
+      ON CONFLICT ("MaQD") DO NOTHING;
+      UPDATE quatrinhcongtac SET "MaQD" = 'QD001' WHERE "MaQD" IS NULL;
     `,
   },
 ];
@@ -90,20 +90,20 @@ export const migrations: Migration[] = [
 export const LEAVE_BALANCE_VIEW = `
 CREATE OR REPLACE VIEW v_songayphep AS
 WITH dadung AS (
-  SELECT d.manv, EXTRACT(YEAR FROM d.tungay)::int AS nam, SUM(d.songay) AS songay
+  SELECT d."MaNV", EXTRACT(YEAR FROM d."TuNgay")::int AS "Nam", SUM(d."SoNgay") AS "SoNgay"
   FROM donnghiphep d
-  JOIN loainghiphep l ON l.maloai = d.maloai
-  WHERE d.trangthai = 'Đã duyệt' AND l.truphepnam = 1
-  GROUP BY d.manv, EXTRACT(YEAR FROM d.tungay)
+  JOIN loainghiphep l ON l."MaLoai" = d."MaLoai"
+  WHERE d."TrangThai" = 'Đã duyệt' AND l."TruPhepNam" = 1
+  GROUP BY d."MaNV", EXTRACT(YEAR FROM d."TuNgay")
 )
 SELECT
-  s.manv,
-  s.nam,
-  s.tongsongayphep,
-  COALESCE(u.songay, 0) AS songaydanghi,
-  s.tongsongayphep - COALESCE(u.songay, 0) AS songayconlai
+  s."MaNV",
+  s."Nam",
+  s."TongSoNgayPhep",
+  COALESCE(u."SoNgay", 0) AS "SoNgayDaNghi",
+  s."TongSoNgayPhep" - COALESCE(u."SoNgay", 0) AS "SoNgayConLai"
 FROM songayphep s
-LEFT JOIN dadung u ON u.manv = s.manv AND u.nam = s.nam;`;
+LEFT JOIN dadung u ON u."MaNV" = s."MaNV" AND u."Nam" = s."Nam";`;
 
 export async function runMigrations(pool: Pool): Promise<void> {
   const client = await pool.connect();

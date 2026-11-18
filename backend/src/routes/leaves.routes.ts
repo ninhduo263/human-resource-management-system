@@ -17,8 +17,8 @@ export const leavesRouter = Router();
 
 leavesRouter.use(requireAuth);
 
-async function lockEmployee(tx: DbExecutor, manv: string): Promise<void> {
-  await tx.query('SELECT manv FROM nhanvien WHERE manv = $1 FOR UPDATE', [manv]);
+async function lockEmployee(tx: DbExecutor, MaNV: string): Promise<void> {
+  await tx.query('SELECT "MaNV" FROM nhanvien WHERE "MaNV" = $1 FOR UPDATE', [MaNV]);
 }
 
 /** Tách khoảng nghỉ thành các đoạn theo từng năm dương lịch. */
@@ -42,63 +42,63 @@ leavesRouter.post(
     requireRole(u, ['admin', 'hr', 'manager', 'employee', 'director']);
 
     const b = req.body;
-    const selfOnly = ['employee', 'manager', 'director'].includes(u.vaitro);
-    const manv = selfOnly ? u.manv : text(b, 'manv');
-    const tungay = date(b, 'tungay');
-    const denngay = date(b, 'denngay');
-    const lydo = text(b, 'lydo', 1000);
+    const selfOnly = ['employee', 'manager', 'director'].includes(u.VaiTro);
+    const MaNV = selfOnly ? u.MaNV : text(b, 'MaNV');
+    const TuNgay = date(b, 'TuNgay');
+    const DenNgay = date(b, 'DenNgay');
+    const LyDo = text(b, 'LyDo', 1000);
     const currentDay = today();
 
     // Chỉ nhân sự/quản trị viên được nhập đơn lùi ngày (ốm đột xuất, quên làm đơn).
-    if (tungay < currentDay && !['admin', 'hr'].includes(u.vaitro)) {
+    if (TuNgay < currentDay && !['admin', 'hr'].includes(u.VaiTro)) {
       fail('Ngày nghỉ không được trước hôm nay.');
     }
-    if (denngay < tungay) fail('Ngày kết thúc không được trước ngày bắt đầu.');
+    if (DenNgay < TuNgay) fail('Ngày kết thúc không được trước ngày bắt đầu.');
 
     const ids = await withTransaction(async (tx) => {
-      await lockEmployee(tx, manv);
-      const e = await requireActiveEmployee(tx, manv);
-      const loai = await existsInTable<{ maloai: string; songaytoida: number }>(
+      await lockEmployee(tx, MaNV);
+      const e = await requireActiveEmployee(tx, MaNV);
+      const loai = await existsInTable<{ MaLoai: string; SoNgayToiDa: number }>(
         tx,
         'loainghiphep',
-        text(b, 'maloai')
+        text(b, 'MaLoai')
       );
-      if (tungay < e.ngayvaolam) fail('Ngày nghỉ không được trước ngày vào làm.');
+      if (TuNgay < e.NgayVaoLam) fail('Ngày nghỉ không được trước ngày vào làm.');
 
-      const holidays = await loadHolidays(tx, tungay, denngay);
-      const segments = splitByYear(tungay, denngay)
-        .map(([from, to]) => ({ from, to, songay: countWorkingDays(from, to, holidays) }))
-        .filter((s) => s.songay > 0);
+      const holidays = await loadHolidays(tx, TuNgay, DenNgay);
+      const segments = splitByYear(TuNgay, DenNgay)
+        .map(([from, to]) => ({ from, to, SoNgay: countWorkingDays(from, to, holidays) }))
+        .filter((s) => s.SoNgay > 0);
       if (!segments.length) fail('Khoảng nghỉ không có ngày làm việc nào (cuối tuần hoặc ngày lễ).');
 
-      const total = segments.reduce((sum, s) => sum + s.songay, 0);
-      if (total > Number(loai.songaytoida)) {
-        fail(`Loại nghỉ này tối đa ${loai.songaytoida} ngày làm việc mỗi đơn.`);
+      const total = segments.reduce((sum, s) => sum + s.SoNgay, 0);
+      if (total > Number(loai.SoNgayToiDa)) {
+        fail(`Loại nghỉ này tối đa ${loai.SoNgayToiDa} ngày làm việc mỗi đơn.`);
       }
 
       const overlap = await tx.one(
-        `SELECT madon FROM donnghiphep
-         WHERE manv = $1 AND trangthai IN ('Chờ duyệt', 'Đã duyệt')
-           AND tungay <= $2 AND denngay >= $3`,
-        [manv, denngay, tungay]
+        `SELECT "MaDon" FROM donnghiphep
+         WHERE "MaNV" = $1 AND "TrangThai" IN ('Chờ duyệt', 'Đã duyệt')
+           AND "TuNgay" <= $2 AND "DenNgay" >= $3`,
+        [MaNV, DenNgay, TuNgay]
       );
       if (overlap) fail('Khoảng nghỉ trùng với đơn đang chờ duyệt hoặc đã duyệt.');
 
       const created: string[] = [];
       for (const s of segments) {
-        const madon = generateId('NP');
+        const MaDon = generateId('NP');
         await tx.run(
-          `INSERT INTO donnghiphep(madon, manv, maloai, ngaynop, tungay, denngay, songay, lydo, trangthai)
+          `INSERT INTO donnghiphep("MaDon", "MaNV", "MaLoai", "NgayNop", "TuNgay", "DenNgay", "SoNgay", "LyDo", "TrangThai")
            VALUES($1, $2, $3, $4, $5, $6, $7, $8, 'Chờ duyệt')`,
-          [madon, manv, loai.maloai, currentDay, s.from, s.to, s.songay, lydo]
+          [MaDon, MaNV, loai.MaLoai, currentDay, s.from, s.to, s.SoNgay, LyDo]
         );
-        await auditLog(tx, u.matk, 'Nộp đơn nghỉ phép', madon, {
-          tungay: s.from,
-          denngay: s.to,
-          songay: s.songay,
+        await auditLog(tx, u.MaTK, 'Nộp đơn nghỉ phép', MaDon, {
+          TuNgay: s.from,
+          DenNgay: s.to,
+          SoNgay: s.SoNgay,
           nhaplui: s.from < currentDay,
         });
-        created.push(madon);
+        created.push(MaDon);
       }
       return created;
     });
@@ -115,24 +115,24 @@ leavesRouter.post(
 
     await withTransaction(async (tx) => {
       const probe = await existsInTable<any>(tx, 'donnghiphep', rid);
-      await lockEmployee(tx, probe.manv);
-      const leave = (await tx.one<any>('SELECT * FROM donnghiphep WHERE madon = $1 FOR UPDATE', [rid]))!;
-      const privileged = ['admin', 'hr'].includes(u.vaitro);
-      const owner = leave.manv === u.manv;
+      await lockEmployee(tx, probe.MaNV);
+      const leave = (await tx.one<any>('SELECT * FROM donnghiphep WHERE "MaDon" = $1 FOR UPDATE', [rid]))!;
+      const privileged = ['admin', 'hr'].includes(u.VaiTro);
+      const owner = leave.MaNV === u.MaNV;
       if (!owner && !privileged) fail('Bạn không có quyền hủy đơn này.', 403);
 
       const currentDay = today();
-      if (leave.trangthai === 'Chờ duyệt') {
+      if (leave.TrangThai === 'Chờ duyệt') {
         // mọi người có quyền ở trên đều được hủy
-      } else if (leave.trangthai === 'Đã duyệt') {
-        const allowed = privileged ? leave.denngay >= currentDay : leave.tungay > currentDay;
+      } else if (leave.TrangThai === 'Đã duyệt') {
+        const allowed = privileged ? leave.DenNgay >= currentDay : leave.TuNgay > currentDay;
         if (!allowed) fail('Đơn đã duyệt chỉ hủy được khi chưa đến ngày nghỉ.');
       } else {
         fail('Đơn đã được xử lý.');
       }
 
-      await tx.run(`UPDATE donnghiphep SET trangthai = 'Đã hủy' WHERE madon = $1`, [rid]);
-      await auditLog(tx, u.matk, 'Hủy đơn nghỉ phép', rid, { trangthaitruoc: leave.trangthai });
+      await tx.run(`UPDATE donnghiphep SET "TrangThai" = 'Đã hủy' WHERE "MaDon" = $1`, [rid]);
+      await auditLog(tx, u.MaTK, 'Hủy đơn nghỉ phép', rid, { trangthaitruoc: leave.TrangThai });
     });
     res.json({ ok: true });
   })
@@ -146,72 +146,72 @@ leavesRouter.post(
     requireRole(u, ['admin', 'manager', 'director', 'hr']);
     const rid = paramId(req);
     const b = req.body;
-    const trangthai = choice(b, 'trangthai', ['Đã duyệt', 'Từ chối'] as const);
-    const ghichuduyet = optional(b, 'ghichuduyet', 1000);
-    if (trangthai === 'Từ chối' && !ghichuduyet) fail('Vui lòng nhập lý do từ chối.');
+    const TrangThai = choice(b, 'TrangThai', ['Đã duyệt', 'Từ chối'] as const);
+    const GhiChuDuyet = optional(b, 'GhiChuDuyet', 1000);
+    if (TrangThai === 'Từ chối' && !GhiChuDuyet) fail('Vui lòng nhập lý do từ chối.');
 
     await withTransaction(async (tx) => {
       const probe = await existsInTable<any>(tx, 'donnghiphep', rid);
       // Khóa nhân viên để các lần duyệt đồng thời cùng một người được thực hiện lần lượt.
-      await lockEmployee(tx, probe.manv);
-      const leave = (await tx.one<any>('SELECT * FROM donnghiphep WHERE madon = $1 FOR UPDATE', [rid]))!;
-      if (leave.trangthai !== 'Chờ duyệt') fail('Đơn đã được xử lý.');
+      await lockEmployee(tx, probe.MaNV);
+      const leave = (await tx.one<any>('SELECT * FROM donnghiphep WHERE "MaDon" = $1 FOR UPDATE', [rid]))!;
+      if (leave.TrangThai !== 'Chờ duyệt') fail('Đơn đã được xử lý.');
 
-      const e = await existsInTable<any>(tx, 'nhanvien', leave.manv);
-      if (e.manv === u.manv) fail('Không được tự duyệt đơn nghỉ phép.');
+      const e = await existsInTable<any>(tx, 'nhanvien', leave.MaNV);
+      if (e.MaNV === u.MaNV) fail('Không được tự duyệt đơn nghỉ phép.');
 
-      const target = await tx.one<{ capbac: number }>(
-        `SELECT c.capbac FROM nhanvien n JOIN chucvu c ON c.macv = n.macv WHERE n.manv = $1`,
-        [e.manv]
+      const target = await tx.one<{ CapBac: number }>(
+        `SELECT c."CapBac" FROM nhanvien n JOIN chucvu c ON c."MaCV" = n."MaCV" WHERE n."MaNV" = $1`,
+        [e.MaNV]
       );
-      const reviewer = await tx.one<SessionUser & { capbac: number }>(
-        `SELECT t.matk, t.tendangnhap, t.vaitro, t.manv, n.hoten, n.mapb, c.capbac
+      const reviewer = await tx.one<SessionUser & { CapBac: number }>(
+        `SELECT t."MaTK", t."TenDangNhap", t."VaiTro", t."MaNV", n."HoTen", n."MaPB", c."CapBac"
          FROM taikhoan t
-         JOIN nhanvien n ON n.manv = t.manv
-         JOIN chucvu c ON c.macv = n.macv
-         WHERE t.matk = $1`,
-        [u.matk]
+         JOIN nhanvien n ON n."MaNV" = t."MaNV"
+         JOIN chucvu c ON c."MaCV" = n."MaCV"
+         WHERE t."MaTK" = $1`,
+        [u.MaTK]
       );
-      const deptHead = e.mapb
-        ? await tx.one<{ matruongphong: string | null }>('SELECT matruongphong FROM phongban WHERE mapb = $1', [
-            e.mapb,
+      const deptHead = e.MaPB
+        ? await tx.one<{ MaTruongPhong: string | null }>('SELECT "MaTruongPhong" FROM phongban WHERE "MaPB" = $1', [
+            e.MaPB,
           ])
         : null;
-      const isHead = deptHead?.matruongphong === u.manv;
-      const formerEmployee = ['Đã nghỉ việc', 'Đã lưu trữ'].includes(e.trangthai);
+      const isHead = deptHead?.MaTruongPhong === u.MaNV;
+      const formerEmployee = ['Đã nghỉ việc', 'Đã lưu trữ'].includes(e.TrangThai);
       const canReview =
-        (formerEmployee && ['admin', 'hr'].includes(u.vaitro)) ||
+        (formerEmployee && ['admin', 'hr'].includes(u.VaiTro)) ||
         (!formerEmployee &&
           !!reviewer &&
           !!target &&
-          canReviewLeave(reviewer, { ...e, capbac: Number(target.capbac) }, isHead));
+          canReviewLeave(reviewer, { ...e, CapBac: Number(target.CapBac) }, isHead));
       if (!canReview) {
         fail('Bạn không có quyền duyệt đơn nghỉ phép này.', 403);
       }
 
-      const loai = await existsInTable<{ maloai: string; truphepnam: number }>(tx, 'loainghiphep', leave.maloai);
+      const loai = await existsInTable<{ MaLoai: string; TruPhepNam: number }>(tx, 'loainghiphep', leave.MaLoai);
 
-      if (trangthai === 'Đã duyệt' && Number(loai.truphepnam) === 1) {
-        const nam = Number(leave.tungay.slice(0, 4));
-        const tong = await annualTotal(tx, e, nam);
-        const daNghi = await usedAnnualDays(tx, e.manv, nam);
-        if (daNghi + Number(leave.songay) > tong) {
+      if (TrangThai === 'Đã duyệt' && Number(loai.TruPhepNam) === 1) {
+        const Nam = Number(leave.TuNgay.slice(0, 4));
+        const tong = await annualTotal(tx, e, Nam);
+        const daNghi = await usedAnnualDays(tx, e.MaNV, Nam);
+        if (daNghi + Number(leave.SoNgay) > tong) {
           fail(`Nhân viên chỉ còn ${Math.max(tong - daNghi, 0)} ngày phép năm.`);
         }
         await tx.run(
-          `INSERT INTO songayphep(manv, nam, tongsongayphep) VALUES($1, $2, $3)
-           ON CONFLICT (manv, nam) DO NOTHING`,
-          [e.manv, nam, tong]
+          `INSERT INTO songayphep("MaNV", "Nam", "TongSoNgayPhep") VALUES($1, $2, $3)
+           ON CONFLICT ("MaNV", "Nam") DO NOTHING`,
+          [e.MaNV, Nam, tong]
         );
       }
 
       await tx.run(
         `UPDATE donnghiphep
-         SET trangthai = $1, manvduyet = $2, ngayduyet = $3, ghichuduyet = $4
-         WHERE madon = $5`,
-        [trangthai, u.manv, today(), ghichuduyet, rid]
+         SET "TrangThai" = $1, "MaNVDuyet" = $2, "NgayDuyet" = $3, "GhiChuDuyet" = $4
+         WHERE "MaDon" = $5`,
+        [TrangThai, u.MaNV, today(), GhiChuDuyet, rid]
       );
-      await auditLog(tx, u.matk, `${trangthai} đơn nghỉ phép`, rid);
+      await auditLog(tx, u.MaTK, `${TrangThai} đơn nghỉ phép`, rid);
     });
 
     res.json({ ok: true });
@@ -226,27 +226,27 @@ leavesRouter.post(
     requireRole(u, ['admin', 'hr']);
 
     const b = req.body;
-    const manv = text(b, 'manv');
-    const nam = numeric(b, 'nam', 2000, 2100);
-    const tongsongayphep = numeric(b, 'tongsongayphep', 0, 366);
-    if (!Number.isInteger(nam) || !Number.isInteger(tongsongayphep)) {
+    const MaNV = text(b, 'MaNV');
+    const Nam = numeric(b, 'Nam', 2000, 2100);
+    const TongSoNgayPhep = numeric(b, 'TongSoNgayPhep', 0, 366);
+    if (!Number.isInteger(Nam) || !Number.isInteger(TongSoNgayPhep)) {
       fail('Năm và số ngày phép phải là số nguyên.');
     }
 
     await withTransaction(async (tx) => {
-      await lockEmployee(tx, manv);
-      const e = await requireActiveEmployee(tx, manv);
-      const daNghi = await usedAnnualDays(tx, e.manv, nam);
-      if (tongsongayphep < daNghi) fail('Tổng ngày phép không được nhỏ hơn số ngày đã sử dụng.');
+      await lockEmployee(tx, MaNV);
+      const e = await requireActiveEmployee(tx, MaNV);
+      const daNghi = await usedAnnualDays(tx, e.MaNV, Nam);
+      if (TongSoNgayPhep < daNghi) fail('Tổng ngày phép không được nhỏ hơn số ngày đã sử dụng.');
 
-      const before = await annualTotal(tx, e, nam);
+      const before = await annualTotal(tx, e, Nam);
       await tx.run(
-        `INSERT INTO songayphep(manv, nam, tongsongayphep) VALUES($1, $2, $3)
-         ON CONFLICT (manv, nam) DO UPDATE SET tongsongayphep = EXCLUDED.tongsongayphep`,
-        [e.manv, nam, tongsongayphep]
+        `INSERT INTO songayphep("MaNV", "Nam", "TongSoNgayPhep") VALUES($1, $2, $3)
+         ON CONFLICT ("MaNV", "Nam") DO UPDATE SET "TongSoNgayPhep" = EXCLUDED."TongSoNgayPhep"`,
+        [e.MaNV, Nam, TongSoNgayPhep]
       );
-      await auditLog(tx, u.matk, 'Cập nhật quỹ phép', `${e.manv}/${nam}`, {
-        tongsongayphep: { from: before, to: tongsongayphep },
+      await auditLog(tx, u.MaTK, 'Cập nhật quỹ phép', `${e.MaNV}/${Nam}`, {
+        TongSoNgayPhep: { from: before, to: TongSoNgayPhep },
       });
     });
     res.json({ ok: true });
@@ -257,10 +257,10 @@ leavesRouter.post(
 leavesRouter.get(
   '/holidays',
   asyncHandler(async (req, res) => {
-    const nam = Number(req.query.year ?? req.query.nam);
-    const rows = Number.isInteger(nam)
-      ? await db.all('SELECT ngay, tenngayle FROM ngayle WHERE EXTRACT(YEAR FROM ngay) = $1 ORDER BY ngay', [nam])
-      : await db.all('SELECT ngay, tenngayle FROM ngayle ORDER BY ngay');
+    const Nam = Number(req.query.year ?? req.query.Nam);
+    const rows = Number.isInteger(Nam)
+      ? await db.all('SELECT "Ngay", "TenNgayLe" FROM ngayle WHERE EXTRACT(YEAR FROM "Ngay") = $1 ORDER BY "Ngay"', [Nam])
+      : await db.all('SELECT "Ngay", "TenNgayLe" FROM ngayle ORDER BY "Ngay"');
     res.json(rows);
   })
 );
@@ -270,14 +270,14 @@ leavesRouter.post(
   asyncHandler(async (req, res) => {
     const u = req.user!;
     requireRole(u, ['admin', 'hr']);
-    const ngay = date(req.body, 'ngay');
-    const tenngayle = text(req.body, 'tenngayle', 120);
+    const Ngay = date(req.body, 'Ngay');
+    const TenNgayLe = text(req.body, 'TenNgayLe', 120);
     await db.run(
-      `INSERT INTO ngayle(ngay, tenngayle) VALUES($1, $2)
-       ON CONFLICT (ngay) DO UPDATE SET tenngayle = EXCLUDED.tenngayle`,
-      [ngay, tenngayle]
+      `INSERT INTO ngayle("Ngay", "TenNgayLe") VALUES($1, $2)
+       ON CONFLICT ("Ngay") DO UPDATE SET "TenNgayLe" = EXCLUDED."TenNgayLe"`,
+      [Ngay, TenNgayLe]
     );
-    await auditLog(db, u.matk, 'Cập nhật ngày lễ', ngay);
+    await auditLog(db, u.MaTK, 'Cập nhật ngày lễ', Ngay);
     res.status(201).json({ ok: true });
   })
 );
@@ -287,10 +287,10 @@ leavesRouter.delete(
   asyncHandler(async (req, res) => {
     const u = req.user!;
     requireRole(u, ['admin', 'hr']);
-    const ngay = paramId(req, 'day');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(ngay)) fail('Ngày không hợp lệ.');
-    await db.run('DELETE FROM ngayle WHERE ngay = $1', [ngay]);
-    await auditLog(db, u.matk, 'Xóa ngày lễ', ngay);
+    const Ngay = paramId(req, 'day');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(Ngay)) fail('Ngày không hợp lệ.');
+    await db.run('DELETE FROM ngayle WHERE "Ngay" = $1', [Ngay]);
+    await auditLog(db, u.MaTK, 'Xóa ngày lễ', Ngay);
     res.json({ ok: true });
   })
 );

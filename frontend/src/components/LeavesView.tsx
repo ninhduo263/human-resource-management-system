@@ -72,57 +72,57 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
   const [reviewForm] = Form.useForm();
   const [balanceForm] = Form.useForm();
 
-  const emp = (id: string) => state.employees.find((e) => e.manv === id);
+  const emp = (id: string) => state.employees.find((e) => e.MaNV === id);
   const deptName = (id: string | null) =>
-    state.departments.find((d) => d.mapb === id)?.tenpb || id || 'Không thuộc phòng ban';
+    state.departments.find((d) => d.MaPB === id)?.TenPB || id || 'Không thuộc phòng ban';
   const leaveTypeName = (id: string) =>
-    state.leaveTypes.find((t) => t.maloai === id)?.tenloai || id;
+    state.leaveTypes.find((t) => t.MaLoai === id)?.TenLoai || id;
 
   // Quyền duyệt do máy chủ quyết định theo vai trò, phòng ban và tuyến duyệt.
   const canReviewLeave = (l: LeaveRequest) => l.coquyenduyet === true;
 
   // Đơn chờ duyệt: chủ đơn hoặc HR/admin hủy được; đơn đã duyệt: chỉ khi chưa đến ngày nghỉ.
   const canCancelLeave = (l: LeaveRequest) => {
-    const privileged = ['admin', 'hr'].includes(state.user.vaitro);
-    const owner = l.manv === state.user.manv;
+    const privileged = ['admin', 'hr'].includes(state.user.VaiTro);
+    const owner = l.MaNV === state.user.MaNV;
     if (!owner && !privileged) return false;
-    if (l.trangthai === 'Chờ duyệt') return true;
-    if (l.trangthai === 'Đã duyệt') {
-      return privileged ? l.denngay >= state.today : l.tungay > state.today;
+    if (l.TrangThai === 'Chờ duyệt') return true;
+    if (l.TrangThai === 'Đã duyệt') {
+      return privileged ? l.DenNgay >= state.today : l.TuNgay > state.today;
     }
     return false;
   };
 
   const filteredRequests = state.leaves.filter(
     (l) =>
-      (!statusFilter || l.trangthai === statusFilter) &&
-      matchEmployeeQuery(emp(l.manv), search, deptFilter)
+      (!statusFilter || l.TrangThai === statusFilter) &&
+      matchEmployeeQuery(emp(l.MaNV), search, deptFilter)
   );
 
   const availableYears = Array.from(
-    new Set([currentYear, ...state.balances.map((b) => b.nam)])
+    new Set([currentYear, ...state.balances.map((b) => b.Nam)])
   ).sort((a, b) => b - a);
 
   const filteredBalances = state.balances.filter((b) => {
-    const e = emp(b.manv);
+    const e = emp(b.MaNV);
     return (
-      b.nam === selectedYear &&
+      b.Nam === selectedYear &&
       e &&
-      ['Đang làm việc', 'Thử việc'].includes(e.trangthai) &&
+      ['Đang làm việc', 'Thử việc'].includes(e.TrangThai) &&
       matchEmployeeQuery(e, search, deptFilter)
     );
   });
 
-  const isSelfOnly = ['employee', 'manager', 'director'].includes(state.user.vaitro);
+  const isSelfOnly = ['employee', 'manager', 'director'].includes(state.user.VaiTro);
 
   const handleOpenCreate = () => {
     setFormError('');
     leaveForm.resetFields();
     leaveForm.setFieldsValue({
-      manv: state.user.manv,
-      maloai: state.leaveTypes[0]?.maloai,
-      tungay: state.today,
-      denngay: state.today,
+      MaNV: state.user.MaNV,
+      MaLoai: state.leaveTypes[0]?.MaLoai,
+      TuNgay: state.today,
+      DenNgay: state.today,
     });
     setCreateOpen(true);
   };
@@ -135,7 +135,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         '/api/leaves',
         {
           ...values,
-          manv: isSelfOnly ? state.user.manv : values.manv,
+          MaNV: isSelfOnly ? state.user.MaNV : values.MaNV,
         },
         'POST'
       );
@@ -152,7 +152,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
   const handleCancelLeave = async (l: LeaveRequest) => {
     try {
       await apiRequest(
-        `/api/leaves/${encodeURIComponent(l.madon)}/cancel`,
+        `/api/leaves/${encodeURIComponent(l.MaDon)}/cancel`,
         {},
         'POST'
       );
@@ -170,10 +170,10 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
     setSubmitting(true);
     try {
       await apiRequest(
-        `/api/leaves/${encodeURIComponent(reviewModal.leave.madon)}/review`,
+        `/api/leaves/${encodeURIComponent(reviewModal.leave.MaDon)}/review`,
         {
-          trangthai: reviewModal.approve ? 'Đã duyệt' : 'Từ chối',
-          ghichuduyet: values.ghichuduyet || '',
+          TrangThai: reviewModal.approve ? 'Đã duyệt' : 'Từ chối',
+          GhiChuDuyet: values.GhiChuDuyet || '',
         },
         'POST'
       );
@@ -200,13 +200,13 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
       await apiRequest(
         '/api/balances',
         {
-          manv: balanceModal.manv,
-          nam: Number(values.nam),
-          tongsongayphep: Number(values.tongsongayphep),
+          MaNV: balanceModal.MaNV,
+          Nam: Number(values.Nam),
+          TongSoNgayPhep: Number(values.TongSoNgayPhep),
         },
         'POST'
       );
-      setSelectedYear(Number(values.nam));
+      setSelectedYear(Number(values.Nam));
       setBalanceModal(null);
       notify('Đã cập nhật tổng quỹ phép năm.');
       await onRefresh();
@@ -230,14 +230,14 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
           'Còn lại',
         ],
         filteredBalances.map((b) => {
-          const e = emp(b.manv);
+          const e = emp(b.MaNV);
           return [
-            e?.hoten || 'Nhân viên',
-            e ? deptName(e.mapb) : '',
-            b.nam,
-            b.tongsongayphep,
-            b.songaydanghi,
-            b.songayconlai,
+            e?.HoTen || 'Nhân viên',
+            e ? deptName(e.MaPB) : '',
+            b.Nam,
+            b.TongSoNgayPhep,
+            b.SoNgayDaNghi,
+            b.SoNgayConLai,
           ];
         })
       );
@@ -255,14 +255,14 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
           'Người duyệt',
         ],
         filteredRequests.map((l) => [
-          l.madon,
-          emp(l.manv)?.hoten || 'Nhân viên',
-          leaveTypeName(l.maloai),
-          l.tungay,
-          l.denngay,
-          l.songay,
-          l.trangthai,
-          l.tennguoiduyet || l.manvduyet || '—',
+          l.MaDon,
+          emp(l.MaNV)?.HoTen || 'Nhân viên',
+          leaveTypeName(l.MaLoai),
+          l.TuNgay,
+          l.DenNgay,
+          l.SoNgay,
+          l.TrangThai,
+          l.tennguoiduyet || l.MaNVDuyet || '—',
         ])
       );
     }
@@ -273,17 +273,17 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
       title: 'Nhân viên',
       key: 'employee',
       render: (_: unknown, l: LeaveRequest) => {
-        const e = emp(l.manv);
+        const e = emp(l.MaNV);
         return (
           <Space>
-            <Avatar style={{ backgroundColor: getAvatarHex(e?.manv) }}>
-              {getInitials(e?.hoten)}
+            <Avatar style={{ backgroundColor: getAvatarHex(e?.MaNV) }}>
+              {getInitials(e?.HoTen)}
             </Avatar>
             <div>
               <div className="font-semibold text-slate-900">
-                {e?.hoten || 'Nhân viên'}
+                {e?.HoTen || 'Nhân viên'}
               </div>
-              <div className="text-xs text-slate-400">{l.madon}</div>
+              <div className="text-xs text-slate-400">{l.MaDon}</div>
             </div>
           </Space>
         );
@@ -291,26 +291,26 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
     },
     {
       title: 'Loại nghỉ',
-      dataIndex: 'maloai',
-      key: 'maloai',
+      dataIndex: 'MaLoai',
+      key: 'MaLoai',
       render: (id: string) => leaveTypeName(id),
     },
     {
       title: 'Thời gian nghỉ',
       key: 'dates',
       render: (_: unknown, l: LeaveRequest) =>
-        `${formatDate(l.tungay)} – ${formatDate(l.denngay)}`,
+        `${formatDate(l.TuNgay)} – ${formatDate(l.DenNgay)}`,
     },
     {
       title: 'Số ngày',
-      dataIndex: 'songay',
-      key: 'songay',
+      dataIndex: 'SoNgay',
+      key: 'SoNgay',
       render: (days: number) => <strong>{days} ngày</strong>,
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'trangthai',
-      key: 'trangthai',
+      dataIndex: 'TrangThai',
+      key: 'TrangThai',
       render: (status: string) => (
         <Tag color={getAntTagColor(status)}>{status}</Tag>
       ),
@@ -320,7 +320,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
       key: 'approver',
       render: (_: unknown, l: LeaveRequest) =>
         l.tennguoiduyet ||
-        (l.manvduyet ? emp(l.manvduyet)?.hoten || l.manvduyet : '—'),
+        (l.MaNVDuyet ? emp(l.MaNVDuyet)?.HoTen || l.MaNVDuyet : '—'),
     },
     {
       title: 'Thao tác',
@@ -344,14 +344,14 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
       title: 'Nhân viên',
       key: 'employee',
       render: (_: unknown, b: LeaveBalance) => {
-        const e = emp(b.manv)!;
+        const e = emp(b.MaNV)!;
         return (
           <Space>
-            <Avatar style={{ backgroundColor: getAvatarHex(e.manv) }}>
-              {getInitials(e.hoten)}
+            <Avatar style={{ backgroundColor: getAvatarHex(e.MaNV) }}>
+              {getInitials(e.HoTen)}
             </Avatar>
             <div>
-              <div className="font-semibold text-slate-900">{e.hoten}</div>
+              <div className="font-semibold text-slate-900">{e.HoTen}</div>
             </div>
           </Space>
         );
@@ -361,32 +361,32 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
       title: 'Phòng ban',
       key: 'dept',
       render: (_: unknown, b: LeaveBalance) => {
-        const e = emp(b.manv);
-        return e ? deptName(e.mapb) : '—';
+        const e = emp(b.MaNV);
+        return e ? deptName(e.MaPB) : '—';
       },
     },
     {
       title: 'Năm',
-      dataIndex: 'nam',
-      key: 'nam',
+      dataIndex: 'Nam',
+      key: 'Nam',
       render: (y: number) => <Text code>{y}</Text>,
     },
     {
       title: 'Tổng ngày phép',
-      dataIndex: 'tongsongayphep',
-      key: 'tongsongayphep',
+      dataIndex: 'TongSoNgayPhep',
+      key: 'TongSoNgayPhep',
       render: (t: number) => `${t} ngày`,
     },
     {
       title: 'Số ngày đã nghỉ',
-      dataIndex: 'songaydanghi',
-      key: 'songaydanghi',
+      dataIndex: 'SoNgayDaNghi',
+      key: 'SoNgayDaNghi',
       render: (u: number) => <Tag color="warning">{u} ngày</Tag>,
     },
     {
       title: 'Số ngày còn lại',
-      dataIndex: 'songayconlai',
-      key: 'songayconlai',
+      dataIndex: 'SoNgayConLai',
+      key: 'SoNgayConLai',
       render: (r: number) => <Tag color="success">{r} ngày</Tag>,
     },
     {
@@ -394,7 +394,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
       key: 'actions',
       align: 'right' as const,
       render: (_: unknown, b: LeaveBalance) =>
-        canEdit(state.user.vaitro) ? (
+        canEdit(state.user.VaiTro) ? (
           <Button
             size="small"
             type="link"
@@ -402,8 +402,8 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
             onClick={() => {
               setFormError('');
               balanceForm.setFieldsValue({
-                nam: b.nam,
-                tongsongayphep: b.tongsongayphep,
+                Nam: b.Nam,
+                TongSoNgayPhep: b.TongSoNgayPhep,
               });
               setBalanceModal(b);
             }}
@@ -430,7 +430,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
           <Button icon={<DownloadOutlined />} onClick={handleExport}>
             Xuất CSV
           </Button>
-          {state.user.vaitro !== 'director' && (
+          {state.user.VaiTro !== 'director' && (
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -494,8 +494,8 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               options={[
                 { value: '', label: 'Tất cả phòng ban' },
                 ...state.departments.map((d) => ({
-                  value: d.mapb,
-                  label: d.tenpb,
+                  value: d.MaPB,
+                  label: d.TenPB,
                 })),
               ]}
             />
@@ -518,7 +518,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
 
         {tab === 'requests' ? (
           <Table
-            rowKey="madon"
+            rowKey="MaDon"
             columns={requestColumns}
             dataSource={filteredRequests}
             pagination={{ pageSize: 8, showSizeChanger: false }}
@@ -527,7 +527,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
           />
         ) : (
           <Table
-            rowKey={(r) => `${r.manv}-${r.nam}`}
+            rowKey={(r) => `${r.MaNV}-${r.Nam}`}
             columns={balanceColumns}
             dataSource={filteredBalances}
             pagination={{ pageSize: 8, showSizeChanger: false }}
@@ -560,35 +560,35 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               type="info"
               showIcon
               className="mb-4"
-              message={`Người đăng ký: ${state.user.hoten}`}
+              message={`Người đăng ký: ${state.user.HoTen}`}
             />
           ) : (
             <Form.Item
-              name="manv"
+              name="MaNV"
               label="Nhân viên"
               rules={[{ required: true }]}
             >
               <Select
                 options={state.employees
-                  .filter((e) => ['Đang làm việc', 'Thử việc'].includes(e.trangthai))
+                  .filter((e) => ['Đang làm việc', 'Thử việc'].includes(e.TrangThai))
                   .map((e) => ({
-                    value: e.manv,
-                    label: `${e.hoten} (${e.email})`,
+                    value: e.MaNV,
+                    label: `${e.HoTen} (${e.Email})`,
                   }))}
               />
             </Form.Item>
           )}
 
           <Form.Item
-            name="maloai"
+            name="MaLoai"
             label="Loại nghỉ phép"
             rules={[{ required: true }]}
           >
             <Select
               options={state.leaveTypes.map((t) => ({
-                value: t.maloai,
-                label: `${t.tenloai} (Tối đa ${t.songaytoida} ngày/đơn · ${
-                  t.truphepnam ? 'Trừ phép năm' : 'Không trừ phép năm'
+                value: t.MaLoai,
+                label: `${t.TenLoai} (Tối đa ${t.SoNgayToiDa} ngày/đơn · ${
+                  t.TruPhepNam ? 'Trừ phép năm' : 'Không trừ phép năm'
                 })`,
               }))}
             />
@@ -596,23 +596,23 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
             <Form.Item
-              name="tungay"
+              name="TuNgay"
               label="Từ ngày"
               rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}
             >
-              <Input type="date" min={['admin', 'hr'].includes(state.user.vaitro) ? undefined : state.today} />
+              <Input type="date" min={['admin', 'hr'].includes(state.user.VaiTro) ? undefined : state.today} />
             </Form.Item>
             <Form.Item
-              name="denngay"
+              name="DenNgay"
               label="Đến ngày"
               rules={[{ required: true, message: 'Chọn ngày kết thúc' }]}
             >
-              <Input type="date" min={['admin', 'hr'].includes(state.user.vaitro) ? undefined : state.today} />
+              <Input type="date" min={['admin', 'hr'].includes(state.user.VaiTro) ? undefined : state.today} />
             </Form.Item>
           </div>
 
           <Form.Item
-            name="lydo"
+            name="LyDo"
             label="Lý do xin nghỉ"
             rules={[{ required: true, message: 'Nhập lý do xin nghỉ' }]}
           >
@@ -686,44 +686,44 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
             column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
           >
             <Descriptions.Item label="Mã đơn">
-              <Text code>{detailLeave.madon}</Text>
+              <Text code>{detailLeave.MaDon}</Text>
             </Descriptions.Item>
             <Descriptions.Item label="Trạng thái">
-              <Tag color={getAntTagColor(detailLeave.trangthai)}>
-                {detailLeave.trangthai}
+              <Tag color={getAntTagColor(detailLeave.TrangThai)}>
+                {detailLeave.TrangThai}
               </Tag>
             </Descriptions.Item>
             <Descriptions.Item label="Nhân viên">
               <strong>
-                {emp(detailLeave.manv)?.hoten || 'Nhân viên'}
+                {emp(detailLeave.MaNV)?.HoTen || 'Nhân viên'}
               </strong>
             </Descriptions.Item>
             <Descriptions.Item label="Loại nghỉ">
-              {leaveTypeName(detailLeave.maloai)}
+              {leaveTypeName(detailLeave.MaLoai)}
             </Descriptions.Item>
             <Descriptions.Item label="Thời gian">
-              {formatDate(detailLeave.tungay)} –{' '}
-              {formatDate(detailLeave.denngay)}
+              {formatDate(detailLeave.TuNgay)} –{' '}
+              {formatDate(detailLeave.DenNgay)}
             </Descriptions.Item>
             <Descriptions.Item label="Số ngày">
-              <strong>{detailLeave.songay} ngày</strong>
+              <strong>{detailLeave.SoNgay} ngày</strong>
             </Descriptions.Item>
             <Descriptions.Item label="Ngày nộp">
-              {formatDate(detailLeave.ngaynop)}
+              {formatDate(detailLeave.NgayNop)}
             </Descriptions.Item>
             <Descriptions.Item label="Người duyệt">
               {detailLeave.tennguoiduyet ||
-                (detailLeave.manvduyet
-                  ? emp(detailLeave.manvduyet)?.hoten ||
-                    detailLeave.manvduyet
+                (detailLeave.MaNVDuyet
+                  ? emp(detailLeave.MaNVDuyet)?.HoTen ||
+                    detailLeave.MaNVDuyet
                   : 'Chưa xử lý')}
             </Descriptions.Item>
             <Descriptions.Item label="Lý do xin nghỉ" span={2}>
-              {detailLeave.lydo}
+              {detailLeave.LyDo}
             </Descriptions.Item>
-            {detailLeave.ghichuduyet && (
+            {detailLeave.GhiChuDuyet && (
               <Descriptions.Item label="Ghi chú phê duyệt" span={2}>
-                {detailLeave.ghichuduyet}
+                {detailLeave.GhiChuDuyet}
               </Descriptions.Item>
             )}
           </Descriptions>
@@ -749,9 +749,9 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               showIcon
               className="mb-4"
               message={`Nhân viên: ${
-                emp(reviewModal.leave.manv)?.hoten ||
-                reviewModal.leave.manv
-              } · ${reviewModal.leave.songay} ngày`}
+                emp(reviewModal.leave.MaNV)?.HoTen ||
+                reviewModal.leave.MaNV
+              } · ${reviewModal.leave.SoNgay} ngày`}
             />
             {formError && (
               <Alert
@@ -762,7 +762,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               />
             )}
             <Form.Item
-              name="ghichuduyet"
+              name="GhiChuDuyet"
               label={
                 reviewModal.approve
                   ? 'Ghi chú duyệt (không bắt buộc)'
@@ -807,8 +807,8 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
               showIcon
               className="mb-4"
               message={`Nhân viên: ${
-                emp(balanceModal.manv)?.hoten || 'Nhân viên'
-              } · Đã nghỉ: ${balanceModal.songaydanghi} ngày. Tổng ngày phép mới không được nhỏ hơn số ngày đã sử dụng.`}
+                emp(balanceModal.MaNV)?.HoTen || 'Nhân viên'
+              } · Đã nghỉ: ${balanceModal.SoNgayDaNghi} ngày. Tổng ngày phép mới không được nhỏ hơn số ngày đã sử dụng.`}
             />
             {formError && (
               <Alert
@@ -820,19 +820,19 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
             )}
             <div className="grid grid-cols-2 gap-4">
               <Form.Item
-                name="nam"
+                name="Nam"
                 label="Năm"
                 rules={[{ required: true }]}
               >
                 <InputNumber min={2000} max={2100} className="w-full" />
               </Form.Item>
               <Form.Item
-                name="tongsongayphep"
+                name="TongSoNgayPhep"
                 label="Tổng ngày phép năm"
                 rules={[{ required: true }]}
               >
                 <InputNumber
-                  min={balanceModal.songaydanghi}
+                  min={balanceModal.SoNgayDaNghi}
                   max={366}
                   className="w-full"
                 />

@@ -79,7 +79,7 @@ export async function auditLog(
   details?: Record<string, unknown>
 ): Promise<void> {
   await executor.run(
-    'INSERT INTO nhatkyhethong(matk, hanhdong, doituong, thoigian, chitiet, diachiip) VALUES($1, $2, $3, $4, $5, $6)',
+    'INSERT INTO nhatkyhethong("MaTK", "HanhDong", "DoiTuong", "ThoiGian", "ChiTiet", "DiaChiIP") VALUES($1, $2, $3, $4, $5, $6)',
     [
       userId,
       action,

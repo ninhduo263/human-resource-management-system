@@ -41,7 +41,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleFinish = async (values: { tendangnhap: string; matkhau: string }) => {
+  const handleFinish = async (values: { TenDangNhap: string; MatKhau: string }) => {
     setError('');
     setLoading(true);
     try {
@@ -57,7 +57,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
   const selectDemo = (username: string) => {
     setSelectedRole(username);
     setError('');
-    form.setFieldsValue({ tendangnhap: username, matkhau: 'Demo@12345' });
+    form.setFieldsValue({ TenDangNhap: username, MatKhau: 'Demo@12345' });
   };
 
   return (
@@ -126,7 +126,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
             size="large"
           >
             <Form.Item
-              name="tendangnhap"
+              name="TenDangNhap"
               label="Email / Tên đăng nhập"
               rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập' }]}
             >
@@ -138,7 +138,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
             </Form.Item>
 
             <Form.Item
-              name="matkhau"
+              name="MatKhau"
               label="Mật khẩu"
               rules={[{ required: true, message: 'Vui lòng nhập mật khẩu' }]}
             >

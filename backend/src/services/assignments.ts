@@ -2,8 +2,8 @@ import { DbExecutor, auditLog } from '../db/pool.js';
 import { today } from '../utils/validation.js';
 
 interface PositionRow {
-  macv: string;
-  vaitromacdinh: string | null;
+  MaCV: string;
+  VaiTroMacDinh: string | null;
 }
 
 /**
@@ -13,38 +13,38 @@ interface PositionRow {
  */
 export async function syncRoleAndHead(
   tx: DbExecutor,
-  manv: string,
+  MaNV: string,
   mapbMoi: string | null,
   position: PositionRow,
   actorId: string | null
 ): Promise<void> {
-  const user = await tx.one<{ matk: string; vaitro: string }>(
-    'SELECT matk, vaitro FROM taikhoan WHERE manv = $1',
-    [manv]
+  const user = await tx.one<{ MaTK: string; VaiTro: string }>(
+    'SELECT "MaTK", "VaiTro" FROM taikhoan WHERE "MaNV" = $1',
+    [MaNV]
   );
-  let role = user?.vaitro ?? null;
+  let role = user?.VaiTro ?? null;
   if (
     user &&
-    position.vaitromacdinh &&
-    ['employee', 'manager', 'director'].includes(user.vaitro) &&
-    user.vaitro !== position.vaitromacdinh
+    position.VaiTroMacDinh &&
+    ['employee', 'manager', 'director'].includes(user.VaiTro) &&
+    user.VaiTro !== position.VaiTroMacDinh
   ) {
-    await tx.run('UPDATE taikhoan SET vaitro = $1 WHERE matk = $2', [position.vaitromacdinh, user.matk]);
-    await auditLog(tx, actorId, 'Đồng bộ vai trò theo chức vụ', user.matk, {
-      vaitro: { from: user.vaitro, to: position.vaitromacdinh },
+    await tx.run('UPDATE taikhoan SET "VaiTro" = $1 WHERE "MaTK" = $2', [position.VaiTroMacDinh, user.MaTK]);
+    await auditLog(tx, actorId, 'Đồng bộ vai trò theo chức vụ', user.MaTK, {
+      VaiTro: { from: user.VaiTro, to: position.VaiTroMacDinh },
     });
-    role = position.vaitromacdinh;
+    role = position.VaiTroMacDinh;
   }
 
   // Bỏ vai trò trưởng phòng ở mọi phòng không còn phù hợp.
   await tx.run(
-    `UPDATE phongban SET matruongphong = NULL
-     WHERE matruongphong = $1 AND (mapb IS DISTINCT FROM $2 OR $3::text IS DISTINCT FROM 'manager')`,
-    [manv, mapbMoi, role]
+    `UPDATE phongban SET "MaTruongPhong" = NULL
+     WHERE "MaTruongPhong" = $1 AND ("MaPB" IS DISTINCT FROM $2 OR $3::text IS DISTINCT FROM 'manager')`,
+    [MaNV, mapbMoi, role]
   );
   if (role === 'manager' && mapbMoi) {
-    await tx.run('UPDATE phongban SET matruongphong = $1 WHERE mapb = $2 AND matruongphong IS NULL', [
-      manv,
+    await tx.run('UPDATE phongban SET "MaTruongPhong" = $1 WHERE "MaPB" = $2 AND "MaTruongPhong" IS NULL', [
+      MaNV,
       mapbMoi,
     ]);
   }
@@ -53,31 +53,31 @@ export async function syncRoleAndHead(
 /** Áp dụng một bản ghi công tác cho hồ sơ nhân viên (cho cả ghi nhận ngay lẫn quyết định đến hạn). */
 export async function applyAssignment(
   tx: DbExecutor,
-  maqt: string,
+  MaQT: string,
   actorId: string | null
 ): Promise<boolean> {
-  const a = await tx.one<any>('SELECT * FROM quatrinhcongtac WHERE maqt = $1 FOR UPDATE', [maqt]);
-  if (!a || a.trangthai !== 'Chờ hiệu lực') return false;
-  const e = await tx.one<any>('SELECT * FROM nhanvien WHERE manv = $1 FOR UPDATE', [a.manv]);
-  if (!e || ['Đã lưu trữ', 'Đã nghỉ việc'].includes(e.trangthai)) {
+  const a = await tx.one<any>('SELECT * FROM quatrinhcongtac WHERE "MaQT" = $1 FOR UPDATE', [MaQT]);
+  if (!a || a.TrangThai !== 'Chờ hiệu lực') return false;
+  const e = await tx.one<any>('SELECT * FROM nhanvien WHERE "MaNV" = $1 FOR UPDATE', [a.MaNV]);
+  if (!e || ['Đã lưu trữ', 'Đã nghỉ việc'].includes(e.TrangThai)) {
     await tx.run(
-      `UPDATE quatrinhcongtac SET trangthai = 'Đã hủy', ngayhuy = $1, lydohuy = $2 WHERE maqt = $3`,
-      [today(), 'Nhân viên không còn làm việc tại thời điểm quyết định có hiệu lực', a.maqt]
+      `UPDATE quatrinhcongtac SET "TrangThai" = 'Đã hủy', "NgayHuy" = $1, "LyDoHuy" = $2 WHERE "MaQT" = $3`,
+      [today(), 'Nhân viên không còn làm việc tại thời điểm quyết định có hiệu lực', a.MaQT]
     );
     return false;
   }
-  const position = await tx.one<PositionRow>('SELECT macv, vaitromacdinh FROM chucvu WHERE macv = $1', [
-    a.macvmoi,
+  const position = await tx.one<PositionRow>('SELECT "MaCV", "VaiTroMacDinh" FROM chucvu WHERE "MaCV" = $1', [
+    a.MaCVMoi,
   ]);
   await tx.run(
-    `UPDATE quatrinhcongtac SET trangthai = 'Hiệu lực', mapbcu = $1, macvcu = $2 WHERE maqt = $3`,
-    [e.mapb, e.macv, a.maqt]
+    `UPDATE quatrinhcongtac SET "TrangThai" = 'Hiệu lực', "MaPBCu" = $1, "MaCVCu" = $2 WHERE "MaQT" = $3`,
+    [e.MaPB, e.MaCV, a.MaQT]
   );
   await tx.run(
-    'UPDATE nhanvien SET mapb = $1, macv = $2, phienban = phienban + 1 WHERE manv = $3',
-    [a.mapbmoi, a.macvmoi, e.manv]
+    'UPDATE nhanvien SET "MaPB" = $1, "MaCV" = $2, "PhienBan" = "PhienBan" + 1 WHERE "MaNV" = $3',
+    [a.MaPBMoi, a.MaCVMoi, e.MaNV]
   );
-  await syncRoleAndHead(tx, e.manv, a.mapbmoi, position!, actorId);
-  await auditLog(tx, actorId, 'Áp dụng quyết định công tác', a.maqt);
+  await syncRoleAndHead(tx, e.MaNV, a.MaPBMoi, position!, actorId);
+  await auditLog(tx, actorId, 'Áp dụng quyết định công tác', a.MaQT);
   return true;
 }

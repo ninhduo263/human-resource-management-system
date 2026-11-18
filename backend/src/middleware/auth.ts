@@ -7,12 +7,12 @@ export type UserRole = 'admin' | 'hr' | 'manager' | 'employee' | 'director';
 
 /** Người dùng của phiên hiện tại (cột của TAIKHOAN + họ tên, phòng ban của NHANVIEN). */
 export interface SessionUser {
-  matk: string;
-  tendangnhap: string;
-  vaitro: UserRole;
-  manv: string;
-  hoten: string;
-  mapb: string | null;
+  MaTK: string;
+  TenDangNhap: string;
+  VaiTro: UserRole;
+  MaNV: string;
+  HoTen: string;
+  MaPB: string | null;
 }
 
 declare global {
@@ -39,14 +39,14 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       fail('Vui lòng đăng nhập.', 401);
     }
     const user = await db.one<SessionUser>(
-      `SELECT t.matk, t.tendangnhap, t.vaitro, t.manv, n.hoten, n.mapb
+      `SELECT t."MaTK", t."TenDangNhap", t."VaiTro", t."MaNV", n."HoTen", n."MaPB"
        FROM phiendangnhap p
-       JOIN taikhoan t ON t.matk = p.matk
-       JOIN nhanvien n ON n.manv = t.manv
-       WHERE p.maphien = $1
-         AND p.thoihan > $2
-         AND t.hoatdong = 1
-         AND n.trangthai NOT IN ('Đã lưu trữ', 'Đã nghỉ việc')`,
+       JOIN taikhoan t ON t."MaTK" = p."MaTK"
+       JOIN nhanvien n ON n."MaNV" = t."MaNV"
+       WHERE p."MaPhien" = $1
+         AND p."ThoiHan" > $2
+         AND t."HoatDong" = 1
+         AND n."TrangThai" NOT IN ('Đã lưu trữ', 'Đã nghỉ việc')`,
       [sha256(token), Date.now()]
     );
     if (!user) {
@@ -60,34 +60,34 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
 }
 
 export function requireRole(u: SessionUser, roles: UserRole[]): void {
-  if (!roles.includes(u.vaitro)) {
+  if (!roles.includes(u.VaiTro)) {
     fail('Bạn không có quyền thực hiện thao tác này.', 403);
   }
 }
 
 export function canViewEmployee(
   u: SessionUser,
-  emp: { manv: string; mapb: string | null }
+  emp: { MaNV: string; MaPB: string | null }
 ): boolean {
   return (
-    ['admin', 'hr', 'director'].includes(u.vaitro) ||
-    (u.vaitro === 'manager' && u.mapb !== null && emp.mapb === u.mapb) ||
-    emp.manv === u.manv
+    ['admin', 'hr', 'director'].includes(u.VaiTro) ||
+    (u.VaiTro === 'manager' && u.MaPB !== null && emp.MaPB === u.MaPB) ||
+    emp.MaNV === u.MaNV
   );
 }
 
 /** Bảng được phép tra theo khóa chính và tên cột khóa chính tương ứng. */
 const TABLE_KEYS: Record<string, string> = {
-  phongban: 'mapb',
-  chucvu: 'macv',
-  nhanvien: 'manv',
-  hopdong: 'mahd',
-  giahanhopdong: 'magh',
-  quyetdinh: 'maqd',
-  quatrinhcongtac: 'maqt',
-  loainghiphep: 'maloai',
-  donnghiphep: 'madon',
-  taikhoan: 'matk',
+  phongban: 'MaPB',
+  chucvu: 'MaCV',
+  nhanvien: 'MaNV',
+  hopdong: 'MaHD',
+  giahanhopdong: 'MaGH',
+  quyetdinh: 'MaQD',
+  quatrinhcongtac: 'MaQT',
+  loainghiphep: 'MaLoai',
+  donnghiphep: 'MaDon',
+  taikhoan: 'MaTK',
 };
 
 export async function existsInTable<T = any>(
@@ -99,19 +99,19 @@ export async function existsInTable<T = any>(
   if (!pk) {
     fail('Bảng truy vấn không hợp lệ.', 400);
   }
-  const row = await executor.one<T>(`SELECT * FROM ${table} WHERE ${pk} = $1`, [id]);
+  const row = await executor.one<T>(`SELECT * FROM ${table} WHERE "${pk}" = $1`, [id]);
   if (!row) {
     fail('Không tìm thấy dữ liệu.', 404);
   }
   return row as T;
 }
 
-export async function requireActiveEmployee(executor: DbExecutor, manv: string): Promise<any> {
-  const emp = await existsInTable<any>(executor, 'nhanvien', manv);
-  if (emp.trangthai === 'Đã lưu trữ') {
+export async function requireActiveEmployee(executor: DbExecutor, MaNV: string): Promise<any> {
+  const emp = await existsInTable<any>(executor, 'nhanvien', MaNV);
+  if (emp.TrangThai === 'Đã lưu trữ') {
     fail('Hồ sơ nhân viên đã lưu trữ.');
   }
-  if (emp.trangthai === 'Đã nghỉ việc') {
+  if (emp.TrangThai === 'Đã nghỉ việc') {
     fail('Nhân viên đã nghỉ việc.');
   }
   return emp;

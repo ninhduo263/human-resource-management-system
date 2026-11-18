@@ -23,28 +23,28 @@ usersRouter.post(
     const u = req.user!;
     requireRole(u, ['admin']);
 
-    const tendangnhap = text(req.body, 'tendangnhap', 150);
-    if (!/^[a-zA-Z0-9_.-]{3,50}$/.test(tendangnhap) && !EMAIL_PATTERN.test(tendangnhap)) {
+    const TenDangNhap = text(req.body, 'TenDangNhap', 150);
+    if (!/^[a-zA-Z0-9_.-]{3,50}$/.test(TenDangNhap) && !EMAIL_PATTERN.test(TenDangNhap)) {
       fail('Tên đăng nhập cần là email hợp lệ hoặc 3–50 ký tự chữ, số, dấu gạch.');
     }
 
-    const manv = text(req.body, 'manv');
-    await requireActiveEmployee(db, manv);
-    const vaitro = choice(req.body, 'vaitro', ROLES);
+    const MaNV = text(req.body, 'MaNV');
+    await requireActiveEmployee(db, MaNV);
+    const VaiTro = choice(req.body, 'VaiTro', ROLES);
 
-    const pw = text(req.body, 'matkhau');
+    const pw = text(req.body, 'MatKhau');
     if (pw.length < 10) fail('Mật khẩu phải có ít nhất 10 ký tự.');
 
-    const hasAccount = await db.one('SELECT matk FROM taikhoan WHERE manv = $1', [manv]);
+    const hasAccount = await db.one('SELECT "MaTK" FROM taikhoan WHERE "MaNV" = $1', [MaNV]);
     if (hasAccount) fail('Nhân viên này đã có tài khoản; hãy đổi vai trò hoặc khóa/mở tài khoản đó.', 409);
 
-    const matk = generateId('U');
+    const MaTK = generateId('U');
     await db.run(
-      'INSERT INTO taikhoan(matk, tendangnhap, matkhau, vaitro, manv, hoatdong) VALUES($1, $2, $3, $4, $5, 1)',
-      [matk, tendangnhap, passwordHash(pw), vaitro, manv]
+      'INSERT INTO taikhoan("MaTK", "TenDangNhap", "MatKhau", "VaiTro", "MaNV", "HoatDong") VALUES($1, $2, $3, $4, $5, 1)',
+      [MaTK, TenDangNhap, passwordHash(pw), VaiTro, MaNV]
     );
-    await auditLog(db, u.matk, 'Tạo tài khoản', tendangnhap);
-    res.status(201).json({ id: matk });
+    await auditLog(db, u.MaTK, 'Tạo tài khoản', TenDangNhap);
+    res.status(201).json({ id: MaTK });
   })
 );
 
@@ -57,19 +57,19 @@ usersRouter.post(
 
     await withTransaction(async (tx) => {
       const target = await existsInTable<{
-        matk: string;
-        tendangnhap: string;
-        hoatdong: number;
-        manv: string;
+        MaTK: string;
+        TenDangNhap: string;
+        HoatDong: number;
+        MaNV: string;
       }>(tx, 'taikhoan', targetId);
-      if (target.matk === u.matk) fail('Không thể khóa tài khoản của chính bạn.');
+      if (target.MaTK === u.MaTK) fail('Không thể khóa tài khoản của chính bạn.');
 
-      const next = target.hoatdong ? 0 : 1;
-      if (next === 1) await requireActiveEmployee(tx, target.manv);
-      await tx.run('UPDATE taikhoan SET hoatdong = $1 WHERE matk = $2', [next, target.matk]);
-      await tx.run('DELETE FROM phiendangnhap WHERE matk = $1', [target.matk]);
-      await auditLog(tx, u.matk, 'Đổi trạng thái tài khoản', target.tendangnhap, {
-        hoatdong: { from: target.hoatdong, to: next },
+      const next = target.HoatDong ? 0 : 1;
+      if (next === 1) await requireActiveEmployee(tx, target.MaNV);
+      await tx.run('UPDATE taikhoan SET "HoatDong" = $1 WHERE "MaTK" = $2', [next, target.MaTK]);
+      await tx.run('DELETE FROM phiendangnhap WHERE "MaTK" = $1', [target.MaTK]);
+      await auditLog(tx, u.MaTK, 'Đổi trạng thái tài khoản', target.TenDangNhap, {
+        HoatDong: { from: target.HoatDong, to: next },
       });
     });
     res.json({ ok: true });
@@ -83,15 +83,15 @@ usersRouter.post(
     const u = req.user!;
     requireRole(u, ['admin']);
     const targetId = paramId(req);
-    const matkhau = `Nv@${randomBytes(9).toString('base64url')}`;
+    const MatKhau = `Nv@${randomBytes(9).toString('base64url')}`;
 
     await withTransaction(async (tx) => {
-      const target = await existsInTable<{ matk: string; tendangnhap: string }>(tx, 'taikhoan', targetId);
-      await tx.run('UPDATE taikhoan SET matkhau = $1 WHERE matk = $2', [passwordHash(matkhau), target.matk]);
-      await tx.run('DELETE FROM phiendangnhap WHERE matk = $1', [target.matk]);
-      await auditLog(tx, u.matk, 'Đặt lại mật khẩu', target.tendangnhap);
+      const target = await existsInTable<{ MaTK: string; TenDangNhap: string }>(tx, 'taikhoan', targetId);
+      await tx.run('UPDATE taikhoan SET "MatKhau" = $1 WHERE "MaTK" = $2', [passwordHash(MatKhau), target.MaTK]);
+      await tx.run('DELETE FROM phiendangnhap WHERE "MaTK" = $1', [target.MaTK]);
+      await auditLog(tx, u.MaTK, 'Đặt lại mật khẩu', target.TenDangNhap);
     });
-    res.json({ ok: true, matkhau });
+    res.json({ ok: true, MatKhau });
   })
 );
 
@@ -102,32 +102,32 @@ usersRouter.put(
     const u = req.user!;
     requireRole(u, ['admin']);
     const targetId = paramId(req);
-    const vaitro = choice(req.body, 'vaitro', ROLES);
+    const VaiTro = choice(req.body, 'VaiTro', ROLES);
 
     await withTransaction(async (tx) => {
       const target = await existsInTable<{
-        matk: string;
-        tendangnhap: string;
-        vaitro: string;
-        manv: string;
+        MaTK: string;
+        TenDangNhap: string;
+        VaiTro: string;
+        MaNV: string;
       }>(tx, 'taikhoan', targetId);
-      if (target.matk === u.matk) fail('Không thể tự đổi vai trò của chính bạn.');
-      if (target.vaitro === vaitro) return;
+      if (target.MaTK === u.MaTK) fail('Không thể tự đổi vai trò của chính bạn.');
+      if (target.VaiTro === VaiTro) return;
 
-      await tx.run('UPDATE taikhoan SET vaitro = $1 WHERE matk = $2', [vaitro, target.matk]);
-      await tx.run('DELETE FROM phiendangnhap WHERE matk = $1', [target.matk]);
+      await tx.run('UPDATE taikhoan SET "VaiTro" = $1 WHERE "MaTK" = $2', [VaiTro, target.MaTK]);
+      await tx.run('DELETE FROM phiendangnhap WHERE "MaTK" = $1', [target.MaTK]);
       // Rời vai trò trưởng phòng thì không còn là trưởng phòng; nhận vai trò đó thì làm trưởng phòng nếu phòng chưa có.
-      if (vaitro !== 'manager') {
-        await tx.run('UPDATE phongban SET matruongphong = NULL WHERE matruongphong = $1', [target.manv]);
+      if (VaiTro !== 'manager') {
+        await tx.run('UPDATE phongban SET "MaTruongPhong" = NULL WHERE "MaTruongPhong" = $1', [target.MaNV]);
       } else {
         await tx.run(
-          `UPDATE phongban SET matruongphong = $1
-           WHERE matruongphong IS NULL AND mapb = (SELECT mapb FROM nhanvien WHERE manv = $1)`,
-          [target.manv]
+          `UPDATE phongban SET "MaTruongPhong" = $1
+           WHERE "MaTruongPhong" IS NULL AND "MaPB" = (SELECT "MaPB" FROM nhanvien WHERE "MaNV" = $1)`,
+          [target.MaNV]
         );
       }
-      await auditLog(tx, u.matk, 'Đổi vai trò tài khoản', target.tendangnhap, {
-        vaitro: { from: target.vaitro, to: vaitro },
+      await auditLog(tx, u.MaTK, 'Đổi vai trò tài khoản', target.TenDangNhap, {
+        VaiTro: { from: target.VaiTro, to: VaiTro },
       });
     });
     res.json({ ok: true });

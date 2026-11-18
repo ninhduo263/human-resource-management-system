@@ -47,17 +47,17 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
   const [reportFrom, setReportFrom] = useState('');
   const [reportTo, setReportTo] = useState('');
 
-  const emp = (id: string) => state.employees.find((e) => e.manv === id);
-  const empName = (id: string) => emp(id)?.hoten || id;
+  const emp = (id: string) => state.employees.find((e) => e.MaNV === id);
+  const empName = (id: string) => emp(id)?.HoTen || id;
   const deptName = (id: string | null) =>
-    state.departments.find((d) => d.mapb === id)?.tenpb || id || 'Không thuộc phòng ban';
+    state.departments.find((d) => d.MaPB === id)?.TenPB || id || 'Không thuộc phòng ban';
   const posName = (id: string) =>
-    state.positions.find((p) => p.macv === id)?.tencv || id;
+    state.positions.find((p) => p.MaCV === id)?.TenCV || id;
 
   const matchRecord = (empId: string, dateVal: string) => {
     const e = emp(empId);
     if (!e) return false;
-    if (reportDept && e.mapb !== reportDept) return false;
+    if (reportDept && e.MaPB !== reportDept) return false;
     if (reportFrom && dateVal < reportFrom) return false;
     if (reportTo && dateVal > reportTo) return false;
     return true;
@@ -78,15 +78,15 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
           'Ngày hiệu lực',
         ],
         rows: state.assignments
-          .filter((a) => (a.trangthai ?? 'Hiệu lực') === 'Hiệu lực')
-          .filter((a) => matchRecord(a.manv, a.ngayhieuluc))
+          .filter((a) => (a.TrangThai ?? 'Hiệu lực') === 'Hiệu lực')
+          .filter((a) => matchRecord(a.MaNV, a.NgayHieuLuc))
           .map((a) => [
-            empName(a.manv),
-            a.loaibiendong,
-            deptName(a.mapbcu),
-            deptName(a.mapbmoi),
-            posName(a.macvmoi),
-            a.ngayhieuluc,
+            empName(a.MaNV),
+            a.LoaiBienDong,
+            deptName(a.MaPBCu),
+            deptName(a.MaPBMoi),
+            posName(a.MaCVMoi),
+            a.NgayHieuLuc,
           ]),
       };
     }
@@ -102,13 +102,13 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
           'Trạng thái',
         ],
         rows: state.contracts
-          .filter((c) => matchRecord(c.manv, c.ngaybatdau))
+          .filter((c) => matchRecord(c.MaNV, c.NgayBatDau))
           .map((c) => [
-            empName(c.manv),
-            c.loaihd,
-            c.ngaybatdau,
-            c.ngayketthuc || 'Không xác định',
-            formatMoney(c.mucluong),
+            empName(c.MaNV),
+            c.LoaiHD,
+            c.NgayBatDau,
+            c.NgayKetThuc || 'Không xác định',
+            formatMoney(c.MucLuong),
             getContractStatus(c, state.today),
           ]),
       };
@@ -126,16 +126,16 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
           'Người duyệt',
         ],
         rows: state.leaves
-          .filter((l) => matchRecord(l.manv, l.tungay))
+          .filter((l) => matchRecord(l.MaNV, l.TuNgay))
           .map((l) => [
-            empName(l.manv),
-            state.leaveTypes.find((t) => t.maloai === l.maloai)?.tenloai || l.maloai,
-            l.tungay,
-            l.denngay,
-            l.songay,
-            l.trangthai,
+            empName(l.MaNV),
+            state.leaveTypes.find((t) => t.MaLoai === l.MaLoai)?.TenLoai || l.MaLoai,
+            l.TuNgay,
+            l.DenNgay,
+            l.SoNgay,
+            l.TrangThai,
             l.tennguoiduyet ||
-              (l.manvduyet ? empName(l.manvduyet) : '—'),
+              (l.MaNVDuyet ? empName(l.MaNVDuyet) : '—'),
           ]),
       };
     }
@@ -150,14 +150,14 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
         'Trạng thái',
       ],
       rows: state.employees
-        .filter((e) => matchRecord(e.manv, e.ngayvaolam))
+        .filter((e) => matchRecord(e.MaNV, e.NgayVaoLam))
         .map((e) => [
-          e.hoten,
-          e.gioitinh,
-          deptName(e.mapb),
-          posName(e.macv),
-          e.ngayvaolam,
-          e.trangthai,
+          e.HoTen,
+          e.GioiTinh,
+          deptName(e.MaPB),
+          posName(e.MaCV),
+          e.NgayVaoLam,
+          e.TrangThai,
         ]),
     };
   };
@@ -233,8 +233,8 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
             options={[
               { value: '', label: 'Tất cả phòng ban' },
               ...state.departments.map((d) => ({
-                value: d.mapb,
-                label: d.tenpb,
+                value: d.MaPB,
+                label: d.TenPB,
               })),
             ]}
           />
@@ -316,7 +316,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
             <Statistic
               title="Ngày lập báo cáo"
               value={formatDate(state.today)}
-              suffix={`(${state.user.hoten})`}
+              suffix={`(${state.user.HoTen})`}
             />
           </Card>
         </Col>

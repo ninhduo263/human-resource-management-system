@@ -2,30 +2,30 @@ import { DbExecutor, auditLog } from '../db/pool.js';
 import { today } from '../utils/validation.js';
 
 /** Hợp đồng còn giá trị (chưa chấm dứt, chưa hủy bỏ). */
-export const LIVE_CONTRACT = `trangthai NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')`;
+export const LIVE_CONTRACT = `"TrangThai" NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')`;
 
 /**
  * Trạng thái nhân viên được SUY RA từ hợp đồng hiện hành:
  * hợp đồng thử việc -> "Thử việc", hợp đồng khác -> "Đang làm việc".
  * Chỉ tác động nhân viên đang ở một trong hai trạng thái này; hồ sơ đã nghỉ/lưu trữ không bị đổi.
  */
-export async function syncEmployeeStatuses(tx: DbExecutor, manv?: string): Promise<void> {
+export async function syncEmployeeStatuses(tx: DbExecutor, MaNV?: string): Promise<void> {
   await tx.run(
-    `UPDATE nhanvien n SET trangthai = t.target, phienban = n.phienban + 1
+    `UPDATE nhanvien n SET "TrangThai" = t.target, "PhienBan" = n."PhienBan" + 1
      FROM (
-       SELECT DISTINCT ON (h.manv) h.manv,
-              CASE WHEN h.loaihd = 'Thử việc' THEN 'Thử việc' ELSE 'Đang làm việc' END AS target
+       SELECT DISTINCT ON (h."MaNV") h."MaNV",
+              CASE WHEN h."LoaiHD" = 'Thử việc' THEN 'Thử việc' ELSE 'Đang làm việc' END AS target
        FROM hopdong h
        WHERE h.${LIVE_CONTRACT}
-         AND h.ngaybatdau <= $1
-         AND (h.ngayketthuc IS NULL OR h.ngayketthuc >= $1)
-       ORDER BY h.manv, h.ngaybatdau DESC
+         AND h."NgayBatDau" <= $1
+         AND (h."NgayKetThuc" IS NULL OR h."NgayKetThuc" >= $1)
+       ORDER BY h."MaNV", h."NgayBatDau" DESC
      ) t
-     WHERE t.manv = n.manv
-       AND n.trangthai IN ('Đang làm việc', 'Thử việc')
-       AND n.trangthai <> t.target
-       AND ($2::text IS NULL OR n.manv = $2)`,
-    [today(), manv ?? null]
+     WHERE t."MaNV" = n."MaNV"
+       AND n."TrangThai" IN ('Đang làm việc', 'Thử việc')
+       AND n."TrangThai" <> t.target
+       AND ($2::text IS NULL OR n."MaNV" = $2)`,
+    [today(), MaNV ?? null]
   );
 }
 
@@ -36,32 +36,32 @@ export async function syncEmployeeStatuses(tx: DbExecutor, manv?: string): Promi
  */
 export async function finalizeTermination(
   tx: DbExecutor,
-  contract: { mahd: string; manv: string },
+  contract: { MaHD: string; MaNV: string },
   actorId: string | null,
   actionLabel: string,
-  loaichamdut?: string | null
+  LoaiChamDut?: string | null
 ): Promise<void> {
   const day = today();
-  await tx.run(`UPDATE hopdong SET trangthai = 'Đã chấm dứt' WHERE mahd = $1`, [contract.mahd]);
-  const remaining = await tx.one<{ mahd: string }>(
-    `SELECT mahd FROM hopdong
-     WHERE manv = $1 AND mahd != $2 AND ${LIVE_CONTRACT}
-       AND ngaybatdau <= $3
-       AND (ngayketthuc IS NULL OR ngayketthuc >= $3)`,
-    [contract.manv, contract.mahd, day]
+  await tx.run(`UPDATE hopdong SET "TrangThai" = 'Đã chấm dứt' WHERE "MaHD" = $1`, [contract.MaHD]);
+  const remaining = await tx.one<{ MaHD: string }>(
+    `SELECT "MaHD" FROM hopdong
+     WHERE "MaNV" = $1 AND "MaHD" != $2 AND ${LIVE_CONTRACT}
+       AND "NgayBatDau" <= $3
+       AND ("NgayKetThuc" IS NULL OR "NgayKetThuc" >= $3)`,
+    [contract.MaNV, contract.MaHD, day]
   );
-  if (loaichamdut === 'Người lao động xin nghỉ' || !remaining) {
+  if (LoaiChamDut === 'Người lao động xin nghỉ' || !remaining) {
     await tx.run(
-      `UPDATE nhanvien SET trangthai = 'Đã nghỉ việc', phienban = phienban + 1
-       WHERE manv = $1 AND trangthai IN ('Đang làm việc', 'Thử việc')`,
-      [contract.manv]
+      `UPDATE nhanvien SET "TrangThai" = 'Đã nghỉ việc', "PhienBan" = "PhienBan" + 1
+       WHERE "MaNV" = $1 AND "TrangThai" IN ('Đang làm việc', 'Thử việc')`,
+      [contract.MaNV]
     );
     await tx.run(
-      'DELETE FROM phiendangnhap WHERE matk IN (SELECT matk FROM taikhoan WHERE manv = $1)',
-      [contract.manv]
+      'DELETE FROM phiendangnhap WHERE "MaTK" IN (SELECT "MaTK" FROM taikhoan WHERE "MaNV" = $1)',
+      [contract.MaNV]
     );
   } else {
-    await syncEmployeeStatuses(tx, contract.manv);
+    await syncEmployeeStatuses(tx, contract.MaNV);
   }
-  await auditLog(tx, actorId, actionLabel, contract.mahd);
+  await auditLog(tx, actorId, actionLabel, contract.MaHD);
 }

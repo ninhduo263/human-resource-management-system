@@ -52,35 +52,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigate,
 }) => {
   const activeEmployees = state.employees.filter((e) =>
-    ['Đang làm việc', 'Thử việc'].includes(e.trangthai)
+    ['Đang làm việc', 'Thử việc'].includes(e.TrangThai)
   );
   const officialCount = activeEmployees.filter(
-    (e) => e.trangthai === 'Đang làm việc'
+    (e) => e.TrangThai === 'Đang làm việc'
   ).length;
   const trialCount = activeEmployees.filter(
-    (e) => e.trangthai === 'Thử việc'
+    (e) => e.TrangThai === 'Thử việc'
   ).length;
-  const pendingLeaves = state.leaves.filter((l) => l.trangthai === 'Chờ duyệt');
+  const pendingLeaves = state.leaves.filter((l) => l.TrangThai === 'Chờ duyệt');
   const expiringContracts = state.contracts.filter(
     (c) => getContractStatus(c, state.today) === 'Sắp hết hạn'
   );
   const newcomers = activeEmployees.filter(
-    (e) => e.ngayvaolam.slice(0, 7) === state.today.slice(0, 7)
+    (e) => e.NgayVaoLam.slice(0, 7) === state.today.slice(0, 7)
   );
 
   const deptName = (id: string | null) =>
-    state.departments.find((d) => d.mapb === id)?.tenpb ||
+    state.departments.find((d) => d.MaPB === id)?.TenPB ||
     id ||
     'Không thuộc phòng ban';
   const posName = (id: string) =>
-    state.positions.find((p) => p.macv === id)?.tencv || id;
+    state.positions.find((p) => p.MaCV === id)?.TenCV || id;
   const empName = (id: string) =>
-    state.employees.find((e) => e.manv === id)?.hoten || id;
+    state.employees.find((e) => e.MaNV === id)?.HoTen || id;
 
   const maxDeptCount = Math.max(
     1,
     ...state.departments.map(
-      (d) => activeEmployees.filter((e) => e.mapb === d.mapb).length
+      (d) => activeEmployees.filter((e) => e.MaPB === d.MaPB).length
     )
   );
 
@@ -99,15 +99,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         'Trạng thái',
       ],
       activeEmployees.map((e) => [
-        e.hoten,
-        e.ngaysinh,
-        e.gioitinh,
-        e.email,
-        e.sodienthoai,
-        deptName(e.mapb),
-        posName(e.macv),
-        e.ngayvaolam,
-        e.trangthai,
+        e.HoTen,
+        e.NgaySinh,
+        e.GioiTinh,
+        e.Email,
+        e.SoDienThoai,
+        deptName(e.MaPB),
+        posName(e.MaCV),
+        e.NgayVaoLam,
+        e.TrangThai,
       ])
     );
   };
@@ -118,32 +118,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       key: 'employee',
       render: (_: unknown, e: Employee) => (
         <Space>
-          <Avatar style={{ backgroundColor: getAvatarHex(e.manv) }}>
-            {getInitials(e.hoten)}
+          <Avatar style={{ backgroundColor: getAvatarHex(e.MaNV) }}>
+            {getInitials(e.HoTen)}
           </Avatar>
           <div>
-            <div className="font-semibold text-[#172b23]">{e.hoten}</div>
-            <div className="text-xs text-[#5e7066]">{e.email}</div>
+            <div className="font-semibold text-[#172b23]">{e.HoTen}</div>
+            <div className="text-xs text-[#5e7066]">{e.Email}</div>
           </div>
         </Space>
       ),
     },
     {
       title: 'Phòng ban',
-      dataIndex: 'mapb',
-      key: 'mapb',
+      dataIndex: 'MaPB',
+      key: 'MaPB',
       render: (id: string) => deptName(id),
     },
     {
       title: 'Chức vụ',
-      dataIndex: 'macv',
-      key: 'macv',
+      dataIndex: 'MaCV',
+      key: 'MaCV',
       render: (id: string) => posName(id),
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'trangthai',
-      key: 'trangthai',
+      dataIndex: 'TrangThai',
+      key: 'TrangThai',
       render: (status: string) => (
         <Tag color={getAntTagColor(status)}>{status}</Tag>
       ),
@@ -156,7 +156,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-1">
         <div>
           <Title level={2} style={{ margin: '0 0 4px', fontSize: 26 }}>
-            {getGreeting()}, {state.user.hoten}
+            {getGreeting()}, {state.user.HoTen}
           </Title>
           <Text type="secondary" className="text-sm">
             Nhịp độ tổ chức, nhân sự đang làm việc và các đầu việc cần lưu ý hôm nay.
@@ -167,7 +167,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <Button icon={<DownloadOutlined />} onClick={handleExportOverview}>
             Xuất danh sách nhân sự
           </Button>
-          {canEdit(state.user.vaitro) ? (
+          {canEdit(state.user.VaiTro) ? (
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -180,10 +180,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               type="primary"
               icon={<ArrowRightOutlined />}
               onClick={() =>
-                onNavigate(state.user.vaitro === 'director' ? 'reports' : 'leaves')
+                onNavigate(state.user.VaiTro === 'director' ? 'reports' : 'leaves')
               }
             >
-              {state.user.vaitro === 'director' ? 'Xem báo cáo' : 'Nghỉ phép'}
+              {state.user.VaiTro === 'director' ? 'Xem báo cáo' : 'Nghỉ phép'}
             </Button>
           )}
         </Space>
@@ -335,14 +335,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="space-y-4">
               {state.departments.map((d) => {
                 const count = activeEmployees.filter(
-                  (e) => e.mapb === d.mapb
+                  (e) => e.MaPB === d.MaPB
                 ).length;
                 const pct = Math.round((count / maxDeptCount) * 100);
                 return (
-                  <div key={d.mapb}>
+                  <div key={d.MaPB}>
                     <div className="flex justify-between items-baseline text-xs mb-1.5">
                       <span className="font-semibold text-[#172b23]">
-                        {d.tenpb}
+                        {d.TenPB}
                       </span>
                       <span className="text-[#5e7066] tabular-nums">
                         <strong className="text-[#172b23]">{count}</strong> nhân viên
@@ -371,7 +371,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div className="space-y-3">
               {expiringContracts.slice(0, 3).map((c) => (
                 <div
-                  key={c.mahd}
+                  key={c.MaHD}
                   className="flex items-start justify-between gap-3 rounded-xl bg-amber-50/70 border border-amber-200/80 p-3.5"
                 >
                   <div className="flex items-start gap-2.5">
@@ -380,12 +380,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <div className="text-xs font-semibold text-[#172b23]">
                         Hợp đồng sắp hết hạn trong{' '}
                         <span className="tabular-nums">
-                          {daysUntil(c.ngayketthuc!, state.today)}
+                          {daysUntil(c.NgayKetThuc!, state.today)}
                         </span>{' '}
                         ngày
                       </div>
                       <div className="text-xs text-[#5e7066] mt-0.5">
-                        {empName(c.manv)} · Hết hạn: {c.ngayketthuc}
+                        {empName(c.MaNV)} · Hết hạn: {c.NgayKetThuc}
                       </div>
                     </div>
                   </div>
@@ -451,7 +451,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         bordered={false}
       >
         <Table
-          rowKey="manv"
+          rowKey="MaNV"
           columns={columns}
           dataSource={activeEmployees.slice(0, 5)}
           pagination={false}

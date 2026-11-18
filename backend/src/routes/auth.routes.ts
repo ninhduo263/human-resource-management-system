@@ -15,21 +15,21 @@ const MAX_FAILS_PER_ACCOUNT = 8;
 const MAX_FAILS_PER_IP = 40;
 const LOCK_WINDOW_MS = 10 * 60_000;
 
-async function failedCount(khoa: string, now: number): Promise<number> {
-  const row = await db.one<{ solansai: number; khoaden: string }>(
-    'SELECT solansai, khoaden FROM dangnhapthatbai WHERE khoa = $1',
-    [khoa]
+async function failedCount(Khoa: string, now: number): Promise<number> {
+  const row = await db.one<{ SoLanSai: number; KhoaDen: string }>(
+    'SELECT "SoLanSai", "KhoaDen" FROM dangnhapthatbai WHERE "Khoa" = $1',
+    [Khoa]
   );
-  return row && Number(row.khoaden) > now ? row.solansai : 0;
+  return row && Number(row.KhoaDen) > now ? row.SoLanSai : 0;
 }
 
-async function recordFailure(khoa: string, now: number): Promise<void> {
+async function recordFailure(Khoa: string, now: number): Promise<void> {
   await db.run(
-    `INSERT INTO dangnhapthatbai(khoa, solansai, khoaden) VALUES($1, 1, $2)
-     ON CONFLICT (khoa) DO UPDATE SET
-       solansai = CASE WHEN dangnhapthatbai.khoaden > $3 THEN dangnhapthatbai.solansai + 1 ELSE 1 END,
-       khoaden = CASE WHEN dangnhapthatbai.khoaden > $3 THEN dangnhapthatbai.khoaden ELSE $2 END`,
-    [khoa, now + LOCK_WINDOW_MS, now]
+    `INSERT INTO dangnhapthatbai("Khoa", "SoLanSai", "KhoaDen") VALUES($1, 1, $2)
+     ON CONFLICT ("Khoa") DO UPDATE SET
+       "SoLanSai" = CASE WHEN dangnhapthatbai."KhoaDen" > $3 THEN dangnhapthatbai."SoLanSai" + 1 ELSE 1 END,
+       "KhoaDen" = CASE WHEN dangnhapthatbai."KhoaDen" > $3 THEN dangnhapthatbai."KhoaDen" ELSE $2 END`,
+    [Khoa, now + LOCK_WINDOW_MS, now]
   );
 }
 
@@ -49,9 +49,9 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
-    const tendangnhap = text(req.body, 'tendangnhap');
-    const matkhau = text(req.body, 'matkhau');
-    const accountKey = `u:${tendangnhap.toLowerCase()}`;
+    const TenDangNhap = text(req.body, 'TenDangNhap');
+    const MatKhau = text(req.body, 'MatKhau');
+    const accountKey = `u:${TenDangNhap.toLowerCase()}`;
     const ipKey = `ip:${ip}`;
 
     if (
@@ -62,38 +62,38 @@ authRouter.post(
     }
 
     const user = await db.one<{
-      matk: string;
-      tendangnhap: string;
-      matkhau: string;
-      vaitro: string;
-      manv: string;
-      hoatdong: number;
+      MaTK: string;
+      TenDangNhap: string;
+      MatKhau: string;
+      VaiTro: string;
+      MaNV: string;
+      HoatDong: number;
     }>(
       `SELECT t.*
        FROM taikhoan t
-       JOIN nhanvien n ON n.manv = t.manv
-       WHERE t.tendangnhap = $1 AND t.hoatdong = 1 AND n.trangthai NOT IN ('Đã lưu trữ', 'Đã nghỉ việc')`,
-      [tendangnhap]
+       JOIN nhanvien n ON n."MaNV" = t."MaNV"
+       WHERE t."TenDangNhap" = $1 AND t."HoatDong" = 1 AND n."TrangThai" NOT IN ('Đã lưu trữ', 'Đã nghỉ việc')`,
+      [TenDangNhap]
     );
 
-    if (!user || !passwordMatches(matkhau, user.matkhau)) {
+    if (!user || !passwordMatches(MatKhau, user.MatKhau)) {
       await recordFailure(accountKey, now);
       await recordFailure(ipKey, now);
       fail('Tên đăng nhập hoặc mật khẩu không đúng.', 401);
     }
 
-    await db.run('DELETE FROM dangnhapthatbai WHERE khoa = $1 OR khoaden < $2', [accountKey, now]);
-    await db.run('DELETE FROM phiendangnhap WHERE thoihan < $1', [now]);
+    await db.run('DELETE FROM dangnhapthatbai WHERE "Khoa" = $1 OR "KhoaDen" < $2', [accountKey, now]);
+    await db.run('DELETE FROM phiendangnhap WHERE "ThoiHan" < $1', [now]);
 
     const token = randomBytes(32).toString('hex');
-    await db.run('INSERT INTO phiendangnhap(maphien, matk, thoihan) VALUES($1, $2, $3)', [
+    await db.run('INSERT INTO phiendangnhap("MaPhien", "MaTK", "ThoiHan") VALUES($1, $2, $3)', [
       sha256(token),
-      user.matk,
+      user.MaTK,
       now + 8 * 3600_000,
     ]);
 
     res.setHeader('Set-Cookie', sessionCookie(req, token, 28800));
-    await auditLog(db, user.matk, 'Đăng nhập', user.tendangnhap);
+    await auditLog(db, user.MaTK, 'Đăng nhập', user.TenDangNhap);
     res.json({ ok: true });
   })
 );
@@ -104,7 +104,7 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const token = extractToken(req);
     if (token) {
-      await db.run('DELETE FROM phiendangnhap WHERE maphien = $1', [sha256(token)]);
+      await db.run('DELETE FROM phiendangnhap WHERE "MaPhien" = $1', [sha256(token)]);
     }
     res.setHeader('Set-Cookie', sessionCookie(req, '', 0));
     res.json({ ok: true });
@@ -116,10 +116,10 @@ authRouter.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const u = req.user!;
-    const current = await db.one<{ matkhau: string }>('SELECT matkhau FROM taikhoan WHERE matk = $1', [
-      u.matk,
+    const current = await db.one<{ MatKhau: string }>('SELECT "MatKhau" FROM taikhoan WHERE "MaTK" = $1', [
+      u.MaTK,
     ]);
-    if (!current || !passwordMatches(text(req.body, 'matkhauhientai'), current.matkhau)) {
+    if (!current || !passwordMatches(text(req.body, 'matkhauhientai'), current.MatKhau)) {
       fail('Mật khẩu hiện tại không đúng.');
     }
     const newPw = text(req.body, 'matkhaumoi');
@@ -128,9 +128,9 @@ authRouter.post(
     }
 
     await withTransaction(async (tx) => {
-      await tx.run('UPDATE taikhoan SET matkhau = $1 WHERE matk = $2', [passwordHash(newPw), u.matk]);
-      await tx.run('DELETE FROM phiendangnhap WHERE matk = $1', [u.matk]);
-      await auditLog(tx, u.matk, 'Đổi mật khẩu', u.tendangnhap);
+      await tx.run('UPDATE taikhoan SET "MatKhau" = $1 WHERE "MaTK" = $2', [passwordHash(newPw), u.MaTK]);
+      await tx.run('DELETE FROM phiendangnhap WHERE "MaTK" = $1', [u.MaTK]);
+      await auditLog(tx, u.MaTK, 'Đổi mật khẩu', u.TenDangNhap);
     });
 
     res.json({ ok: true, relogin: true });
@@ -139,155 +139,155 @@ authRouter.post(
 
 export async function buildScopedState(u: SessionUser) {
   const currentDay = today();
-  const fullAccess = ['admin', 'hr', 'director'].includes(u.vaitro);
+  const fullAccess = ['admin', 'hr', 'director'].includes(u.VaiTro);
 
   // Phạm vi nhân viên được xem — lọc ngay trong SQL, không đọc toàn bảng rồi lọc bằng JS.
   const scope = fullAccess
     ? { where: 'TRUE', params: [] as any[] }
-    : u.vaitro === 'manager' && u.mapb !== null
-    ? { where: '(n.mapb = $1 OR n.manv = $2)', params: [u.mapb, u.manv] }
-    : { where: 'n.manv = $1', params: [u.manv] };
+    : u.VaiTro === 'manager' && u.MaPB !== null
+    ? { where: '(n."MaPB" = $1 OR n."MaNV" = $2)', params: [u.MaPB, u.MaNV] }
+    : { where: 'n."MaNV" = $1', params: [u.MaNV] };
 
   const employees = await db.all(
-    `SELECT n.* FROM nhanvien n WHERE ${scope.where} ORDER BY n.manv`,
+    `SELECT n.* FROM nhanvien n WHERE ${scope.where} ORDER BY n."MaNV"`,
     scope.params
   );
-  const nameRows = await db.all<{ manv: string; hoten: string }>('SELECT manv, hoten FROM nhanvien');
-  const nameMap = new Map(nameRows.map((e) => [e.manv, e.hoten]));
-  const ids = employees.map((e) => e.manv);
+  const nameRows = await db.all<{ MaNV: string; HoTen: string }>('SELECT "MaNV", "HoTen" FROM nhanvien');
+  const nameMap = new Map(nameRows.map((e) => [e.MaNV, e.HoTen]));
+  const ids = employees.map((e) => e.MaNV);
 
   const rawContracts = await db.all(
-    'SELECT * FROM hopdong WHERE manv = ANY($1::text[]) ORDER BY ngaybatdau DESC',
+    'SELECT * FROM hopdong WHERE "MaNV" = ANY($1::text[]) ORDER BY "NgayBatDau" DESC',
     [ids]
   );
   const contracts = rawContracts.map((c) => ({
     ...c,
-    trangthai:
-      c.trangthai === 'Đã chấm dứt' || c.trangthai === 'Đã hủy bỏ'
-        ? c.trangthai
-        : c.ngaybatdau > currentDay
+    TrangThai:
+      c.TrangThai === 'Đã chấm dứt' || c.TrangThai === 'Đã hủy bỏ'
+        ? c.TrangThai
+        : c.NgayBatDau > currentDay
         ? 'Chưa hiệu lực'
-        : c.ngayketthuc && c.ngayketthuc < currentDay
+        : c.NgayKetThuc && c.NgayKetThuc < currentDay
         ? 'Hết hạn'
         : 'Hiệu lực',
-    mucluong: fullAccess || c.manv === u.manv ? Number(c.mucluong) : null,
+    MucLuong: fullAccess || c.MaNV === u.MaNV ? Number(c.MucLuong) : null,
   }));
-  const contractById = new Map(contracts.map((c) => [c.mahd, c]));
+  const contractById = new Map(contracts.map((c) => [c.MaHD, c]));
 
   const assignments = await db.all(
-    'SELECT * FROM quatrinhcongtac WHERE manv = ANY($1::text[]) ORDER BY ngayhieuluc DESC',
+    'SELECT * FROM quatrinhcongtac WHERE "MaNV" = ANY($1::text[]) ORDER BY "NgayHieuLuc" DESC',
     [ids]
   );
-  const decisionIds = assignments.map((a) => a.maqd);
+  const decisionIds = assignments.map((a) => a.MaQD);
 
-  const employeeById = new Map(employees.map((e) => [e.manv, e]));
-  const deptHeadRows = await db.all<{ mapb: string; matruongphong: string | null }>(
-    'SELECT mapb, matruongphong FROM phongban'
+  const employeeById = new Map(employees.map((e) => [e.MaNV, e]));
+  const deptHeadRows = await db.all<{ MaPB: string; MaTruongPhong: string | null }>(
+    'SELECT "MaPB", "MaTruongPhong" FROM phongban'
   );
-  const deptHeadMap = new Map(deptHeadRows.map((d) => [d.mapb, d.matruongphong]));
+  const deptHeadMap = new Map(deptHeadRows.map((d) => [d.MaPB, d.MaTruongPhong]));
   const positionLevels = new Map(
-    (await db.all<{ macv: string; capbac: number }>('SELECT macv, capbac FROM chucvu')).map((p) => [
-      p.macv,
-      Number(p.capbac),
+    (await db.all<{ MaCV: string; CapBac: number }>('SELECT "MaCV", "CapBac" FROM chucvu')).map((p) => [
+      p.MaCV,
+      Number(p.CapBac),
     ])
   );
-  const reviewerEmployee = employees.find((e) => e.manv === u.manv);
-  const reviewerLevel = reviewerEmployee ? positionLevels.get(reviewerEmployee.macv) : undefined;
+  const reviewerEmployee = employees.find((e) => e.MaNV === u.MaNV);
+  const reviewerLevel = reviewerEmployee ? positionLevels.get(reviewerEmployee.MaCV) : undefined;
 
   const rawLeaves = await db.all(
-    'SELECT * FROM donnghiphep WHERE manv = ANY($1::text[]) ORDER BY ngaynop DESC, madon DESC',
+    'SELECT * FROM donnghiphep WHERE "MaNV" = ANY($1::text[]) ORDER BY "NgayNop" DESC, "MaDon" DESC',
     [ids]
   );
   const leaves = rawLeaves.map((l) => {
-    const emp = employeeById.get(l.manv)!;
+    const emp = employeeById.get(l.MaNV)!;
     return {
       ...l,
-      tennguoiduyet: l.manvduyet ? nameMap.get(l.manvduyet) || l.manvduyet : null,
+      tennguoiduyet: l.MaNVDuyet ? nameMap.get(l.MaNVDuyet) || l.MaNVDuyet : null,
       coquyenduyet:
-        l.trangthai === 'Chờ duyệt' &&
-        ((['Đã nghỉ việc', 'Đã lưu trữ'].includes(emp.trangthai) &&
-          ['admin', 'hr'].includes(u.vaitro)) ||
+        l.TrangThai === 'Chờ duyệt' &&
+        ((['Đã nghỉ việc', 'Đã lưu trữ'].includes(emp.TrangThai) &&
+          ['admin', 'hr'].includes(u.VaiTro)) ||
           (!!reviewerEmployee &&
             reviewerLevel !== undefined &&
             canReviewLeave(
-              { ...u, capbac: reviewerLevel },
-              { ...emp, capbac: positionLevels.get(emp.macv) ?? 0 },
-              emp.mapb !== null && deptHeadMap.get(emp.mapb) === u.manv
+              { ...u, CapBac: reviewerLevel },
+              { ...emp, CapBac: positionLevels.get(emp.MaCV) ?? 0 },
+              emp.MaPB !== null && deptHeadMap.get(emp.MaPB) === u.MaNV
             ))),
     };
   });
 
   // Quỹ phép: gộp số ngày đã dùng bằng một truy vấn thay vì lọc lồng nhau.
-  const leaveTypes = await db.all('SELECT * FROM loainghiphep ORDER BY maloai');
-  const usedRows = await db.all<{ manv: string; nam: number; songay: string }>(
-    `SELECT d.manv, EXTRACT(YEAR FROM d.tungay)::int AS nam, SUM(d.songay) AS songay
-     FROM donnghiphep d JOIN loainghiphep l ON l.maloai = d.maloai
-     WHERE d.trangthai = 'Đã duyệt' AND l.truphepnam = 1 AND d.manv = ANY($1::text[])
-     GROUP BY d.manv, EXTRACT(YEAR FROM d.tungay)`,
+  const leaveTypes = await db.all('SELECT * FROM loainghiphep ORDER BY "MaLoai"');
+  const usedRows = await db.all<{ MaNV: string; Nam: number; SoNgay: string }>(
+    `SELECT d."MaNV", EXTRACT(YEAR FROM d."TuNgay")::int AS "Nam", SUM(d."SoNgay") AS "SoNgay"
+     FROM donnghiphep d JOIN loainghiphep l ON l."MaLoai" = d."MaLoai"
+     WHERE d."TrangThai" = 'Đã duyệt' AND l."TruPhepNam" = 1 AND d."MaNV" = ANY($1::text[])
+     GROUP BY d."MaNV", EXTRACT(YEAR FROM d."TuNgay")`,
     [ids]
   );
-  const usedLookup = new Map(usedRows.map((r) => [`${r.manv}:${r.nam}`, Number(r.songay)]));
-  const balanceRows = await db.all<{ manv: string; nam: number; tongsongayphep: number }>(
-    'SELECT manv, nam, tongsongayphep FROM songayphep WHERE manv = ANY($1::text[])',
+  const usedLookup = new Map(usedRows.map((r) => [`${r.MaNV}:${r.Nam}`, Number(r.SoNgay)]));
+  const balanceRows = await db.all<{ MaNV: string; Nam: number; TongSoNgayPhep: number }>(
+    'SELECT "MaNV", "Nam", "TongSoNgayPhep" FROM songayphep WHERE "MaNV" = ANY($1::text[])',
     [ids]
   );
-  const balanceLookup = new Map(balanceRows.map((r) => [`${r.manv}:${r.nam}`, Number(r.tongsongayphep)]));
+  const balanceLookup = new Map(balanceRows.map((r) => [`${r.MaNV}:${r.Nam}`, Number(r.TongSoNgayPhep)]));
   const years = new Set<number>([
     Number(currentDay.slice(0, 4)),
-    ...usedRows.map((r) => Number(r.nam)),
-    ...balanceRows.map((r) => Number(r.nam)),
-    ...rawLeaves.map((l) => Number(String(l.tungay).slice(0, 4))),
+    ...usedRows.map((r) => Number(r.Nam)),
+    ...balanceRows.map((r) => Number(r.Nam)),
+    ...rawLeaves.map((l) => Number(String(l.TuNgay).slice(0, 4))),
   ]);
   const sortedYears = Array.from(years).sort((a, b) => b - a);
 
   // Cùng thuộc tính với SONGAYPHEP / view v_songayphep.
   const balances = employees.flatMap((e) =>
-    sortedYears.map((nam) => {
-      const tongsongayphep = balanceLookup.get(`${e.manv}:${nam}`) ?? defaultEntitlement(e.ngayvaolam, nam);
-      const songaydanghi = usedLookup.get(`${e.manv}:${nam}`) ?? 0;
-      return { manv: e.manv, nam, tongsongayphep, songaydanghi, songayconlai: tongsongayphep - songaydanghi };
+    sortedYears.map((Nam) => {
+      const TongSoNgayPhep = balanceLookup.get(`${e.MaNV}:${Nam}`) ?? defaultEntitlement(e.NgayVaoLam, Nam);
+      const SoNgayDaNghi = usedLookup.get(`${e.MaNV}:${Nam}`) ?? 0;
+      return { MaNV: e.MaNV, Nam, TongSoNgayPhep, SoNgayDaNghi, SoNgayConLai: TongSoNgayPhep - SoNgayDaNghi };
     })
   );
 
-  const departments = await db.all('SELECT * FROM phongban ORDER BY mapb');
-  const positions = await db.all('SELECT * FROM chucvu ORDER BY capbac DESC, macv ASC');
+  const departments = await db.all('SELECT * FROM phongban ORDER BY "MaPB"');
+  const positions = await db.all('SELECT * FROM chucvu ORDER BY "CapBac" DESC, "MaCV" ASC');
   const rawExtensions = await db.all(
-    'SELECT * FROM giahanhopdong WHERE mahd = ANY($1::text[]) ORDER BY langiahan DESC',
-    [contracts.map((c) => c.mahd)]
+    'SELECT * FROM giahanhopdong WHERE "MaHD" = ANY($1::text[]) ORDER BY "LanGiaHan" DESC',
+    [contracts.map((c) => c.MaHD)]
   );
   const extensions = rawExtensions.map((g) => {
-    const contract = contractById.get(g.mahd)!;
-    const canViewSalary = fullAccess || contract.manv === u.manv;
+    const contract = contractById.get(g.MaHD)!;
+    const canViewSalary = fullAccess || contract.MaNV === u.MaNV;
     return {
       ...g,
-      luongcu: canViewSalary && g.luongcu != null ? Number(g.luongcu) : null,
-      luongmoi: canViewSalary && g.luongmoi != null ? Number(g.luongmoi) : null,
+      LuongCu: canViewSalary && g.LuongCu != null ? Number(g.LuongCu) : null,
+      LuongMoi: canViewSalary && g.LuongMoi != null ? Number(g.LuongMoi) : null,
     };
   });
 
   const decisions = fullAccess
-    ? await db.all('SELECT * FROM quyetdinh ORDER BY ngayhieuluc DESC')
-    : await db.all('SELECT * FROM quyetdinh WHERE maqd = ANY($1::text[]) ORDER BY ngayhieuluc DESC', [
+    ? await db.all('SELECT * FROM quyetdinh ORDER BY "NgayHieuLuc" DESC')
+    : await db.all('SELECT * FROM quyetdinh WHERE "MaQD" = ANY($1::text[]) ORDER BY "NgayHieuLuc" DESC', [
         decisionIds.filter(Boolean),
       ]);
 
   const users =
-    u.vaitro === 'admin'
+    u.VaiTro === 'admin'
       ? await db.all(
-          `SELECT t.matk, t.tendangnhap, t.vaitro, t.manv, t.hoatdong, n.hoten
+          `SELECT t."MaTK", t."TenDangNhap", t."VaiTro", t."MaNV", t."HoatDong", n."HoTen"
            FROM taikhoan t
-           JOIN nhanvien n ON n.manv = t.manv
-           ORDER BY t.matk`
+           JOIN nhanvien n ON n."MaNV" = t."MaNV"
+           ORDER BY t."MaTK"`
         )
       : [];
 
   const audit =
-    u.vaitro === 'admin'
+    u.VaiTro === 'admin'
       ? await db.all(
-          `SELECT k.*, t.tendangnhap
+          `SELECT k.*, t."TenDangNhap"
            FROM nhatkyhethong k
-           LEFT JOIN taikhoan t ON t.matk = k.matk
-           ORDER BY k.mank DESC
+           LEFT JOIN taikhoan t ON t."MaTK" = k."MaTK"
+           ORDER BY k."MaNK" DESC
            LIMIT 100`
         )
       : [];
@@ -328,16 +328,16 @@ authRouter.get(
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
     const offset = Math.max(Number(req.query.offset) || 0, 0);
     const q = typeof req.query.q === 'string' && req.query.q.trim() ? `%${req.query.q.trim()}%` : null;
-    const filter = `($1::text IS NULL OR k.hanhdong ILIKE $1 OR k.doituong ILIKE $1 OR t.tendangnhap ILIKE $1)`;
+    const filter = `($1::text IS NULL OR k."HanhDong" ILIKE $1 OR k."DoiTuong" ILIKE $1 OR t."TenDangNhap" ILIKE $1)`;
     const rows = await db.all(
-      `SELECT k.*, t.tendangnhap
-       FROM nhatkyhethong k LEFT JOIN taikhoan t ON t.matk = k.matk
+      `SELECT k.*, t."TenDangNhap"
+       FROM nhatkyhethong k LEFT JOIN taikhoan t ON t."MaTK" = k."MaTK"
        WHERE ${filter}
-       ORDER BY k.mank DESC LIMIT $2 OFFSET $3`,
+       ORDER BY k."MaNK" DESC LIMIT $2 OFFSET $3`,
       [q, limit, offset]
     );
     const total = await db.one<{ n: string }>(
-      `SELECT COUNT(*) AS n FROM nhatkyhethong k LEFT JOIN taikhoan t ON t.matk = k.matk WHERE ${filter}`,
+      `SELECT COUNT(*) AS n FROM nhatkyhethong k LEFT JOIN taikhoan t ON t."MaTK" = k."MaTK" WHERE ${filter}`,
       [q]
     );
     res.json({ rows, total: Number(total?.n ?? 0) });

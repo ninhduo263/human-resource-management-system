@@ -31,10 +31,10 @@ export function daysUntil(targetDate: string, todayStr: string): number {
 }
 
 export function getContractStatus(c: Contract, todayStr: string): string {
-  if (c.trangthai === 'Hiệu lực' && c.ngayketthuc && daysUntil(c.ngayketthuc, todayStr) <= 30) {
+  if (c.TrangThai === 'Hiệu lực' && c.NgayKetThuc && daysUntil(c.NgayKetThuc, todayStr) <= 30) {
     return 'Sắp hết hạn';
   }
-  return c.trangthai;
+  return c.TrangThai;
 }
 
 export function getInitials(name?: string): string {
@@ -116,8 +116,8 @@ export function matchEmployeeQuery(
   deptFilter: string
 ): boolean {
   if (!e) return false;
-  if (deptFilter && e.mapb !== deptFilter) return false;
+  if (deptFilter && e.MaPB !== deptFilter) return false;
   if (!search.trim()) return true;
   const q = search.trim().toLocaleLowerCase('vi');
-  return [e.hoten, e.manv, e.email].some((x) => x.toLocaleLowerCase('vi').includes(q));
+  return [e.HoTen, e.MaNV, e.Email].some((x) => x.toLocaleLowerCase('vi').includes(q));
 }

@@ -21,41 +21,41 @@ export async function runScheduledJobs(force = false): Promise<void> {
     const day = today();
 
     const terminations = await tx.all<{
-      mahd: string;
-      manv: string;
-      loaichamdut: string | null;
+      MaHD: string;
+      MaNV: string;
+      LoaiChamDut: string | null;
     }>(
-      `SELECT mahd, manv, loaichamdut FROM hopdong
-       WHERE trangthai NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')
-         AND ngaychamdut IS NOT NULL AND ngaychamdut <= $1
-       ORDER BY ngaychamdut`,
+      `SELECT "MaHD", "MaNV", "LoaiChamDut" FROM hopdong
+       WHERE "TrangThai" NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')
+         AND "NgayChamDut" IS NOT NULL AND "NgayChamDut" <= $1
+       ORDER BY "NgayChamDut"`,
       [day]
     );
     for (const c of terminations) {
-      await finalizeTermination(tx, c, null, 'Chấm dứt hợp đồng đến hạn', c.loaichamdut);
+      await finalizeTermination(tx, c, null, 'Chấm dứt hợp đồng đến hạn', c.LoaiChamDut);
     }
 
-    const salaries = await tx.all<{ magh: string; mahd: string; luongmoi: number }>(
-      `SELECT g.magh, g.mahd, g.luongmoi
-       FROM giahanhopdong g JOIN hopdong h ON h.mahd = g.mahd
-       WHERE g.daapdung = FALSE AND g.ngayhieuluc <= $1
-         AND h.trangthai NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')
-       ORDER BY g.ngayhieuluc, g.langiahan`,
+    const salaries = await tx.all<{ MaGH: string; MaHD: string; LuongMoi: number }>(
+      `SELECT g."MaGH", g."MaHD", g."LuongMoi"
+       FROM giahanhopdong g JOIN hopdong h ON h."MaHD" = g."MaHD"
+       WHERE g."DaApDung" = FALSE AND g."NgayHieuLuc" <= $1
+         AND h."TrangThai" NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')
+       ORDER BY g."NgayHieuLuc", g."LanGiaHan"`,
       [day]
     );
     for (const g of salaries) {
-      await tx.run('UPDATE hopdong SET mucluong = $1 WHERE mahd = $2', [g.luongmoi, g.mahd]);
-      await tx.run('UPDATE giahanhopdong SET daapdung = TRUE WHERE magh = $1', [g.magh]);
+      await tx.run('UPDATE hopdong SET "MucLuong" = $1 WHERE "MaHD" = $2', [g.LuongMoi, g.MaHD]);
+      await tx.run('UPDATE giahanhopdong SET "DaApDung" = TRUE WHERE "MaGH" = $1', [g.MaGH]);
     }
 
-    const due = await tx.all<{ maqt: string }>(
-      `SELECT maqt FROM quatrinhcongtac
-       WHERE trangthai = 'Chờ hiệu lực' AND ngayhieuluc <= $1
-       ORDER BY ngayhieuluc, maqt`,
+    const due = await tx.all<{ MaQT: string }>(
+      `SELECT "MaQT" FROM quatrinhcongtac
+       WHERE "TrangThai" = 'Chờ hiệu lực' AND "NgayHieuLuc" <= $1
+       ORDER BY "NgayHieuLuc", "MaQT"`,
       [day]
     );
     for (const a of due) {
-      await applyAssignment(tx, a.maqt, null);
+      await applyAssignment(tx, a.MaQT, null);
     }
 
     await syncEmployeeStatuses(tx);
