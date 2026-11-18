@@ -172,25 +172,19 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
 
   const posColumns = [
     {
-      title: 'Mã chức vụ',
+      title: 'Mã chức vụ (MaCV)',
       dataIndex: 'id',
       key: 'id',
       render: (id: string) => <Text code>{id}</Text>,
     },
     {
-      title: 'Tên chức vụ',
+      title: 'Tên chức vụ (TenCV)',
       dataIndex: 'name',
       key: 'name',
       render: (name: string) => <strong>{name}</strong>,
     },
     {
-      title: 'Cấp bậc (1–10)',
-      dataIndex: 'level',
-      key: 'level',
-      render: (level: number) => <Tag color="processing">Cấp {level}</Tag>,
-    },
-    {
-      title: 'Mô tả',
+      title: 'Mô tả (MoTa)',
       dataIndex: 'description',
       key: 'description',
       render: (d: string) => d || '—',
@@ -322,22 +316,10 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
                   >
                     {d.description || 'Chưa có mô tả phòng ban.'}
                   </Paragraph>
-                  <div className="text-xs text-slate-400 mb-2">
-                    Thành lập: {formatDate(d.founded_date)}
+                  <div className="text-xs text-slate-500 mb-3 flex items-center justify-between">
+                    <span>Mã PB: <Text code>{d.id}</Text></span>
+                    <span>Thành lập: {formatDate(d.founded_date)}</span>
                   </div>
-                  {(() => {
-                    const head = state.employees.find((e) => e.id === d.head_id);
-                    return head ? (
-                      <div className="text-xs text-slate-700 font-medium mb-3 flex items-center gap-1.5">
-                        <Tag color="cyan" className="m-0">Trưởng phòng</Tag>
-                        <span className="font-semibold text-slate-800">{head.name}</span>
-                      </div>
-                    ) : (
-                      <div className="text-xs text-slate-400 mb-3 flex items-center gap-1.5">
-                        <Tag color="default" className="m-0">Chưa có Trưởng phòng</Tag>
-                      </div>
-                    );
-                  })()}
                   <Avatar.Group max={{ count: 6 }}>
                     {members.map((e) => (
                       <Avatar
@@ -381,43 +363,28 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
           {formError && (
             <Alert type="error" showIcon message={formError} className="mb-4" />
           )}
+          {deptModal.item && (
+            <Form.Item name="id" label="Mã phòng ban (MaPB)">
+              <Input disabled />
+            </Form.Item>
+          )}
           <Form.Item
             name="name"
-            label="Tên phòng ban"
+            label="Tên phòng ban (TenPB)"
             rules={[{ required: true, message: 'Nhập tên phòng ban' }]}
           >
             <Input />
           </Form.Item>
           <Form.Item
             name="founded_date"
-            label="Ngày thành lập"
+            label="Ngày thành lập (NgayThanhLap)"
             rules={[{ required: true, message: 'Chọn ngày thành lập' }]}
           >
             <Input type="date" />
           </Form.Item>
-          <Form.Item name="description" label="Mô tả chức năng">
+          <Form.Item name="description" label="Mô tả (MoTa)">
             <Input.TextArea rows={3} />
           </Form.Item>
-          {deptModal.item && (
-            <>
-              <Form.Item name="head_id" label="Trưởng phòng">
-                <Select
-                  allowClear
-                  placeholder="Chưa có trưởng phòng"
-                  options={state.employees
-                    .filter(
-                      (e) =>
-                        e.department_id === deptModal.item!.id &&
-                        ['Đang làm việc', 'Thử việc'].includes(e.status)
-                    )
-                    .map((e) => ({ value: e.id, label: `${e.name} (${e.id})` }))}
-                />
-              </Form.Item>
-              <Form.Item name="active" label="Đang sử dụng" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </>
-          )}
 
           <div className="flex items-center justify-between pt-2">
             {deptModal.item ? (
@@ -461,54 +428,20 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
             <Alert type="error" showIcon message={formError} className="mb-4" />
           )}
           {posModal.item && (
-            <Form.Item name="id" label="Mã chức vụ">
+            <Form.Item name="id" label="Mã chức vụ (MaCV)">
               <Input disabled />
             </Form.Item>
           )}
           <Form.Item
             name="name"
-            label="Tên chức vụ"
+            label="Tên chức vụ (TenCV)"
             rules={[{ required: true, message: 'Nhập tên chức vụ' }]}
           >
             <Input />
           </Form.Item>
-          <Form.Item
-            name="level"
-            label="Cấp bậc (1–10)"
-            rules={[{ required: true, message: 'Nhập cấp bậc từ 1 đến 10' }]}
-          >
-            <InputNumber min={1} max={10} className="w-full" />
-          </Form.Item>
-          <Form.Item name="description" label="Mô tả">
+          <Form.Item name="description" label="Mô tả (MoTa)">
             <Input.TextArea rows={3} />
           </Form.Item>
-          <Form.Item
-            name="is_executive"
-            label="Chức vụ điều hành (không thuộc phòng ban)"
-            valuePropName="checked"
-          >
-            <Switch />
-          </Form.Item>
-          <Form.Item
-            name="default_role"
-            label="Vai trò tài khoản mặc định"
-            extra="Khi bổ nhiệm vào chức vụ này, vai trò tài khoản tự đồng bộ theo."
-          >
-            <Select
-              allowClear
-              placeholder="Giữ nguyên vai trò hiện tại"
-              options={[
-                { value: 'employee', label: 'Nhân viên' },
-                { value: 'manager', label: 'Trưởng phòng' },
-                { value: 'director', label: 'Giám đốc' },
-              ]}
-            />
-          </Form.Item>
-          {posModal.item && (
-            <Form.Item name="active" label="Đang sử dụng" valuePropName="checked">
-              <Switch />
-            </Form.Item>
-          )}
 
           <div className="flex items-center justify-between pt-2">
             {posModal.item ? (

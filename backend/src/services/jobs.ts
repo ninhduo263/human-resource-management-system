@@ -41,19 +41,6 @@ export async function runScheduledJobs(force = false): Promise<void> {
       );
     }
 
-    const salaries = await tx.all<{ id: string; contract_id: string; new_salary: number }>(
-      `SELECT x.id, x.contract_id, x.new_salary
-       FROM extensions x JOIN contracts c ON c.id = x.contract_id
-       WHERE x.applied = FALSE AND x.effective_date <= $1
-         AND c.status NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')
-       ORDER BY x.effective_date, x.sequence`,
-      [day]
-    );
-    for (const x of salaries) {
-      await tx.run('UPDATE contracts SET salary = $1 WHERE id = $2', [x.new_salary, x.contract_id]);
-      await tx.run('UPDATE extensions SET applied = TRUE WHERE id = $1', [x.id]);
-    }
-
     const due = await tx.all<{ id: string }>(
       `SELECT id FROM assignments
        WHERE status = 'Chờ hiệu lực' AND effective_date <= $1

@@ -134,7 +134,9 @@ catalogsRouter.delete(
 
 // 2.2 Quản lý chức vụ
 function readPosition(b: Record<string, unknown>, oldRow?: any) {
-  const level = numeric(b, 'level', 1, 10);
+  const level = b.level !== undefined && b.level !== null && b.level !== ''
+    ? numeric(b, 'level', 1, 10)
+    : (oldRow?.level ?? 2);
   if (!Number.isInteger(level)) fail('Cấp bậc phải là số nguyên.');
   const defaultRole =
     b.default_role === undefined

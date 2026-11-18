@@ -6,7 +6,6 @@ import { catalogsRouter } from './routes/catalogs.routes.js';
 import { contractsRouter } from './routes/contracts.routes.js';
 import { assignmentsRouter } from './routes/assignments.routes.js';
 import { leavesRouter } from './routes/leaves.routes.js';
-import { rewardsRouter } from './routes/rewards.routes.js';
 import { fail } from './utils/validation.js';
 import { requestContext } from './utils/http.js';
 
@@ -78,7 +77,6 @@ export function createExpressApp() {
   app.use('/api', catalogsRouter);
   app.use('/api/contracts', contractsRouter);
   app.use('/api/assignments', assignmentsRouter);
-  app.use('/api/rewards', rewardsRouter);
   app.use('/api', leavesRouter);
 
   app.use('/api/*', (_req, _res, next) => {

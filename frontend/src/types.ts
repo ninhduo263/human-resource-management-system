@@ -101,23 +101,6 @@ export interface Assignment {
   cancel_reason?: string | null;
 }
 
-export interface RewardDiscipline {
-  id: string;
-  employee_id: string;
-  decision_id: string;
-  type: 'Khen thưởng' | 'Kỷ luật';
-  category: string;
-  amount: number;
-  effective_date: string;
-  reason: string;
-  employee_name?: string;
-  department_name?: string;
-  position_name?: string;
-  decision_number?: string;
-  signer?: string;
-  signed_date?: string;
-}
-
 export interface LeaveType {
   id: string;
   name: string;
@@ -180,7 +163,6 @@ export interface AppState {
   extensions: ContractExtension[];
   assignments: Assignment[];
   decisions: Decision[];
-  rewards?: RewardDiscipline[];
   leaveTypes: LeaveType[];
   leaves: LeaveRequest[];
   balances: LeaveBalance[];
@@ -194,7 +176,6 @@ export type RouteKey =
   | 'departments'
   | 'contracts'
   | 'assignments'
-  | 'rewards'
   | 'leaves'
   | 'reports'
   | 'settings';

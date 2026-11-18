@@ -197,50 +197,16 @@ export async function seedDatabase(): Promise<void> {
       `UPDATE departments SET head_id = 'NV010' WHERE id = 'PB06' AND head_id IS NULL`
     );
 
-    const sampleDecisions: [string, string, string, string, string][] = [
-      ['QD001', `01/${year}/QD-NS`, 'Bổ nhiệm', 'Trần Hải Đăng', 'Bổ nhiệm trưởng phòng Marketing'],
-      ['QD002', `02/${year}/QD-DC`, 'Điều chuyển', 'Trần Hải Đăng', 'Điều chuyển chuyên viên Lê Hoàng Nam sang phòng Marketing hỗ trợ dự án'],
-      ['QD003', `03/${year}/QD-MN`, 'Miễn nhiệm', 'Trần Hải Đăng', 'Miễn nhiệm chức vụ phó phòng đối với nhân sự để nhận công tác mới'],
-      ['QD004', `04/${year}/QD-KT`, 'Khen thưởng', 'Trần Hải Đăng', 'Khen thưởng thành tích xuất sắc quý cho nhân viên Lê Hoàng Nam'],
-      ['QD005', `05/${year}/QD-KL`, 'Kỷ luật', 'Trần Hải Đăng', 'Kỷ luật Khiển trách đối với nhân viên Đặng Đức Huy do vi phạm quy chế bảo mật'],
-      ['QD006', `06/${year}/QD-CD`, 'Chấm dứt hợp đồng', 'Trần Hải Đăng', 'Quyết định chấm dứt hợp đồng lao động theo thỏa thuận đôi bên'],
+    const sampleAssignments: [string, string, string, string, string, string, string, string][] = [
+      ['QT001', 'NV007', 'Bổ nhiệm', 'PB05', 'PB05', 'CV01', 'CV02', 'Bổ nhiệm Trưởng phòng Marketing'],
     ];
 
-    for (const [id, num, type, signer, content] of sampleDecisions) {
+    for (const [id, empId, type, oldDept, newDept, oldPos, newPos, reason] of sampleAssignments) {
       await tx.run(
-        `INSERT INTO decisions(id, number, type, signed_date, effective_date, signer, content)
-         VALUES($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (id) DO UPDATE SET number = EXCLUDED.number, content = EXCLUDED.content`,
-        [id, num, type, date, date, signer, content]
-      );
-    }
-
-    const sampleAssignments: [string, string, string, string, string, string, string, string, string][] = [
-      ['QT001', 'NV007', 'QD001', 'Bổ nhiệm', 'PB05', 'PB05', 'CV01', 'CV02', 'Ghi nhận quyết định bổ nhiệm trưởng phòng'],
-      ['QT002', 'NV003', 'QD002', 'Điều chuyển', 'PB02', 'PB05', 'CV01', 'CV01', 'Điều chuyển nhân sự hỗ trợ dự án'],
-      ['QT003', 'NV006', 'QD003', 'Miễn nhiệm', 'PB02', 'PB02', 'CV05', 'CV01', 'Miễn nhiệm chức vụ phó phòng kỹ thuật theo nguyện vọng'],
-    ];
-
-    for (const [id, empId, decId, type, oldDept, newDept, oldPos, newPos, reason] of sampleAssignments) {
-      await tx.run(
-        `INSERT INTO assignments(id, employee_id, decision_id, type, old_department_id, new_department_id, old_position_id, new_position_id, effective_date, reason)
-         VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `INSERT INTO assignments(id, employee_id, type, old_department_id, new_department_id, old_position_id, new_position_id, effective_date, reason)
+         VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9)
          ON CONFLICT (id) DO NOTHING`,
-        [id, empId, decId, type, oldDept, newDept, oldPos, newPos, date, reason]
-      );
-    }
-
-    const sampleRewards: [string, string, string, string, string, number, string][] = [
-      ['KT001', 'NV003', 'QD004', 'Khen thưởng', 'Thưởng tiền mặt', 5000000, 'Hoàn thành xuất sắc dự án nâng cấp hệ thống vượt tiến độ'],
-      ['KL001', 'NV006', 'QD005', 'Kỷ luật', 'Khiển trách', 0, 'Vi phạm quy định an toàn và bảo mật thông tin nội bộ'],
-    ];
-
-    for (const [id, empId, decId, type, category, amount, reason] of sampleRewards) {
-      await tx.run(
-        `INSERT INTO rewards_disciplines(id, employee_id, decision_id, type, category, amount, effective_date, reason)
-         VALUES($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (id) DO NOTHING`,
-        [id, empId, decId, type, category, amount, date, reason]
+        [id, empId, type, oldDept, newDept, oldPos, newPos, date, reason]
       );
     }
   });

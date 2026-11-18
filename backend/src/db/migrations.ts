@@ -2,7 +2,8 @@ import type { Pool } from 'pg';
 
 /**
  * Migration có đánh số, chạy đúng một lần và được ghi vào bảng schema_migrations.
- * schema.sql chỉ là bản nền (baseline); mọi thay đổi cấu trúc mới thêm vào đây.
+ * Ánh xạ 8 thực thể trên ERD_QLNS.drawio.png (departments, positions, employees,
+ * contracts, assignments, leave_types, leave_requests, leave_balances).
  */
 interface Migration {
   id: string;
@@ -17,11 +18,6 @@ const DATE_COLUMNS: [string, string][] = [
   ['contracts', 'start_date'],
   ['contracts', 'end_date'],
   ['contracts', 'terminated_date'],
-  ['extensions', 'created_date'],
-  ['extensions', 'old_end_date'],
-  ['extensions', 'new_end_date'],
-  ['decisions', 'signed_date'],
-  ['decisions', 'effective_date'],
   ['assignments', 'effective_date'],
   ['leave_requests', 'submitted_date'],
   ['leave_requests', 'start_date'],
@@ -31,8 +27,6 @@ const DATE_COLUMNS: [string, string][] = [
 
 const MONEY_COLUMNS: [string, string][] = [
   ['contracts', 'salary'],
-  ['extensions', 'old_salary'],
-  ['extensions', 'new_salary'],
 ];
 
 const typeConversion = [
@@ -74,10 +68,8 @@ export const migrations: Migration[] = [
 
       ALTER TABLE contracts ADD COLUMN IF NOT EXISTS contract_number VARCHAR(60);
       ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_type VARCHAR(40);
-
-      ALTER TABLE extensions ADD COLUMN IF NOT EXISTS effective_date DATE;
-      UPDATE extensions SET effective_date = created_date WHERE effective_date IS NULL;
-      ALTER TABLE extensions ADD COLUMN IF NOT EXISTS applied BOOLEAN NOT NULL DEFAULT TRUE;
+      ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_end_date DATE;
+      UPDATE contracts SET original_end_date = end_date WHERE original_end_date IS NULL;
 
       ALTER TABLE assignments ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'Hiệu lực';
       ALTER TABLE assignments ADD COLUMN IF NOT EXISTS cancelled_date DATE;
@@ -107,6 +99,7 @@ export const migrations: Migration[] = [
       END $$;
 
       CREATE INDEX IF NOT EXISTS idx_assignments_pending ON assignments(status, effective_date);
+      CREATE INDEX IF NOT EXISTS idx_departments_head ON departments(head_id);
     `,
   },
   {
@@ -131,45 +124,13 @@ export const migrations: Migration[] = [
     `,
   },
   {
-    id: '004_rewards_disciplines_and_model_enhancements',
+    id: '005_strict_8_entity_erd_cleanup',
     sql: `
-      -- 1. Thêm thực thể KHENTHUONG_KYLUAT (rewards_disciplines) cho BFD 3.4
-      CREATE TABLE IF NOT EXISTS rewards_disciplines (
-        id VARCHAR(30) PRIMARY KEY,
-        employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
-        decision_id VARCHAR(30) NOT NULL REFERENCES decisions(id) ON DELETE RESTRICT,
-        type VARCHAR(40) NOT NULL CHECK (type IN ('Khen thưởng', 'Kỷ luật')),
-        category VARCHAR(100) NOT NULL,
-        amount NUMERIC(15,2) DEFAULT 0 CHECK (amount >= 0),
-        effective_date DATE NOT NULL,
-        reason TEXT NOT NULL
-      );
-
-      CREATE INDEX IF NOT EXISTS idx_rewards_employee ON rewards_disciplines(employee_id);
-      CREATE INDEX IF NOT EXISTS idx_rewards_decision ON rewards_disciplines(decision_id);
-      CREATE INDEX IF NOT EXISTS idx_rewards_type ON rewards_disciplines(type);
-
-      -- 2. Hỗ trợ Quyết định chấm dứt hợp đồng và Phụ lục hợp đồng (bảo toàn lịch sử HĐ gốc)
-      ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_decision_id VARCHAR(30)
-        REFERENCES decisions(id) ON DELETE SET NULL;
-      ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_end_date DATE;
-      ALTER TABLE contracts ALTER COLUMN original_end_date TYPE DATE USING original_end_date::date;
-      UPDATE contracts SET original_end_date = end_date WHERE original_end_date IS NULL;
-
-      ALTER TABLE rewards_disciplines ALTER COLUMN effective_date TYPE DATE USING effective_date::date;
-      ALTER TABLE rewards_disciplines ALTER COLUMN amount TYPE NUMERIC(15,2) USING amount::numeric;
-
-      ALTER TABLE extensions ADD COLUMN IF NOT EXISTS decision_id VARCHAR(30)
-        REFERENCES decisions(id) ON DELETE SET NULL;
-
-      -- 3. Mở rộng ràng buộc cho assignments hỗ trợ 'Miễn nhiệm' (DFD 2.3, 2.4)
-      ALTER TABLE assignments DROP CONSTRAINT IF EXISTS assignments_type_check;
-      ALTER TABLE assignments ADD CONSTRAINT assignments_type_check
-        CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm'));
-
-      -- 4. Đảm bảo ràng buộc Trưởng phòng quản lý phòng ban
-      CREATE INDEX IF NOT EXISTS idx_departments_head ON departments(head_id);
-      CREATE INDEX IF NOT EXISTS idx_contracts_termination_decision ON contracts(termination_decision_id);
+      DROP TABLE IF EXISTS rewards_disciplines CASCADE;
+      DROP TABLE IF EXISTS extensions CASCADE;
+      ALTER TABLE assignments DROP COLUMN IF EXISTS decision_id CASCADE;
+      ALTER TABLE contracts DROP COLUMN IF EXISTS termination_decision_id CASCADE;
+      DROP TABLE IF EXISTS decisions CASCADE;
     `,
   },
 ];
@@ -177,7 +138,6 @@ export const migrations: Migration[] = [
 export async function runMigrations(pool: Pool): Promise<void> {
   const client = await pool.connect();
   try {
-    // Khóa toàn cục để nhiều tiến trình khởi động cùng lúc không chạy migration song song.
     await client.query('SELECT pg_advisory_lock(hashtext($1))', ['peopleops:migrations']);
     await client.query(
       `CREATE TABLE IF NOT EXISTS schema_migrations (

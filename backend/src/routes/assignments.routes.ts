@@ -25,13 +25,13 @@ assignmentsRouter.post(
     requireRole(u, ['admin', 'hr', 'director']);
 
     const b = req.body;
+    const currentDay = today();
     const effective = date(b, 'effective_date');
-    const signed = date(b, 'signed_date');
+    const signed = b.signed_date ? date(b, 'signed_date') : (effective <= currentDay ? effective : currentDay);
     const type = choice(b, 'type', ['Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm'] as const);
     const reason = text(b, 'reason', 1000);
-    const number = text(b, 'number', 60);
-    const signer = text(b, 'signer', 120);
-    const currentDay = today();
+    const number = b.number && String(b.number).trim() ? text(b, 'number', 60) : generateId('QD');
+    const signer = b.signer && String(b.signer).trim() ? text(b, 'signer', 120) : 'Ban giám đốc';
 
     if (effective > addMonths(currentDay, 12)) {
       fail('Ngày hiệu lực không được quá 12 tháng sau hôm nay.');
@@ -80,30 +80,12 @@ assignmentsRouter.post(
         if (type !== expected) fail('Loại biến động không khớp phòng ban/chức vụ thay đổi.');
       }
 
-      const did = generateId('QD');
-      await tx.run(
-        `INSERT INTO decisions(id, number, type, signed_date, effective_date, signer, content)
-         VALUES($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (number) DO NOTHING`,
-        [did, number, type, signed, effective, signer, reason]
-      );
-      const decision = (await tx.one<any>('SELECT * FROM decisions WHERE number = $1', [number]))!;
-      if (
-        decision.type !== type ||
-        decision.signed_date !== signed ||
-        decision.effective_date !== effective ||
-        decision.signer !== signer ||
-        decision.content !== reason
-      ) {
-        fail('Thông tin không khớp quyết định đã có.', 409);
-      }
-
       const aid = generateId('QT');
       await tx.run(
-        `INSERT INTO assignments(id, employee_id, decision_id, type, old_department_id, new_department_id,
+        `INSERT INTO assignments(id, employee_id, type, old_department_id, new_department_id,
            old_position_id, new_position_id, effective_date, reason, status)
-         VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Chờ hiệu lực')`,
-        [aid, e.id, decision.id, type, e.department_id, dept.id, e.position_id, pos.id, effective, reason]
+         VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, 'Chờ hiệu lực')`,
+        [aid, e.id, type, e.department_id, dept.id, e.position_id, pos.id, effective, reason]
       );
       if (effective <= currentDay) {
         await applyAssignment(tx, aid, u.id);

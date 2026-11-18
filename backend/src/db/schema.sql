@@ -1,7 +1,7 @@
 -- ============================================================================
 -- PeopleOps HRMS - Nhom 16
--- PostgreSQL Schema ánh xạ trực tiếp từ ERD_QLNS_v2.drawio.pdf (10 thực thể)
--- và 3 bảng hệ thống (users, sessions, audit_log)
+-- PostgreSQL Schema ánh xạ trực tiếp từ ERD_QLNS.drawio.png (8 thực thể)
+-- và các bảng hệ thống (users, sessions, audit_log)
 -- ============================================================================
 
 -- 1. PHONGBAN (departments)
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS positions (
   id VARCHAR(25) PRIMARY KEY,
   name VARCHAR(120) NOT NULL UNIQUE,
   description TEXT NOT NULL DEFAULT '',
-  level INTEGER NOT NULL CHECK (level BETWEEN 1 AND 10)
+  level INTEGER NOT NULL DEFAULT 2 CHECK (level BETWEEN 1 AND 10)
 );
 
 -- 3. NHANVIEN (employees)
@@ -49,67 +49,28 @@ CREATE TABLE IF NOT EXISTS contracts (
   termination_reason TEXT
 );
 
--- 5. GIAHANHOPDONG (extensions)
-CREATE TABLE IF NOT EXISTS extensions (
-  id VARCHAR(30) PRIMARY KEY,
-  contract_id VARCHAR(30) NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
-  sequence INTEGER NOT NULL,
-  created_date VARCHAR(10) NOT NULL,
-  old_end_date VARCHAR(10),
-  new_end_date VARCHAR(10),
-  amendment_type VARCHAR(40) NOT NULL DEFAULT 'Gia hạn',
-  old_salary DOUBLE PRECISION,
-  new_salary DOUBLE PRECISION,
-  reason TEXT NOT NULL,
-  UNIQUE (contract_id, sequence)
-);
-
--- 6. QUYETDINH (decisions)
-CREATE TABLE IF NOT EXISTS decisions (
-  id VARCHAR(30) PRIMARY KEY,
-  number VARCHAR(60) NOT NULL UNIQUE,
-  type VARCHAR(40) NOT NULL,
-  signed_date VARCHAR(10) NOT NULL,
-  effective_date VARCHAR(10) NOT NULL,
-  signer VARCHAR(120) NOT NULL,
-  content TEXT NOT NULL
-);
-
--- 7. QUATRINHCONGTAC (assignments)
+-- 5. QUATRINHCONGTAC (assignments)
 CREATE TABLE IF NOT EXISTS assignments (
   id VARCHAR(30) PRIMARY KEY,
   employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
-  decision_id VARCHAR(30) NOT NULL REFERENCES decisions(id) ON DELETE RESTRICT,
   type VARCHAR(40) NOT NULL CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm')),
   old_department_id VARCHAR(25) REFERENCES departments(id) ON DELETE RESTRICT,
   new_department_id VARCHAR(25) NOT NULL REFERENCES departments(id) ON DELETE RESTRICT,
-  old_position_id VARCHAR(25) NOT NULL REFERENCES positions(id) ON DELETE RESTRICT,
+  old_position_id VARCHAR(25) REFERENCES positions(id) ON DELETE RESTRICT,
   new_position_id VARCHAR(25) NOT NULL REFERENCES positions(id) ON DELETE RESTRICT,
   effective_date VARCHAR(10) NOT NULL,
   reason TEXT NOT NULL
 );
 
--- 8. KHENTHUONG_KYLUAT (rewards_disciplines - BFD 3.4)
-CREATE TABLE IF NOT EXISTS rewards_disciplines (
-  id VARCHAR(30) PRIMARY KEY,
-  employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
-  decision_id VARCHAR(30) NOT NULL REFERENCES decisions(id) ON DELETE RESTRICT,
-  type VARCHAR(40) NOT NULL CHECK (type IN ('Khen thưởng', 'Kỷ luật')),
-  category VARCHAR(100) NOT NULL,
-  amount NUMERIC(15,2) DEFAULT 0 CHECK (amount >= 0),
-  effective_date DATE NOT NULL,
-  reason TEXT NOT NULL
-);
-
--- 8. LOAINGHIPHEP (leave_types)
+-- 6. LOAINGHIPHEP (leave_types)
 CREATE TABLE IF NOT EXISTS leave_types (
   id VARCHAR(25) PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   max_days INTEGER NOT NULL CHECK (max_days > 0),
-  deduct_annual INTEGER NOT NULL CHECK (deduct_annual IN (0, 1))
+  deduct_annual INTEGER NOT NULL DEFAULT 1 CHECK (deduct_annual IN (0, 1))
 );
 
--- 9. DONNGHIPHEP (leave_requests)
+-- 7. DONNGHIPHEP (leave_requests)
 CREATE TABLE IF NOT EXISTS leave_requests (
   id VARCHAR(30) PRIMARY KEY,
   employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
@@ -125,7 +86,7 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   review_note TEXT
 );
 
--- 10. SONGAYPHEP (leave_balances)
+-- 8. SONGAYPHEP (leave_balances)
 CREATE TABLE IF NOT EXISTS leave_balances (
   employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
   year INTEGER NOT NULL,
@@ -155,7 +116,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
   id SERIAL PRIMARY KEY,
   user_id VARCHAR(30) REFERENCES users(id) ON DELETE SET NULL,
   action VARCHAR(120) NOT NULL,
-  target VARCHAR(120) NOT NULL,
+  target VARCHAR(250) NOT NULL,
   created_at VARCHAR(40) NOT NULL
 );
 
@@ -165,39 +126,32 @@ CREATE INDEX IF NOT EXISTS idx_leave_employee ON leave_requests(employee_id, sta
 CREATE INDEX IF NOT EXISTS idx_contract_employee ON contracts(employee_id);
 CREATE INDEX IF NOT EXISTS idx_assignments_employee ON assignments(employee_id);
 
--- (View v_songayphep được tạo trong db/migrations.ts vì phụ thuộc kiểu dữ liệu cột ngày.)
-
 -- Cập nhật tương thích cho database đã được khởi tạo trước đây.
+DROP TABLE IF EXISTS rewards_disciplines CASCADE;
+DROP TABLE IF EXISTS extensions CASCADE;
+ALTER TABLE assignments DROP COLUMN IF EXISTS decision_id CASCADE;
+ALTER TABLE contracts DROP COLUMN IF EXISTS termination_decision_id CASCADE;
+DROP TABLE IF EXISTS decisions CASCADE;
+
 ALTER TABLE employees DROP CONSTRAINT IF EXISTS employees_status_check;
 ALTER TABLE employees ADD CONSTRAINT employees_status_check
   CHECK (status IN ('Đang làm việc', 'Thử việc', 'Đã nghỉ việc', 'Đã lưu trữ'));
 ALTER TABLE employees ALTER COLUMN department_id DROP NOT NULL;
 ALTER TABLE assignments ALTER COLUMN old_department_id DROP NOT NULL;
+ALTER TABLE assignments ALTER COLUMN old_position_id DROP NOT NULL;
 ALTER TABLE users ALTER COLUMN username TYPE VARCHAR(150);
 ALTER TABLE audit_log ALTER COLUMN target TYPE VARCHAR(250);
-ALTER TABLE extensions ALTER COLUMN new_end_date DROP NOT NULL;
-ALTER TABLE extensions ADD COLUMN IF NOT EXISTS amendment_type VARCHAR(40) NOT NULL DEFAULT 'Gia hạn';
-ALTER TABLE extensions ADD COLUMN IF NOT EXISTS old_salary DOUBLE PRECISION;
-ALTER TABLE extensions ADD COLUMN IF NOT EXISTS new_salary DOUBLE PRECISION;
-ALTER TABLE extensions ADD COLUMN IF NOT EXISTS decision_id VARCHAR(30) REFERENCES decisions(id) ON DELETE SET NULL;
 
 ALTER TABLE departments ADD COLUMN IF NOT EXISTS head_id VARCHAR(25) REFERENCES employees(id) ON DELETE SET NULL;
 ALTER TABLE departments ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
 
 ALTER TABLE contracts ADD COLUMN IF NOT EXISTS contract_number VARCHAR(60);
 ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_type VARCHAR(40);
-ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_decision_id VARCHAR(30) REFERENCES decisions(id) ON DELETE SET NULL;
 ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_end_date DATE;
 ALTER TABLE contracts ALTER COLUMN original_end_date TYPE DATE USING original_end_date::date;
-ALTER TABLE rewards_disciplines ALTER COLUMN effective_date TYPE DATE USING effective_date::date;
-ALTER TABLE rewards_disciplines ALTER COLUMN amount TYPE NUMERIC(15,2) USING amount::numeric;
 
 ALTER TABLE assignments DROP CONSTRAINT IF EXISTS assignments_type_check;
 ALTER TABLE assignments ADD CONSTRAINT assignments_type_check
   CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm'));
 
-CREATE INDEX IF NOT EXISTS idx_rewards_employee ON rewards_disciplines(employee_id);
-CREATE INDEX IF NOT EXISTS idx_rewards_decision ON rewards_disciplines(decision_id);
-CREATE INDEX IF NOT EXISTS idx_rewards_type ON rewards_disciplines(type);
 CREATE INDEX IF NOT EXISTS idx_departments_head ON departments(head_id);
-CREATE INDEX IF NOT EXISTS idx_contracts_termination_decision ON contracts(termination_decision_id);
