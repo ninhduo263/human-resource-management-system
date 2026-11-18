@@ -1,42 +1,43 @@
 # 00. Hạ tầng Docker & Cơ sở dữ liệu PostgreSQL
 
 ## 1. Tổng quan
-Thiết lập môi trường container hóa với **Docker Compose** gồm 3 dịch vụ (`db`, `backend`, `frontend`) và lược đồ cơ sở dữ liệu **PostgreSQL 16** ánh xạ 100% từ sơ đồ `ERD_QLNS_v2.drawio` (`ERD_QLNS_v2.drawio.pdf`) và `BFD_DFD_QLNS_v2.drawio`.
+Thiết lập môi trường container hóa với **Docker Compose** gồm 3 dịch vụ (`db`, `backend`, `frontend`) và lược đồ cơ sở dữ liệu **PostgreSQL 16** ánh xạ trực tiếp từ bộ sơ đồ trong `thietke/` (`thietke/erd.drawio`, `thietke/bfd-dfd.drawio`). **Tên bảng và tên cột trùng tên thực thể/thuộc tính trên ERD**, viết thường, tiếng Việt không dấu (ví dụ `NHANVIEN.MaNV` → `nhanvien.manv`). Dữ liệu JSON của API dùng đúng các tên cột này.
 
 ## 2. Các File Mã nguồn Liên quan
-- `diagrams/`: Thư mục chứa toàn bộ tài liệu kiến trúc BFD, DFD, ERD (`BFD.jpeg`, `DFD-MUC0.png`, `ERD_QLNS_v2.drawio.pdf`, `Nhom_16_QL_Nhan_su.pdf`, `ERD_QLNS_v2.drawio`, `BFD_DFD_QLNS_v2.drawio`).
+- `thietke/`: bộ sơ đồ hiện hành — `bfd-dfd.drawio` (BFD, DFD ngữ cảnh, DFD mức 0, DFD mức 1 cho 1.0–6.0) và `erd.drawio` (10 thực thể nghiệp vụ + 5 thực thể hệ thống); kèm các ảnh/PDF thiết kế gốc.
 - `docker-compose.yml`: Định nghĩa 3 container (`peopleops-db`, `peopleops-backend`, `peopleops-frontend`), healthcheck và volume `postgres_data`.
 - `.env` / `.env.example`: Biến môi trường cấu hình cổng và chuỗi kết nối PostgreSQL.
-- `backend/src/db/schema.sql`: Lược đồ DDL nền (baseline) tạo 11 bảng ERD + 3 bảng hệ thống; các thay đổi sau đó và View `v_songayphep` nằm trong `backend/src/db/migrations.ts`.
-- `backend/src/db/pool.ts`: Quản lý kết nối `pg.Pool`, hàm giao dịch nguyên tử `withTransaction(fn)`, tự động nạp `schema.sql` và ghi `audit_log`.
-- `backend/src/db/seed.ts`: Khởi tạo dữ liệu mẫu (6 phòng ban kèm `head_id`, 5 chức vụ, 12 nhân viên, 12 hợp đồng, 4 loại phép, 4 đơn phép, 6 quyết định mẫu, 3 quá trình công tác, 2 bản ghi khen thưởng/kỷ luật, 5 tài khoản mẫu).
+- `backend/src/db/schema.sql`: Đổi tên bảng/cột của database cũ (tên tiếng Anh) sang tên ERD, rồi tạo 15 bảng theo cấu trúc cuối cùng; `backend/src/db/migrations.ts` giữ lịch sử migration và tạo View `v_songayphep`.
+- `backend/src/db/pool.ts`: Quản lý kết nối `pg.Pool`, hàm giao dịch nguyên tử `withTransaction(fn)`, tự động nạp `schema.sql` và ghi `nhatkyhethong`.
+- `backend/src/db/seed.ts`: Khởi tạo dữ liệu mẫu (6 phòng ban kèm `matruongphong`, 5 chức vụ, 12 nhân viên, 12 hợp đồng, 4 loại phép, 4 đơn phép, 4 quyết định mẫu, 3 quá trình công tác, 5 tài khoản mẫu, ngày lễ cố định).
 - `backend/src/utils/crypto.ts`: Băm mật khẩu bằng `scrypt` + salt ngẫu nhiên, băm token `sha256`.
-- `backend/src/utils/validation.ts`: Các hàm kiểm tra dữ liệu đầu vào (`text`, `optional`, `date`, `numeric`, `choice`) và xử lý ngày tháng (`today`, `shift`, `calendarDays`).
+- `backend/src/utils/validation.ts`: Các hàm kiểm tra dữ liệu đầu vào (`text`, `optional`, `date`, `numeric`, `choice`), nhãn tiếng Việt của từng trường và xử lý ngày tháng (`today`, `shift`, `calendarDays`).
 
-## 3. Ánh xạ 11 Thực thể ERD sang PostgreSQL
+## 3. Ánh xạ 10 Thực thể nghiệp vụ ERD sang PostgreSQL
 
-| STT | Thực thể trên ERD | Bảng PostgreSQL | Khóa chính | Khóa ngoại & Ràng buộc chính |
+| STT | Thực thể trên ERD | Bảng | Khóa chính | Khóa ngoại & Ràng buộc chính |
 | :--- | :--- | :--- | :--- | :--- |
-| 1 | `PHONGBAN` | `departments` | `id` (`MaPB`) | `name UNIQUE`, FK `head_id` (`MaTruongPhong`) trỏ tới `employees(id)` |
-| 2 | `CHUCVU` | `positions` | `id` (`MaCV`) | `name UNIQUE`, `level BETWEEN 1 AND 10` |
-| 3 | `NHANVIEN` | `employees` | `id` (`MaNV`) | `email UNIQUE`, FK `department_id`, `position_id` (`ON DELETE RESTRICT`) |
-| 4 | `HOPDONG` | `contracts` | `id` (`MaHD`) | FK `employee_id`, FK `termination_decision_id` trỏ tới `decisions(id)`, `original_end_date`, `salary > 0`, `type` thuộc 3 loại HĐ |
-| 5 | `GIAHANHOPDONG` | `extensions` | `id` (`MaGH`) | FK `contract_id`, FK `decision_id`, `UNIQUE(contract_id, sequence)` |
-| 6 | `QUYETDINH` | `decisions` | `id` (`MaQD`) | `number` (`SoQD`) `UNIQUE`, các loại quyết định Bổ nhiệm/Điều chuyển/Miễn nhiệm/Khen thưởng/Kỷ luật/Chấm dứt HĐ |
-| 7 | `QUATRINHCONGTAC` | `assignments` | `id` (`MaQT`) | FK `employee_id`, `decision_id`, `old/new_department_id`, `old/new_position_id`, `type IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm')` |
-| 8 | `LOAINGHIPHEP` | `leave_types` | `id` (`MaLoai`) | `max_days > 0`, `deduct_annual IN (0, 1)` |
-| 9 | `DONNGHIPHEP` | `leave_requests` | `id` (`MaDon`) | FK `employee_id`, `type_id`, `approver_id` (ràng buộc là Trưởng phòng theo `departments.head_id`) |
-| 10 | `SONGAYPHEP` | `leave_balances` + `v_songayphep` | `(employee_id, year)` | Bảng vật lý lưu `total`; View `v_songayphep` tính động `SoNgayDaNghi`, `SoNgayConLai` |
-| 11 | `KHENTHUONG_KYLUAT` | `rewards_disciplines` | `id` (`MaKTKL`) | FK `employee_id`, FK `decision_id`, `type IN ('Khen thưởng', 'Kỷ luật')`, `category`, `amount >= 0` (Ánh xạ BFD 3.4) |
+| 1 | `PHONGBAN` | `phongban` | `mapb` | `tenpb UNIQUE`, FK `matruongphong` → `nhanvien(manv)`, `hoatdong` |
+| 2 | `CHUCVU` | `chucvu` | `macv` | `tencv UNIQUE`, `capbac BETWEEN 1 AND 10`, `ladieuhanh`, `vaitromacdinh`, `hoatdong` |
+| 3 | `NHANVIEN` | `nhanvien` | `manv` | `email UNIQUE`, FK `mapb`, `macv` (`ON DELETE RESTRICT`), `trangthai` thuộc 4 giá trị, `phienban` (khóa lạc quan) |
+| 4 | `HOPDONG` | `hopdong` | `mahd` | FK `manv`, FK `maqdchamdut` → `quyetdinh(maqd)`, `ngayketthucgoc`, `mucluong > 0`, `loaihd` thuộc 3 loại HĐ |
+| 5 | `GIAHANHOPDONG` | `giahanhopdong` | `magh` | FK `mahd`, FK `maqd`, `UNIQUE(mahd, langiahan)`, `loaiphuluc`, `luongcu`, `luongmoi`, `daapdung` |
+| 6 | `QUYETDINH` | `quyetdinh` | `maqd` | `soqd UNIQUE`; loại quyết định Bổ nhiệm/Điều chuyển/Miễn nhiệm/Gia hạn/Chấm dứt HĐ |
+| 7 | `QUATRINHCONGTAC` | `quatrinhcongtac` | `maqt` | FK `manv`, `maqd`, `mapbcu`/`mapbmoi`, `macvcu`/`macvmoi`, `loaibiendong IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm')`, `trangthai` |
+| 8 | `LOAINGHIPHEP` | `loainghiphep` | `maloai` | `songaytoida > 0`, `truphepnam IN (0, 1)` |
+| 9 | `DONNGHIPHEP` | `donnghiphep` | `madon` | FK `manv`, `maloai`, `manvduyet` (Trưởng phòng theo `phongban.matruongphong`) |
+| 10 | `SONGAYPHEP` | `songayphep` + `v_songayphep` | `(manv, nam)` | Bảng lưu `tongsongayphep`; View `v_songayphep` tính `songaydanghi`, `songayconlai` |
 
-### 3 Bảng Hệ thống bổ trợ
-- `users`: Lưu tài khoản đăng nhập (`username`, `password_hash`, `role`, `employee_id`, `active`).
-- `sessions`: Lưu phiên đăng nhập (`token_hash`, `user_id`, `expires`).
-- `audit_log`: Lưu nhật ký thao tác hệ thống (`id`, `user_id`, `action`, `target`, `created_at`).
+### 5 Thực thể hệ thống (kho D6)
+- `taikhoan` (`TAIKHOAN`): `matk`, `tendangnhap`, `matkhau` (đã băm), `vaitro`, `manv` (duy nhất — liên kết 1-1), `hoatdong`.
+- `phiendangnhap` (`PHIENDANGNHAP`): `maphien` (băm token), `matk`, `thoihan`.
+- `nhatkyhethong` (`NHATKYHETHONG`): `mank`, `matk`, `hanhdong`, `doituong`, `thoigian`, `chitiet` (giá trị trước/sau), `diachiip`.
+- `ngayle` (`NGAYLE`): `ngay`, `tenngayle`.
+- `dangnhapthatbai` (`DANGNHAPTHATBAI`): `khoa`, `solansai`, `khoaden`.
 
 ## 4. Hướng dẫn Chỉnh sửa / Mở rộng sau này
 - **Thêm cột hoặc bảng mới**: Sửa trực tiếp trong `backend/src/db/schema.sql`. Khi khởi động lại container `backend`, hàm `initSchema()` trong `pool.ts` sẽ thực thi script này.
-- **Thay đổi dữ liệu khởi tạo (Seed)**: Sửa trong `backend/src/db/seed.ts`. Lưu ý hàm `seedDatabase()` chỉ chạy khi bảng `departments` đang trống để không ghi đè dữ liệu đang dùng. Muốn reset toàn bộ DB về mặc định: chạy `docker compose down -v && docker compose up -d`.
+- **Thay đổi dữ liệu khởi tạo (Seed)**: Sửa trong `backend/src/db/seed.ts`. Lưu ý hàm `seedDatabase()` chỉ chạy khi bảng `phongban` đang trống để không ghi đè dữ liệu đang dùng. Muốn reset toàn bộ DB về mặc định: chạy `docker compose down -v && docker compose up -d`.
 
 ## 5. Cập nhật ngày 16/11/2026
 
@@ -62,3 +63,11 @@ Thiết lập môi trường container hóa với **Docker Compose** gồm 3 d�
   - Đồng bộ kiểu dữ liệu `contracts.original_end_date` (`DATE`), `rewards_disciplines.effective_date` (`DATE`) và `rewards_disciplines.amount` (`NUMERIC(15,2)`) giữa `schema.sql` và `migrations.ts` (`004`) để tránh lỗi xung đột kiểu tham số PostgreSQL (`42P08`).
   - Cho phép phương thức `DELETE` không có body không bắt buộc gửi header `Content-Type: application/json` trong `backend/src/app.ts`.
   - Mở rộng bộ kiểm thử tích hợp `backend/tests/workflows.test.mjs` lên **22 kịch bản con (23/23 pass)** bao phủ toàn bộ các file `00`–`07`.
+
+## Cập nhật ngày 18/11/2026 — Tên bảng tiếng Việt theo ERD & bộ sơ đồ `thietke/`
+- **Đổi tên bảng và tên cột** theo tên thực thể/thuộc tính trong thiết kế (tiếng Việt không dấu, viết thường): `departments → phongban`, `positions → chucvu`, `employees → nhanvien`, `contracts → hopdong`, `extensions → giahanhopdong`, `decisions → quyetdinh`, `assignments → quatrinhcongtac`, `leave_types → loainghiphep`, `leave_requests → donnghiphep`, `leave_balances → songayphep`; bảng hệ thống `users → taikhoan`, `sessions → phiendangnhap`, `audit_log → nhatkyhethong`, `holidays → ngayle`, `login_attempts → dangnhapthatbai`. Tên cột cũng đổi theo thuộc tính ERD (ví dụ `employees.id → nhanvien.manv`, `contracts.salary → hopdong.mucluong`, `users.password_hash → taikhoan.matkhau`); JSON của API, thân yêu cầu và giao diện dùng cùng tên này. Đường dẫn API (`/api/employees`...) giữ nguyên.
+- **Nâng cấp database cũ**: hai khối `DO $$ ... $$` ở đầu `schema.sql` đổi tên bảng rồi đổi tên cột cũ sang tên mới (chỉ khi tên cũ còn và tên mới chưa có) trước mọi `CREATE TABLE`, nên dữ liệu giữ nguyên; View `v_songayphep` được tạo lại với cột thường (`manv`, `nam`, `tongsongayphep`, `songaydanghi`, `songayconlai`); ràng buộc CHECK đặt lại tên `nhanvien_trangthai_check`, `quatrinhcongtac_loaibiendong_check`.
+- **Bộ sơ đồ** `thietke/bfd-dfd.drawio` (BFD, DFD ngữ cảnh, mức 0, mức 1 cho 1.0–6.0) và `thietke/erd.drawio` (10 thực thể nghiệp vụ + 5 thực thể hệ thống, 20 liên kết) giữ định dạng bản gốc và bổ sung: nhóm chức năng `6. Quản trị hệ thống` (6.1–6.4), tác nhân Quản trị viên, kho `D6 Tài khoản, nhật ký, ngày lễ`, các thuộc tính mới (`MaTruongPhong`, `SoHD`, `MaQDChamDut`, `LoaiPhuLuc`, `TrangThai` công tác, `TruPhepNam`...).
+- **Loại bỏ khen thưởng, kỷ luật**: không còn chức năng, bảng `rewards_disciplines` bị xóa khi khởi động (nếu còn), bỏ mã sinh `KT/KL` và màu tag liên quan.
+- Kiểm thử: `npm test` với `TEST_DATABASE_URL` — 22/22 kịch bản đạt trên database mới; đã thử nâng cấp một bản sao database cũ (bảng và cột tiếng Anh) và chạy lại `initSchema()` hai lần, dữ liệu giữ nguyên; đã chạy giao diện thật (đăng nhập, mở 8 trang, thêm phòng ban qua form).
+

@@ -28,7 +28,6 @@ import {
   SearchOutlined,
   MenuOutlined,
   MoreOutlined,
-  TrophyOutlined,
 } from '@ant-design/icons';
 import { AppState, RouteKey } from './types';
 import { apiRequest } from './api';
@@ -44,7 +43,6 @@ import { EmployeesView } from './components/EmployeesView';
 import { DepartmentsView } from './components/DepartmentsView';
 import { ContractsView } from './components/ContractsView';
 import { AssignmentsView } from './components/AssignmentsView';
-import { RewardsView } from './components/RewardsView';
 import { LeavesView } from './components/LeavesView';
 import { ReportsView } from './components/ReportsView';
 import { SettingsView } from './components/SettingsView';
@@ -168,7 +166,7 @@ export const App: React.FC = () => {
   }
 
   const pendingLeavesCount = state.leaves.filter(
-    (l) => l.status === 'Chờ duyệt'
+    (l) => l.trangthai === 'Chờ duyệt'
   ).length;
 
   const menuItems = [
@@ -198,11 +196,6 @@ export const App: React.FC = () => {
       label: 'Quá trình công tác',
     },
     {
-      key: 'rewards',
-      icon: <TrophyOutlined />,
-      label: 'Khen thưởng & Kỷ luật',
-    },
-    {
       key: 'leaves',
       icon: <CalendarOutlined />,
       label: (
@@ -223,7 +216,7 @@ export const App: React.FC = () => {
       key: 'settings',
       icon: <SafetyCertificateOutlined />,
       label:
-        state.user.role === 'admin' ? 'Quản trị hệ thống' : 'Tài khoản của tôi',
+        state.user.vaitro === 'admin' ? 'Quản trị hệ thống' : 'Tài khoản của tôi',
     },
   ];
 
@@ -320,17 +313,17 @@ export const App: React.FC = () => {
             <Space>
               <Avatar
                 style={{
-                  backgroundColor: getAvatarHex(state.user.employee_id),
+                  backgroundColor: getAvatarHex(state.user.manv),
                 }}
               >
-                {getInitials(state.user.name)}
+                {getInitials(state.user.hoten)}
               </Avatar>
               <div className="leading-tight">
                 <div className="text-xs font-semibold text-white truncate max-w-[130px]">
-                  {state.user.name}
+                  {state.user.hoten}
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  {ROLE_NAMES[state.user.role]}
+                  {ROLE_NAMES[state.user.vaitro]}
                 </div>
               </div>
             </Space>
@@ -412,18 +405,18 @@ export const App: React.FC = () => {
               <Space size={6}>
                 <Avatar
                   style={{
-                    backgroundColor: getAvatarHex(state.user.employee_id),
+                    backgroundColor: getAvatarHex(state.user.manv),
                   }}
                   size="default"
                 >
-                  {getInitials(state.user.name)}
+                  {getInitials(state.user.hoten)}
                 </Avatar>
                 <div className="hidden sm:block leading-tight">
                   <div className="text-xs font-semibold text-slate-900 max-w-[120px] truncate">
-                    {state.user.name}
+                    {state.user.hoten}
                   </div>
                   <div className="text-[11px] text-slate-500">
-                    {ROLE_NAMES[state.user.role]}
+                    {ROLE_NAMES[state.user.vaitro]}
                   </div>
                 </div>
               </Space>
@@ -477,13 +470,6 @@ export const App: React.FC = () => {
             )}
             {route === 'assignments' && (
               <AssignmentsView
-                state={state}
-                onRefresh={refreshState}
-                notify={notify}
-              />
-            )}
-            {route === 'rewards' && (
-              <RewardsView
                 state={state}
                 onRefresh={refreshState}
                 notify={notify}

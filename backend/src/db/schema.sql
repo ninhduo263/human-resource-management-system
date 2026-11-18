@@ -1,203 +1,337 @@
 -- ============================================================================
 -- PeopleOps HRMS - Nhom 16
--- PostgreSQL Schema ánh xạ trực tiếp từ ERD_QLNS_v2.drawio.pdf (10 thực thể)
--- và 3 bảng hệ thống (users, sessions, audit_log)
+-- PostgreSQL Schema ánh xạ trực tiếp từ thietke/erd.drawio:
+--   10 thực thể nghiệp vụ + 5 thực thể hệ thống (taikhoan, phiendangnhap,
+--   nhatkyhethong, ngayle, dangnhapthatbai).
+-- Tên bảng và tên cột là tên thực thể/thuộc tính trong ERD, viết thường,
+-- tiếng Việt không dấu (ví dụ NHANVIEN.MaNV -> nhanvien.manv).
 -- ============================================================================
 
--- 1. PHONGBAN (departments)
-CREATE TABLE IF NOT EXISTS departments (
-  id VARCHAR(25) PRIMARY KEY,
-  name VARCHAR(120) NOT NULL UNIQUE,
-  description TEXT NOT NULL DEFAULT '',
-  founded_date VARCHAR(10) NOT NULL
+-- Đổi tên bảng cũ (tiếng Anh) sang tên tiếng Việt cho database đã khởi tạo trước đây.
+-- Chạy trước mọi CREATE TABLE để không sinh bảng rỗng trùng tên.
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN SELECT * FROM (VALUES
+    ('departments', 'phongban'),
+    ('positions', 'chucvu'),
+    ('employees', 'nhanvien'),
+    ('contracts', 'hopdong'),
+    ('extensions', 'giahanhopdong'),
+    ('decisions', 'quyetdinh'),
+    ('assignments', 'quatrinhcongtac'),
+    ('leave_types', 'loainghiphep'),
+    ('leave_requests', 'donnghiphep'),
+    ('leave_balances', 'songayphep'),
+    ('users', 'taikhoan'),
+    ('sessions', 'phiendangnhap'),
+    ('audit_log', 'nhatkyhethong'),
+    ('holidays', 'ngayle'),
+    ('login_attempts', 'dangnhapthatbai')
+  ) AS m(old_name, new_name)
+  LOOP
+    IF to_regclass('public.' || r.old_name) IS NOT NULL
+       AND to_regclass('public.' || r.new_name) IS NULL THEN
+      EXECUTE format('ALTER TABLE public.%I RENAME TO %I', r.old_name, r.new_name);
+    END IF;
+  END LOOP;
+END $$;
+
+-- Đổi tên cột cũ (tiếng Anh) sang tên thuộc tính ERD cho database đã khởi tạo trước đây.
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN SELECT * FROM (VALUES
+    ('phongban', 'id', 'mapb'), ('phongban', 'name', 'tenpb'), ('phongban', 'description', 'mota'),
+    ('phongban', 'founded_date', 'ngaythanhlap'), ('phongban', 'head_id', 'matruongphong'),
+    ('phongban', 'active', 'hoatdong'),
+    ('chucvu', 'id', 'macv'), ('chucvu', 'name', 'tencv'), ('chucvu', 'description', 'mota'),
+    ('chucvu', 'level', 'capbac'), ('chucvu', 'is_executive', 'ladieuhanh'),
+    ('chucvu', 'default_role', 'vaitromacdinh'), ('chucvu', 'active', 'hoatdong'),
+    ('nhanvien', 'id', 'manv'), ('nhanvien', 'name', 'hoten'), ('nhanvien', 'birth_date', 'ngaysinh'),
+    ('nhanvien', 'gender', 'gioitinh'), ('nhanvien', 'address', 'diachi'), ('nhanvien', 'phone', 'sodienthoai'),
+    ('nhanvien', 'join_date', 'ngayvaolam'), ('nhanvien', 'status', 'trangthai'),
+    ('nhanvien', 'archived_date', 'ngayluutru'), ('nhanvien', 'department_id', 'mapb'),
+    ('nhanvien', 'position_id', 'macv'), ('nhanvien', 'version', 'phienban'),
+    ('hopdong', 'id', 'mahd'), ('hopdong', 'employee_id', 'manv'), ('hopdong', 'type', 'loaihd'),
+    ('hopdong', 'start_date', 'ngaybatdau'), ('hopdong', 'end_date', 'ngayketthuc'), ('hopdong', 'salary', 'mucluong'),
+    ('hopdong', 'status', 'trangthai'), ('hopdong', 'terminated_date', 'ngaychamdut'),
+    ('hopdong', 'termination_reason', 'lydochamdut'), ('hopdong', 'contract_number', 'sohd'),
+    ('hopdong', 'termination_type', 'loaichamdut'), ('hopdong', 'termination_decision_id', 'maqdchamdut'),
+    ('hopdong', 'original_end_date', 'ngayketthucgoc'),
+    ('giahanhopdong', 'id', 'magh'), ('giahanhopdong', 'contract_id', 'mahd'),
+    ('giahanhopdong', 'sequence', 'langiahan'), ('giahanhopdong', 'created_date', 'ngaylap'),
+    ('giahanhopdong', 'old_end_date', 'ngayketthuccu'), ('giahanhopdong', 'new_end_date', 'ngayketthucmoi'),
+    ('giahanhopdong', 'reason', 'lydo'), ('giahanhopdong', 'amendment_type', 'loaiphuluc'),
+    ('giahanhopdong', 'old_salary', 'luongcu'), ('giahanhopdong', 'new_salary', 'luongmoi'),
+    ('giahanhopdong', 'effective_date', 'ngayhieuluc'), ('giahanhopdong', 'applied', 'daapdung'),
+    ('giahanhopdong', 'decision_id', 'maqd'),
+    ('quyetdinh', 'id', 'maqd'), ('quyetdinh', 'number', 'soqd'), ('quyetdinh', 'type', 'loaiqd'),
+    ('quyetdinh', 'signed_date', 'ngayky'), ('quyetdinh', 'effective_date', 'ngayhieuluc'),
+    ('quyetdinh', 'signer', 'nguoiky'), ('quyetdinh', 'content', 'noidung'),
+    ('quatrinhcongtac', 'id', 'maqt'), ('quatrinhcongtac', 'employee_id', 'manv'),
+    ('quatrinhcongtac', 'decision_id', 'maqd'), ('quatrinhcongtac', 'type', 'loaibiendong'),
+    ('quatrinhcongtac', 'old_department_id', 'mapbcu'), ('quatrinhcongtac', 'new_department_id', 'mapbmoi'),
+    ('quatrinhcongtac', 'old_position_id', 'macvcu'), ('quatrinhcongtac', 'new_position_id', 'macvmoi'),
+    ('quatrinhcongtac', 'effective_date', 'ngayhieuluc'), ('quatrinhcongtac', 'reason', 'lydo'),
+    ('quatrinhcongtac', 'status', 'trangthai'), ('quatrinhcongtac', 'cancelled_date', 'ngayhuy'),
+    ('quatrinhcongtac', 'cancel_reason', 'lydohuy'),
+    ('loainghiphep', 'id', 'maloai'), ('loainghiphep', 'name', 'tenloai'),
+    ('loainghiphep', 'max_days', 'songaytoida'), ('loainghiphep', 'deduct_annual', 'truphepnam'),
+    ('donnghiphep', 'id', 'madon'), ('donnghiphep', 'employee_id', 'manv'), ('donnghiphep', 'type_id', 'maloai'),
+    ('donnghiphep', 'submitted_date', 'ngaynop'), ('donnghiphep', 'start_date', 'tungay'),
+    ('donnghiphep', 'end_date', 'denngay'), ('donnghiphep', 'days', 'songay'), ('donnghiphep', 'reason', 'lydo'),
+    ('donnghiphep', 'status', 'trangthai'), ('donnghiphep', 'approver_id', 'manvduyet'),
+    ('donnghiphep', 'approved_date', 'ngayduyet'), ('donnghiphep', 'review_note', 'ghichuduyet'),
+    ('songayphep', 'employee_id', 'manv'), ('songayphep', 'year', 'nam'), ('songayphep', 'total', 'tongsongayphep'),
+    ('taikhoan', 'id', 'matk'), ('taikhoan', 'username', 'tendangnhap'), ('taikhoan', 'password_hash', 'matkhau'),
+    ('taikhoan', 'role', 'vaitro'), ('taikhoan', 'employee_id', 'manv'), ('taikhoan', 'active', 'hoatdong'),
+    ('phiendangnhap', 'token_hash', 'maphien'), ('phiendangnhap', 'user_id', 'matk'),
+    ('phiendangnhap', 'expires', 'thoihan'),
+    ('nhatkyhethong', 'id', 'mank'), ('nhatkyhethong', 'user_id', 'matk'), ('nhatkyhethong', 'action', 'hanhdong'),
+    ('nhatkyhethong', 'target', 'doituong'), ('nhatkyhethong', 'created_at', 'thoigian'),
+    ('nhatkyhethong', 'details', 'chitiet'), ('nhatkyhethong', 'ip', 'diachiip'),
+    ('ngayle', 'day', 'ngay'), ('ngayle', 'name', 'tenngayle'),
+    ('dangnhapthatbai', 'key', 'khoa'), ('dangnhapthatbai', 'count', 'solansai'),
+    ('dangnhapthatbai', 'until', 'khoaden')
+  ) AS m(tbl, old_col, new_col)
+  LOOP
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema = 'public' AND table_name = r.tbl AND column_name = r.old_col)
+       AND NOT EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema = 'public' AND table_name = r.tbl AND column_name = r.new_col) THEN
+      EXECUTE format('ALTER TABLE public.%I RENAME COLUMN %I TO %I', r.tbl, r.old_col, r.new_col);
+    END IF;
+  END LOOP;
+END $$;
+
+-- View cũ dùng tên cột dạng "MaNV"; tạo lại bằng tên cột thường trong migration.
+DROP VIEW IF EXISTS v_songayphep;
+
+-- Bảng bị loại khỏi phạm vi (khen thưởng, kỷ luật).
+DROP TABLE IF EXISTS rewards_disciplines CASCADE;
+DROP TABLE IF EXISTS khenthuongkyluat CASCADE;
+
+-- 1. PHONGBAN (Phòng ban)
+CREATE TABLE IF NOT EXISTS phongban (
+  mapb VARCHAR(25) PRIMARY KEY,
+  tenpb VARCHAR(120) NOT NULL UNIQUE,
+  mota TEXT NOT NULL DEFAULT '',
+  ngaythanhlap DATE NOT NULL,
+  matruongphong VARCHAR(25),
+  hoatdong BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- 2. CHUCVU (positions)
-CREATE TABLE IF NOT EXISTS positions (
-  id VARCHAR(25) PRIMARY KEY,
-  name VARCHAR(120) NOT NULL UNIQUE,
-  description TEXT NOT NULL DEFAULT '',
-  level INTEGER NOT NULL CHECK (level BETWEEN 1 AND 10)
+-- 2. CHUCVU (Chức vụ)
+CREATE TABLE IF NOT EXISTS chucvu (
+  macv VARCHAR(25) PRIMARY KEY,
+  tencv VARCHAR(120) NOT NULL UNIQUE,
+  mota TEXT NOT NULL DEFAULT '',
+  capbac INTEGER NOT NULL DEFAULT 2 CHECK (capbac BETWEEN 1 AND 10),
+  ladieuhanh BOOLEAN NOT NULL DEFAULT FALSE,
+  vaitromacdinh VARCHAR(20)
+    CHECK (vaitromacdinh IS NULL OR vaitromacdinh IN ('admin', 'hr', 'manager', 'employee', 'director')),
+  hoatdong BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- 3. NHANVIEN (employees)
-CREATE TABLE IF NOT EXISTS employees (
-  id VARCHAR(25) PRIMARY KEY,
-  name VARCHAR(120) NOT NULL,
-  birth_date VARCHAR(10) NOT NULL,
-  gender VARCHAR(10) NOT NULL CHECK (gender IN ('Nam', 'Nữ', 'Khác')),
-  address TEXT NOT NULL DEFAULT '',
-  phone VARCHAR(20) NOT NULL,
+-- 3. NHANVIEN (Nhân viên)
+CREATE TABLE IF NOT EXISTS nhanvien (
+  manv VARCHAR(25) PRIMARY KEY,
+  hoten VARCHAR(120) NOT NULL,
+  ngaysinh DATE NOT NULL,
+  gioitinh VARCHAR(10) NOT NULL CHECK (gioitinh IN ('Nam', 'Nữ', 'Khác')),
+  diachi TEXT NOT NULL DEFAULT '',
+  sodienthoai VARCHAR(20) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
-  join_date VARCHAR(10) NOT NULL,
-  status VARCHAR(30) NOT NULL CHECK (status IN ('Đang làm việc', 'Thử việc', 'Đã nghỉ việc', 'Đã lưu trữ')),
-  archived_date VARCHAR(10),
-  department_id VARCHAR(25) REFERENCES departments(id) ON DELETE RESTRICT,
-  position_id VARCHAR(25) NOT NULL REFERENCES positions(id) ON DELETE RESTRICT
+  ngayvaolam DATE NOT NULL,
+  trangthai VARCHAR(30) NOT NULL,
+  ngayluutru DATE,
+  mapb VARCHAR(25) REFERENCES phongban(mapb) ON DELETE RESTRICT,
+  macv VARCHAR(25) NOT NULL REFERENCES chucvu(macv) ON DELETE RESTRICT,
+  phienban INTEGER NOT NULL DEFAULT 1
 );
 
--- 4. HOPDONG (contracts)
-CREATE TABLE IF NOT EXISTS contracts (
-  id VARCHAR(30) PRIMARY KEY,
-  employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
-  type VARCHAR(40) NOT NULL CHECK (type IN ('Thử việc', 'Xác định thời hạn', 'Không xác định thời hạn')),
-  start_date VARCHAR(10) NOT NULL,
-  end_date VARCHAR(10),
-  salary DOUBLE PRECISION NOT NULL CHECK (salary > 0),
-  status VARCHAR(30) NOT NULL DEFAULT 'Hiệu lực',
-  terminated_date VARCHAR(10),
-  termination_reason TEXT
+-- 4. QUYETDINH (Quyết định)
+CREATE TABLE IF NOT EXISTS quyetdinh (
+  maqd VARCHAR(30) PRIMARY KEY,
+  soqd VARCHAR(60) NOT NULL UNIQUE,
+  loaiqd VARCHAR(40) NOT NULL,
+  ngayky DATE NOT NULL,
+  ngayhieuluc DATE NOT NULL,
+  nguoiky VARCHAR(120) NOT NULL,
+  noidung TEXT NOT NULL
 );
 
--- 5. GIAHANHOPDONG (extensions)
-CREATE TABLE IF NOT EXISTS extensions (
-  id VARCHAR(30) PRIMARY KEY,
-  contract_id VARCHAR(30) NOT NULL REFERENCES contracts(id) ON DELETE RESTRICT,
-  sequence INTEGER NOT NULL,
-  created_date VARCHAR(10) NOT NULL,
-  old_end_date VARCHAR(10),
-  new_end_date VARCHAR(10),
-  amendment_type VARCHAR(40) NOT NULL DEFAULT 'Gia hạn',
-  old_salary DOUBLE PRECISION,
-  new_salary DOUBLE PRECISION,
-  reason TEXT NOT NULL,
-  UNIQUE (contract_id, sequence)
+-- 5. HOPDONG (Hợp đồng lao động)
+CREATE TABLE IF NOT EXISTS hopdong (
+  mahd VARCHAR(30) PRIMARY KEY,
+  manv VARCHAR(25) NOT NULL REFERENCES nhanvien(manv) ON DELETE RESTRICT,
+  loaihd VARCHAR(40) NOT NULL CHECK (loaihd IN ('Thử việc', 'Xác định thời hạn', 'Không xác định thời hạn')),
+  ngaybatdau DATE NOT NULL,
+  ngayketthuc DATE,
+  mucluong NUMERIC(15,2) NOT NULL CHECK (mucluong > 0),
+  trangthai VARCHAR(30) NOT NULL DEFAULT 'Hiệu lực',
+  ngaychamdut DATE,
+  lydochamdut TEXT,
+  sohd VARCHAR(60),
+  loaichamdut VARCHAR(40),
+  maqdchamdut VARCHAR(30) REFERENCES quyetdinh(maqd) ON DELETE SET NULL,
+  ngayketthucgoc DATE
 );
 
--- 6. QUYETDINH (decisions)
-CREATE TABLE IF NOT EXISTS decisions (
-  id VARCHAR(30) PRIMARY KEY,
-  number VARCHAR(60) NOT NULL UNIQUE,
-  type VARCHAR(40) NOT NULL,
-  signed_date VARCHAR(10) NOT NULL,
-  effective_date VARCHAR(10) NOT NULL,
-  signer VARCHAR(120) NOT NULL,
-  content TEXT NOT NULL
+-- 6. GIAHANHOPDONG (Gia hạn / phụ lục hợp đồng)
+CREATE TABLE IF NOT EXISTS giahanhopdong (
+  magh VARCHAR(30) PRIMARY KEY,
+  mahd VARCHAR(30) NOT NULL REFERENCES hopdong(mahd) ON DELETE RESTRICT,
+  langiahan INTEGER NOT NULL,
+  ngaylap DATE NOT NULL,
+  ngayketthuccu DATE,
+  ngayketthucmoi DATE,
+  lydo TEXT NOT NULL,
+  loaiphuluc VARCHAR(40) NOT NULL DEFAULT 'Gia hạn',
+  luongcu NUMERIC(15,2),
+  luongmoi NUMERIC(15,2),
+  ngayhieuluc DATE,
+  daapdung BOOLEAN NOT NULL DEFAULT TRUE,
+  maqd VARCHAR(30) REFERENCES quyetdinh(maqd) ON DELETE SET NULL,
+  UNIQUE (mahd, langiahan)
 );
 
--- 7. QUATRINHCONGTAC (assignments)
-CREATE TABLE IF NOT EXISTS assignments (
-  id VARCHAR(30) PRIMARY KEY,
-  employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
-  decision_id VARCHAR(30) NOT NULL REFERENCES decisions(id) ON DELETE RESTRICT,
-  type VARCHAR(40) NOT NULL CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm')),
-  old_department_id VARCHAR(25) REFERENCES departments(id) ON DELETE RESTRICT,
-  new_department_id VARCHAR(25) NOT NULL REFERENCES departments(id) ON DELETE RESTRICT,
-  old_position_id VARCHAR(25) NOT NULL REFERENCES positions(id) ON DELETE RESTRICT,
-  new_position_id VARCHAR(25) NOT NULL REFERENCES positions(id) ON DELETE RESTRICT,
-  effective_date VARCHAR(10) NOT NULL,
-  reason TEXT NOT NULL
+-- 7. QUATRINHCONGTAC (Quá trình công tác)
+CREATE TABLE IF NOT EXISTS quatrinhcongtac (
+  maqt VARCHAR(30) PRIMARY KEY,
+  manv VARCHAR(25) NOT NULL REFERENCES nhanvien(manv) ON DELETE RESTRICT,
+  maqd VARCHAR(30) NOT NULL REFERENCES quyetdinh(maqd) ON DELETE RESTRICT,
+  loaibiendong VARCHAR(40) NOT NULL,
+  mapbcu VARCHAR(25) REFERENCES phongban(mapb) ON DELETE RESTRICT,
+  mapbmoi VARCHAR(25) NOT NULL REFERENCES phongban(mapb) ON DELETE RESTRICT,
+  macvcu VARCHAR(25) REFERENCES chucvu(macv) ON DELETE RESTRICT,
+  macvmoi VARCHAR(25) NOT NULL REFERENCES chucvu(macv) ON DELETE RESTRICT,
+  ngayhieuluc DATE NOT NULL,
+  lydo TEXT NOT NULL,
+  trangthai VARCHAR(20) NOT NULL DEFAULT 'Hiệu lực',
+  ngayhuy DATE,
+  lydohuy TEXT
 );
 
--- 8. KHENTHUONG_KYLUAT (rewards_disciplines - BFD 3.4)
-CREATE TABLE IF NOT EXISTS rewards_disciplines (
-  id VARCHAR(30) PRIMARY KEY,
-  employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
-  decision_id VARCHAR(30) NOT NULL REFERENCES decisions(id) ON DELETE RESTRICT,
-  type VARCHAR(40) NOT NULL CHECK (type IN ('Khen thưởng', 'Kỷ luật')),
-  category VARCHAR(100) NOT NULL,
-  amount NUMERIC(15,2) DEFAULT 0 CHECK (amount >= 0),
-  effective_date DATE NOT NULL,
-  reason TEXT NOT NULL
+-- 8. LOAINGHIPHEP (Loại nghỉ phép)
+CREATE TABLE IF NOT EXISTS loainghiphep (
+  maloai VARCHAR(25) PRIMARY KEY,
+  tenloai VARCHAR(100) NOT NULL,
+  songaytoida INTEGER NOT NULL CHECK (songaytoida > 0),
+  truphepnam INTEGER NOT NULL DEFAULT 1 CHECK (truphepnam IN (0, 1))
 );
 
--- 8. LOAINGHIPHEP (leave_types)
-CREATE TABLE IF NOT EXISTS leave_types (
-  id VARCHAR(25) PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  max_days INTEGER NOT NULL CHECK (max_days > 0),
-  deduct_annual INTEGER NOT NULL CHECK (deduct_annual IN (0, 1))
+-- 9. DONNGHIPHEP (Đơn nghỉ phép)
+CREATE TABLE IF NOT EXISTS donnghiphep (
+  madon VARCHAR(30) PRIMARY KEY,
+  manv VARCHAR(25) NOT NULL REFERENCES nhanvien(manv) ON DELETE RESTRICT,
+  maloai VARCHAR(25) NOT NULL REFERENCES loainghiphep(maloai) ON DELETE RESTRICT,
+  ngaynop DATE NOT NULL,
+  tungay DATE NOT NULL,
+  denngay DATE NOT NULL,
+  songay INTEGER NOT NULL CHECK (songay > 0),
+  lydo TEXT NOT NULL,
+  trangthai VARCHAR(30) NOT NULL DEFAULT 'Chờ duyệt'
+    CHECK (trangthai IN ('Chờ duyệt', 'Đã duyệt', 'Từ chối', 'Đã hủy')),
+  manvduyet VARCHAR(25) REFERENCES nhanvien(manv) ON DELETE RESTRICT,
+  ngayduyet DATE,
+  ghichuduyet TEXT
 );
 
--- 9. DONNGHIPHEP (leave_requests)
-CREATE TABLE IF NOT EXISTS leave_requests (
-  id VARCHAR(30) PRIMARY KEY,
-  employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
-  type_id VARCHAR(25) NOT NULL REFERENCES leave_types(id) ON DELETE RESTRICT,
-  submitted_date VARCHAR(10) NOT NULL,
-  start_date VARCHAR(10) NOT NULL,
-  end_date VARCHAR(10) NOT NULL,
-  days INTEGER NOT NULL CHECK (days > 0),
-  reason TEXT NOT NULL,
-  status VARCHAR(30) NOT NULL DEFAULT 'Chờ duyệt' CHECK (status IN ('Chờ duyệt', 'Đã duyệt', 'Từ chối', 'Đã hủy')),
-  approver_id VARCHAR(25) REFERENCES employees(id) ON DELETE RESTRICT,
-  approved_date VARCHAR(10),
-  review_note TEXT
+-- 10. SONGAYPHEP (Số ngày phép năm; số ngày đã nghỉ/còn lại tính ở view v_songayphep)
+CREATE TABLE IF NOT EXISTS songayphep (
+  manv VARCHAR(25) NOT NULL REFERENCES nhanvien(manv) ON DELETE RESTRICT,
+  nam INTEGER NOT NULL,
+  tongsongayphep INTEGER NOT NULL DEFAULT 12 CHECK (tongsongayphep >= 0),
+  PRIMARY KEY (manv, nam)
 );
 
--- 10. SONGAYPHEP (leave_balances)
-CREATE TABLE IF NOT EXISTS leave_balances (
-  employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
-  year INTEGER NOT NULL,
-  total INTEGER NOT NULL DEFAULT 12 CHECK (total >= 0),
-  PRIMARY KEY (employee_id, year)
+-- Bảng hệ thống 1: TAIKHOAN (Tài khoản & Phân quyền)
+CREATE TABLE IF NOT EXISTS taikhoan (
+  matk VARCHAR(30) PRIMARY KEY,
+  tendangnhap VARCHAR(150) NOT NULL UNIQUE,
+  matkhau TEXT NOT NULL,
+  vaitro VARCHAR(20) NOT NULL CHECK (vaitro IN ('admin', 'hr', 'manager', 'employee', 'director')),
+  manv VARCHAR(25) NOT NULL REFERENCES nhanvien(manv) ON DELETE RESTRICT,
+  hoatdong INTEGER NOT NULL DEFAULT 1
 );
 
--- Bảng hệ thống 1: users (Tài khoản & Phân quyền)
-CREATE TABLE IF NOT EXISTS users (
-  id VARCHAR(30) PRIMARY KEY,
-  username VARCHAR(150) NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'hr', 'manager', 'employee', 'director')),
-  employee_id VARCHAR(25) NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
-  active INTEGER NOT NULL DEFAULT 1
+-- Bảng hệ thống 2: PHIENDANGNHAP (Phiên đăng nhập)
+CREATE TABLE IF NOT EXISTS phiendangnhap (
+  maphien VARCHAR(64) PRIMARY KEY,
+  matk VARCHAR(30) NOT NULL REFERENCES taikhoan(matk) ON DELETE CASCADE,
+  thoihan BIGINT NOT NULL
 );
 
--- Bảng hệ thống 2: sessions (Phiên đăng nhập)
-CREATE TABLE IF NOT EXISTS sessions (
-  token_hash VARCHAR(64) PRIMARY KEY,
-  user_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  expires BIGINT NOT NULL
+-- Bảng hệ thống 3: NHATKYHETHONG (Nhật ký hệ thống)
+CREATE TABLE IF NOT EXISTS nhatkyhethong (
+  mank SERIAL PRIMARY KEY,
+  matk VARCHAR(30) REFERENCES taikhoan(matk) ON DELETE SET NULL,
+  hanhdong VARCHAR(120) NOT NULL,
+  doituong VARCHAR(250) NOT NULL,
+  thoigian VARCHAR(40) NOT NULL,
+  chitiet JSONB,
+  diachiip VARCHAR(64)
 );
 
--- Bảng hệ thống 3: audit_log (Nhật ký hệ thống)
-CREATE TABLE IF NOT EXISTS audit_log (
-  id SERIAL PRIMARY KEY,
-  user_id VARCHAR(30) REFERENCES users(id) ON DELETE SET NULL,
-  action VARCHAR(120) NOT NULL,
-  target VARCHAR(120) NOT NULL,
-  created_at VARCHAR(40) NOT NULL
+-- Bảng hệ thống 4: NGAYLE (Ngày lễ)
+CREATE TABLE IF NOT EXISTS ngayle (
+  ngay DATE PRIMARY KEY,
+  tenngayle VARCHAR(120) NOT NULL
 );
+
+-- Bảng hệ thống 5: DANGNHAPTHATBAI (Giới hạn đăng nhập sai)
+CREATE TABLE IF NOT EXISTS dangnhapthatbai (
+  khoa VARCHAR(250) PRIMARY KEY,
+  solansai INTEGER NOT NULL,
+  khoaden BIGINT NOT NULL
+);
+
+-- Khóa ngoại trưởng phòng (tạo sau khi đã có bảng nhanvien)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage k ON k.constraint_name = tc.constraint_name
+    WHERE tc.table_name = 'phongban' AND tc.constraint_type = 'FOREIGN KEY' AND k.column_name = 'matruongphong'
+  ) THEN
+    ALTER TABLE phongban ADD CONSTRAINT phongban_matruongphong_fkey
+      FOREIGN KEY (matruongphong) REFERENCES nhanvien(manv) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+-- Ràng buộc giá trị (đặt lại tên theo bảng mới, xóa tên cũ nếu có)
+ALTER TABLE nhanvien DROP CONSTRAINT IF EXISTS employees_status_check;
+ALTER TABLE nhanvien DROP CONSTRAINT IF EXISTS nhanvien_status_check;
+ALTER TABLE nhanvien DROP CONSTRAINT IF EXISTS nhanvien_trangthai_check;
+ALTER TABLE nhanvien ADD CONSTRAINT nhanvien_trangthai_check
+  CHECK (trangthai IN ('Đang làm việc', 'Thử việc', 'Đã nghỉ việc', 'Đã lưu trữ'));
+ALTER TABLE quatrinhcongtac DROP CONSTRAINT IF EXISTS assignments_type_check;
+ALTER TABLE quatrinhcongtac DROP CONSTRAINT IF EXISTS quatrinhcongtac_type_check;
+ALTER TABLE quatrinhcongtac DROP CONSTRAINT IF EXISTS quatrinhcongtac_loaibiendong_check;
+ALTER TABLE quatrinhcongtac ADD CONSTRAINT quatrinhcongtac_loaibiendong_check
+  CHECK (loaibiendong IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm'));
+
+-- Mỗi nhân viên tối đa một tài khoản (liên kết 1-1 "Có tài khoản")
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname IN ('users_employee_unique', 'taikhoan_manv_unique'))
+     AND NOT EXISTS (SELECT 1 FROM taikhoan GROUP BY manv HAVING COUNT(*) > 1) THEN
+    ALTER TABLE taikhoan ADD CONSTRAINT taikhoan_manv_unique UNIQUE (manv);
+  END IF;
+END $$;
+
+-- View v_songayphep (SoNgayDaNghi, SoNgayConLai) được tạo sau migration: xem LEAVE_BALANCE_VIEW trong migrations.ts.
 
 -- Indexes phục vụ truy vấn nhanh
-CREATE INDEX IF NOT EXISTS idx_employees_department ON employees(department_id);
-CREATE INDEX IF NOT EXISTS idx_leave_employee ON leave_requests(employee_id, start_date, end_date);
-CREATE INDEX IF NOT EXISTS idx_contract_employee ON contracts(employee_id);
-CREATE INDEX IF NOT EXISTS idx_assignments_employee ON assignments(employee_id);
-
--- (View v_songayphep được tạo trong db/migrations.ts vì phụ thuộc kiểu dữ liệu cột ngày.)
-
--- Cập nhật tương thích cho database đã được khởi tạo trước đây.
-ALTER TABLE employees DROP CONSTRAINT IF EXISTS employees_status_check;
-ALTER TABLE employees ADD CONSTRAINT employees_status_check
-  CHECK (status IN ('Đang làm việc', 'Thử việc', 'Đã nghỉ việc', 'Đã lưu trữ'));
-ALTER TABLE employees ALTER COLUMN department_id DROP NOT NULL;
-ALTER TABLE assignments ALTER COLUMN old_department_id DROP NOT NULL;
-ALTER TABLE users ALTER COLUMN username TYPE VARCHAR(150);
-ALTER TABLE audit_log ALTER COLUMN target TYPE VARCHAR(250);
-ALTER TABLE extensions ALTER COLUMN new_end_date DROP NOT NULL;
-ALTER TABLE extensions ADD COLUMN IF NOT EXISTS amendment_type VARCHAR(40) NOT NULL DEFAULT 'Gia hạn';
-ALTER TABLE extensions ADD COLUMN IF NOT EXISTS old_salary DOUBLE PRECISION;
-ALTER TABLE extensions ADD COLUMN IF NOT EXISTS new_salary DOUBLE PRECISION;
-ALTER TABLE extensions ADD COLUMN IF NOT EXISTS decision_id VARCHAR(30) REFERENCES decisions(id) ON DELETE SET NULL;
-
-ALTER TABLE departments ADD COLUMN IF NOT EXISTS head_id VARCHAR(25) REFERENCES employees(id) ON DELETE SET NULL;
-ALTER TABLE departments ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT TRUE;
-
-ALTER TABLE contracts ADD COLUMN IF NOT EXISTS contract_number VARCHAR(60);
-ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_type VARCHAR(40);
-ALTER TABLE contracts ADD COLUMN IF NOT EXISTS termination_decision_id VARCHAR(30) REFERENCES decisions(id) ON DELETE SET NULL;
-ALTER TABLE contracts ADD COLUMN IF NOT EXISTS original_end_date DATE;
-ALTER TABLE contracts ALTER COLUMN original_end_date TYPE DATE USING original_end_date::date;
-ALTER TABLE rewards_disciplines ALTER COLUMN effective_date TYPE DATE USING effective_date::date;
-ALTER TABLE rewards_disciplines ALTER COLUMN amount TYPE NUMERIC(15,2) USING amount::numeric;
-
-ALTER TABLE assignments DROP CONSTRAINT IF EXISTS assignments_type_check;
-ALTER TABLE assignments ADD CONSTRAINT assignments_type_check
-  CHECK (type IN ('Điều chuyển', 'Bổ nhiệm', 'Miễn nhiệm', 'Điều chuyển và bổ nhiệm'));
-
-CREATE INDEX IF NOT EXISTS idx_rewards_employee ON rewards_disciplines(employee_id);
-CREATE INDEX IF NOT EXISTS idx_rewards_decision ON rewards_disciplines(decision_id);
-CREATE INDEX IF NOT EXISTS idx_rewards_type ON rewards_disciplines(type);
-CREATE INDEX IF NOT EXISTS idx_departments_head ON departments(head_id);
-CREATE INDEX IF NOT EXISTS idx_contracts_termination_decision ON contracts(termination_decision_id);
+CREATE INDEX IF NOT EXISTS idx_nhanvien_mapb ON nhanvien(mapb);
+CREATE INDEX IF NOT EXISTS idx_donnghiphep_manv ON donnghiphep(manv, tungay, denngay);
+CREATE INDEX IF NOT EXISTS idx_hopdong_manv ON hopdong(manv);
+CREATE INDEX IF NOT EXISTS idx_quatrinhcongtac_manv ON quatrinhcongtac(manv);
+CREATE INDEX IF NOT EXISTS idx_quatrinhcongtac_cho ON quatrinhcongtac(trangthai, ngayhieuluc);
+CREATE INDEX IF NOT EXISTS idx_phongban_matruongphong ON phongban(matruongphong);
+CREATE INDEX IF NOT EXISTS idx_hopdong_maqdchamdut ON hopdong(maqdchamdut);
+CREATE INDEX IF NOT EXISTS idx_nhatkyhethong_mank ON nhatkyhethong(mank DESC);

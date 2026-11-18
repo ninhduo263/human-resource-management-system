@@ -19,8 +19,8 @@
 
 | Phương thức | Endpoint | Quyền truy cập | Mô tả nghiệp vụ |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/login` | Công khai | Kiểm tra `username`/`password` (giới hạn 15 lần sai/10 phút), tạo phiên 8 giờ, gắn cookie `HttpOnly`. |
-| `POST` | `/api/logout` | Đã đăng nhập | Xóa phiên trong bảng `sessions` và xóa cookie. |
+| `POST` | `/api/login` | Công khai | Kiểm tra `tendangnhap`/`password` (giới hạn 15 lần sai/10 phút), tạo phiên 8 giờ, gắn cookie `HttpOnly`. |
+| `POST` | `/api/logout` | Đã đăng nhập | Xóa phiên trong bảng `phiendangnhap` và xóa cookie. |
 | `POST` | `/api/password` | Đã đăng nhập | Đổi mật khẩu (tối thiểu 10 ký tự), thu hồi toàn bộ phiên đang mở của tài khoản đó. |
 | `GET` | `/api/state` | Đã đăng nhập | Trả về tập dữ liệu đã lọc theo vai trò và che giấu lương (`salary = null`) nếu không đủ quyền. |
 | `POST` | `/api/users` | `admin` | Tạo tài khoản mới liên kết với hồ sơ nhân viên đang hoạt động. |
@@ -30,10 +30,10 @@
 
 | Vai trò | Tên đăng nhập mẫu | Phạm vi dữ liệu (`GET /api/state`) | Quyền thao tác chính |
 | :--- | :--- | :--- | :--- |
-| **Quản trị viên (`admin`)** | `admin` | Toàn bộ tổ chức + `users` + `audit_log` | Toàn quyền nghiệp vụ, quản lý tài khoản, duyệt phép (không tự duyệt đơn của mình). |
+| **Quản trị viên (`admin`)** | `admin` | Toàn bộ tổ chức + `taikhoan` + `nhatkyhethong` | Toàn quyền nghiệp vụ, quản lý tài khoản, duyệt phép (không tự duyệt đơn của mình). |
 | **Cán bộ nhân sự (`hr`)** | `nhansu` | Toàn bộ tổ chức (gồm mức lương) | Quản lý hồ sơ, danh mục, hợp đồng, công tác, quỹ phép; không duyệt phép, không quản trị tài khoản. |
-| **Trưởng phòng (`manager`)** | `truongphong` | Chỉ nhân viên cùng `department_id`; chỉ thấy lương của bản thân | Xem nhân sự trong phòng, duyệt/từ chối đơn nghỉ của nhân viên trong phòng (không tự duyệt). |
-| **Nhân viên (`employee`)** | `nhanvien` | Chỉ dữ liệu cá nhân (`employee_id` của mình) | Xem hồ sơ, hợp đồng, công tác, quỹ phép cá nhân; nộp và hủy đơn chờ duyệt của mình. |
+| **Trưởng phòng (`manager`)** | `truongphong` | Chỉ nhân viên cùng `mapb`; chỉ thấy lương của bản thân | Xem nhân sự trong phòng, duyệt/từ chối đơn nghỉ của nhân viên trong phòng (không tự duyệt). |
+| **Nhân viên (`employee`)** | `nhanvien` | Chỉ dữ liệu cá nhân (`manv` của mình) | Xem hồ sơ, hợp đồng, công tác, quỹ phép cá nhân; nộp và hủy đơn chờ duyệt của mình. |
 | **Ban giám đốc (`director`)** | `giamdoc` | Toàn bộ tổ chức và báo cáo | Xem toàn bộ dữ liệu/báo cáo, ghi nhận quyết định công tác (điều chuyển/bổ nhiệm). |
 
 ## 5. Hướng dẫn Sửa đổi / Bảo trì sau này

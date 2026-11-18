@@ -6,10 +6,7 @@ import { fail, text, today } from '../utils/validation.js';
 import { extractToken, requireAuth, requireRole, SessionUser } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/http.js';
 import { runScheduledJobs } from '../services/jobs.js';
-import {
-  canReviewLeave,
-  defaultEntitlement,
-} from '../services/leave.js';
+import { canReviewLeave, defaultEntitlement } from '../services/leave.js';
 
 export const authRouter = Router();
 
@@ -18,21 +15,21 @@ const MAX_FAILS_PER_ACCOUNT = 8;
 const MAX_FAILS_PER_IP = 40;
 const LOCK_WINDOW_MS = 10 * 60_000;
 
-async function failedCount(key: string, now: number): Promise<number> {
-  const row = await db.one<{ count: number; until: string }>(
-    'SELECT count, until FROM login_attempts WHERE key = $1',
-    [key]
+async function failedCount(khoa: string, now: number): Promise<number> {
+  const row = await db.one<{ solansai: number; khoaden: string }>(
+    'SELECT solansai, khoaden FROM dangnhapthatbai WHERE khoa = $1',
+    [khoa]
   );
-  return row && Number(row.until) > now ? row.count : 0;
+  return row && Number(row.khoaden) > now ? row.solansai : 0;
 }
 
-async function recordFailure(key: string, now: number): Promise<void> {
+async function recordFailure(khoa: string, now: number): Promise<void> {
   await db.run(
-    `INSERT INTO login_attempts(key, count, until) VALUES($1, 1, $2)
-     ON CONFLICT (key) DO UPDATE SET
-       count = CASE WHEN login_attempts.until > $3 THEN login_attempts.count + 1 ELSE 1 END,
-       until = CASE WHEN login_attempts.until > $3 THEN login_attempts.until ELSE $2 END`,
-    [key, now + LOCK_WINDOW_MS, now]
+    `INSERT INTO dangnhapthatbai(khoa, solansai, khoaden) VALUES($1, 1, $2)
+     ON CONFLICT (khoa) DO UPDATE SET
+       solansai = CASE WHEN dangnhapthatbai.khoaden > $3 THEN dangnhapthatbai.solansai + 1 ELSE 1 END,
+       khoaden = CASE WHEN dangnhapthatbai.khoaden > $3 THEN dangnhapthatbai.khoaden ELSE $2 END`,
+    [khoa, now + LOCK_WINDOW_MS, now]
   );
 }
 
@@ -52,9 +49,9 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
-    const username = text(req.body, 'username');
-    const password = text(req.body, 'password');
-    const accountKey = `u:${username.toLowerCase()}`;
+    const tendangnhap = text(req.body, 'tendangnhap');
+    const matkhau = text(req.body, 'matkhau');
+    const accountKey = `u:${tendangnhap.toLowerCase()}`;
     const ipKey = `ip:${ip}`;
 
     if (
@@ -65,38 +62,38 @@ authRouter.post(
     }
 
     const user = await db.one<{
-      id: string;
-      username: string;
-      password_hash: string;
-      role: string;
-      employee_id: string;
-      active: number;
+      matk: string;
+      tendangnhap: string;
+      matkhau: string;
+      vaitro: string;
+      manv: string;
+      hoatdong: number;
     }>(
-      `SELECT u.*
-       FROM users u
-       JOIN employees e ON e.id = u.employee_id
-       WHERE u.username = $1 AND u.active = 1 AND e.status NOT IN ('Đã lưu trữ', 'Đã nghỉ việc')`,
-      [username]
+      `SELECT t.*
+       FROM taikhoan t
+       JOIN nhanvien n ON n.manv = t.manv
+       WHERE t.tendangnhap = $1 AND t.hoatdong = 1 AND n.trangthai NOT IN ('Đã lưu trữ', 'Đã nghỉ việc')`,
+      [tendangnhap]
     );
 
-    if (!user || !passwordMatches(password, user.password_hash)) {
+    if (!user || !passwordMatches(matkhau, user.matkhau)) {
       await recordFailure(accountKey, now);
       await recordFailure(ipKey, now);
       fail('Tên đăng nhập hoặc mật khẩu không đúng.', 401);
     }
 
-    await db.run('DELETE FROM login_attempts WHERE key = $1 OR until < $2', [accountKey, now]);
-    await db.run('DELETE FROM sessions WHERE expires < $1', [now]);
+    await db.run('DELETE FROM dangnhapthatbai WHERE khoa = $1 OR khoaden < $2', [accountKey, now]);
+    await db.run('DELETE FROM phiendangnhap WHERE thoihan < $1', [now]);
 
     const token = randomBytes(32).toString('hex');
-    await db.run('INSERT INTO sessions(token_hash, user_id, expires) VALUES($1, $2, $3)', [
+    await db.run('INSERT INTO phiendangnhap(maphien, matk, thoihan) VALUES($1, $2, $3)', [
       sha256(token),
-      user.id,
+      user.matk,
       now + 8 * 3600_000,
     ]);
 
     res.setHeader('Set-Cookie', sessionCookie(req, token, 28800));
-    await auditLog(db, user.id, 'Đăng nhập', user.username);
+    await auditLog(db, user.matk, 'Đăng nhập', user.tendangnhap);
     res.json({ ok: true });
   })
 );
@@ -107,7 +104,7 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const token = extractToken(req);
     if (token) {
-      await db.run('DELETE FROM sessions WHERE token_hash = $1', [sha256(token)]);
+      await db.run('DELETE FROM phiendangnhap WHERE maphien = $1', [sha256(token)]);
     }
     res.setHeader('Set-Cookie', sessionCookie(req, '', 0));
     res.json({ ok: true });
@@ -119,22 +116,21 @@ authRouter.post(
   requireAuth,
   asyncHandler(async (req, res) => {
     const u = req.user!;
-    const current = await db.one<{ password_hash: string }>(
-      'SELECT password_hash FROM users WHERE id = $1',
-      [u.id]
-    );
-    if (!current || !passwordMatches(text(req.body, 'current_password'), current.password_hash)) {
+    const current = await db.one<{ matkhau: string }>('SELECT matkhau FROM taikhoan WHERE matk = $1', [
+      u.matk,
+    ]);
+    if (!current || !passwordMatches(text(req.body, 'matkhauhientai'), current.matkhau)) {
       fail('Mật khẩu hiện tại không đúng.');
     }
-    const newPw = text(req.body, 'new_password');
+    const newPw = text(req.body, 'matkhaumoi');
     if (newPw.length < 10) {
       fail('Mật khẩu mới phải có ít nhất 10 ký tự.');
     }
 
     await withTransaction(async (tx) => {
-      await tx.run('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash(newPw), u.id]);
-      await tx.run('DELETE FROM sessions WHERE user_id = $1', [u.id]);
-      await auditLog(tx, u.id, 'Đổi mật khẩu', u.username);
+      await tx.run('UPDATE taikhoan SET matkhau = $1 WHERE matk = $2', [passwordHash(newPw), u.matk]);
+      await tx.run('DELETE FROM phiendangnhap WHERE matk = $1', [u.matk]);
+      await auditLog(tx, u.matk, 'Đổi mật khẩu', u.tendangnhap);
     });
 
     res.json({ ok: true, relogin: true });
@@ -143,172 +139,155 @@ authRouter.post(
 
 export async function buildScopedState(u: SessionUser) {
   const currentDay = today();
-  const fullAccess = ['admin', 'hr', 'director'].includes(u.role);
+  const fullAccess = ['admin', 'hr', 'director'].includes(u.vaitro);
 
   // Phạm vi nhân viên được xem — lọc ngay trong SQL, không đọc toàn bảng rồi lọc bằng JS.
   const scope = fullAccess
     ? { where: 'TRUE', params: [] as any[] }
-    : u.role === 'manager' && u.department_id !== null
-    ? { where: '(e.department_id = $1 OR e.id = $2)', params: [u.department_id, u.employee_id] }
-    : { where: 'e.id = $1', params: [u.employee_id] };
+    : u.vaitro === 'manager' && u.mapb !== null
+    ? { where: '(n.mapb = $1 OR n.manv = $2)', params: [u.mapb, u.manv] }
+    : { where: 'n.manv = $1', params: [u.manv] };
 
   const employees = await db.all(
-    `SELECT e.* FROM employees e WHERE ${scope.where} ORDER BY e.id`,
+    `SELECT n.* FROM nhanvien n WHERE ${scope.where} ORDER BY n.manv`,
     scope.params
   );
-  const nameRows = await db.all<{ id: string; name: string }>('SELECT id, name FROM employees');
-  const nameMap = new Map(nameRows.map((e) => [e.id, e.name]));
-  const ids = employees.map((e) => e.id);
+  const nameRows = await db.all<{ manv: string; hoten: string }>('SELECT manv, hoten FROM nhanvien');
+  const nameMap = new Map(nameRows.map((e) => [e.manv, e.hoten]));
+  const ids = employees.map((e) => e.manv);
 
   const rawContracts = await db.all(
-    'SELECT * FROM contracts WHERE employee_id = ANY($1::text[]) ORDER BY start_date DESC',
+    'SELECT * FROM hopdong WHERE manv = ANY($1::text[]) ORDER BY ngaybatdau DESC',
     [ids]
   );
   const contracts = rawContracts.map((c) => ({
     ...c,
-    status:
-      c.status === 'Đã chấm dứt' || c.status === 'Đã hủy bỏ'
-        ? c.status
-        : c.start_date > currentDay
+    trangthai:
+      c.trangthai === 'Đã chấm dứt' || c.trangthai === 'Đã hủy bỏ'
+        ? c.trangthai
+        : c.ngaybatdau > currentDay
         ? 'Chưa hiệu lực'
-        : c.end_date && c.end_date < currentDay
+        : c.ngayketthuc && c.ngayketthuc < currentDay
         ? 'Hết hạn'
         : 'Hiệu lực',
-    salary: fullAccess || c.employee_id === u.employee_id ? Number(c.salary) : null,
+    mucluong: fullAccess || c.manv === u.manv ? Number(c.mucluong) : null,
   }));
-  const contractById = new Map(contracts.map((c) => [c.id, c]));
+  const contractById = new Map(contracts.map((c) => [c.mahd, c]));
 
   const assignments = await db.all(
-    'SELECT * FROM assignments WHERE employee_id = ANY($1::text[]) ORDER BY effective_date DESC',
+    'SELECT * FROM quatrinhcongtac WHERE manv = ANY($1::text[]) ORDER BY ngayhieuluc DESC',
     [ids]
   );
-  const decisionIds = assignments.map((a) => a.decision_id);
+  const decisionIds = assignments.map((a) => a.maqd);
 
-  const employeeById = new Map(employees.map((e) => [e.id, e]));
-  const deptHeadRows = await db.all<{ id: string; head_id: string | null }>('SELECT id, head_id FROM departments');
-  const deptHeadMap = new Map(deptHeadRows.map((d) => [d.id, d.head_id]));
+  const employeeById = new Map(employees.map((e) => [e.manv, e]));
+  const deptHeadRows = await db.all<{ mapb: string; matruongphong: string | null }>(
+    'SELECT mapb, matruongphong FROM phongban'
+  );
+  const deptHeadMap = new Map(deptHeadRows.map((d) => [d.mapb, d.matruongphong]));
   const positionLevels = new Map(
-    (await db.all<{ id: string; level: number }>('SELECT id, level FROM positions')).map((p) => [
-      p.id,
-      Number(p.level),
+    (await db.all<{ macv: string; capbac: number }>('SELECT macv, capbac FROM chucvu')).map((p) => [
+      p.macv,
+      Number(p.capbac),
     ])
   );
-  const reviewerEmployee = employees.find((e) => e.id === u.employee_id);
-  const reviewerLevel = reviewerEmployee
-    ? positionLevels.get(reviewerEmployee.position_id)
-    : undefined;
+  const reviewerEmployee = employees.find((e) => e.manv === u.manv);
+  const reviewerLevel = reviewerEmployee ? positionLevels.get(reviewerEmployee.macv) : undefined;
 
   const rawLeaves = await db.all(
-    'SELECT * FROM leave_requests WHERE employee_id = ANY($1::text[]) ORDER BY submitted_date DESC, id DESC',
+    'SELECT * FROM donnghiphep WHERE manv = ANY($1::text[]) ORDER BY ngaynop DESC, madon DESC',
     [ids]
   );
   const leaves = rawLeaves.map((l) => {
-    const emp = employeeById.get(l.employee_id)!;
+    const emp = employeeById.get(l.manv)!;
     return {
       ...l,
-      approver_name: l.approver_id ? nameMap.get(l.approver_id) || l.approver_id : null,
-      can_review:
-        l.status === 'Chờ duyệt' &&
-        ((['Đã nghỉ việc', 'Đã lưu trữ'].includes(emp.status) &&
-          ['admin', 'hr'].includes(u.role)) ||
+      tennguoiduyet: l.manvduyet ? nameMap.get(l.manvduyet) || l.manvduyet : null,
+      coquyenduyet:
+        l.trangthai === 'Chờ duyệt' &&
+        ((['Đã nghỉ việc', 'Đã lưu trữ'].includes(emp.trangthai) &&
+          ['admin', 'hr'].includes(u.vaitro)) ||
           (!!reviewerEmployee &&
             reviewerLevel !== undefined &&
             canReviewLeave(
-              { ...u, position_level: reviewerLevel },
-              {
-                ...emp,
-                position_level: positionLevels.get(emp.position_id) ?? 0,
-              },
-              emp.department_id !== null &&
-                deptHeadMap.get(emp.department_id) === u.employee_id
+              { ...u, capbac: reviewerLevel },
+              { ...emp, capbac: positionLevels.get(emp.macv) ?? 0 },
+              emp.mapb !== null && deptHeadMap.get(emp.mapb) === u.manv
             ))),
     };
   });
 
   // Quỹ phép: gộp số ngày đã dùng bằng một truy vấn thay vì lọc lồng nhau.
-  const leaveTypes = await db.all('SELECT * FROM leave_types ORDER BY id');
-  const usedRows = await db.all<{ employee_id: string; year: number; used: string }>(
-    `SELECT l.employee_id, EXTRACT(YEAR FROM l.start_date)::int AS year, SUM(l.days) AS used
-     FROM leave_requests l JOIN leave_types t ON t.id = l.type_id
-     WHERE l.status = 'Đã duyệt' AND t.deduct_annual = 1 AND l.employee_id = ANY($1::text[])
-     GROUP BY l.employee_id, EXTRACT(YEAR FROM l.start_date)`,
+  const leaveTypes = await db.all('SELECT * FROM loainghiphep ORDER BY maloai');
+  const usedRows = await db.all<{ manv: string; nam: number; songay: string }>(
+    `SELECT d.manv, EXTRACT(YEAR FROM d.tungay)::int AS nam, SUM(d.songay) AS songay
+     FROM donnghiphep d JOIN loainghiphep l ON l.maloai = d.maloai
+     WHERE d.trangthai = 'Đã duyệt' AND l.truphepnam = 1 AND d.manv = ANY($1::text[])
+     GROUP BY d.manv, EXTRACT(YEAR FROM d.tungay)`,
     [ids]
   );
-  const usedLookup = new Map(usedRows.map((r) => [`${r.employee_id}:${r.year}`, Number(r.used)]));
-  const balanceRows = await db.all<{ employee_id: string; year: number; total: number }>(
-    'SELECT employee_id, year, total FROM leave_balances WHERE employee_id = ANY($1::text[])',
+  const usedLookup = new Map(usedRows.map((r) => [`${r.manv}:${r.nam}`, Number(r.songay)]));
+  const balanceRows = await db.all<{ manv: string; nam: number; tongsongayphep: number }>(
+    'SELECT manv, nam, tongsongayphep FROM songayphep WHERE manv = ANY($1::text[])',
     [ids]
   );
-  const balanceLookup = new Map(
-    balanceRows.map((r) => [`${r.employee_id}:${r.year}`, Number(r.total)])
-  );
+  const balanceLookup = new Map(balanceRows.map((r) => [`${r.manv}:${r.nam}`, Number(r.tongsongayphep)]));
   const years = new Set<number>([
     Number(currentDay.slice(0, 4)),
-    ...usedRows.map((r) => Number(r.year)),
-    ...balanceRows.map((r) => Number(r.year)),
-    ...rawLeaves.map((l) => Number(String(l.start_date).slice(0, 4))),
+    ...usedRows.map((r) => Number(r.nam)),
+    ...balanceRows.map((r) => Number(r.nam)),
+    ...rawLeaves.map((l) => Number(String(l.tungay).slice(0, 4))),
   ]);
   const sortedYears = Array.from(years).sort((a, b) => b - a);
 
+  // Cùng thuộc tính với SONGAYPHEP / view v_songayphep.
   const balances = employees.flatMap((e) =>
-    sortedYears.map((yr) => {
-      const total = balanceLookup.get(`${e.id}:${yr}`) ?? defaultEntitlement(e.join_date, yr);
-      const used = usedLookup.get(`${e.id}:${yr}`) ?? 0;
-      return { employee_id: e.id, year: yr, total, used, remaining: total - used };
+    sortedYears.map((nam) => {
+      const tongsongayphep = balanceLookup.get(`${e.manv}:${nam}`) ?? defaultEntitlement(e.ngayvaolam, nam);
+      const songaydanghi = usedLookup.get(`${e.manv}:${nam}`) ?? 0;
+      return { manv: e.manv, nam, tongsongayphep, songaydanghi, songayconlai: tongsongayphep - songaydanghi };
     })
   );
 
-  const departments = await db.all('SELECT * FROM departments ORDER BY id');
-  const positions = await db.all('SELECT * FROM positions ORDER BY level DESC, id ASC');
+  const departments = await db.all('SELECT * FROM phongban ORDER BY mapb');
+  const positions = await db.all('SELECT * FROM chucvu ORDER BY capbac DESC, macv ASC');
   const rawExtensions = await db.all(
-    'SELECT * FROM extensions WHERE contract_id = ANY($1::text[]) ORDER BY sequence DESC',
-    [contracts.map((c) => c.id)]
+    'SELECT * FROM giahanhopdong WHERE mahd = ANY($1::text[]) ORDER BY langiahan DESC',
+    [contracts.map((c) => c.mahd)]
   );
-  const extensions = rawExtensions.map((x) => {
-    const contract = contractById.get(x.contract_id)!;
-    const canViewSalary = fullAccess || contract.employee_id === u.employee_id;
+  const extensions = rawExtensions.map((g) => {
+    const contract = contractById.get(g.mahd)!;
+    const canViewSalary = fullAccess || contract.manv === u.manv;
     return {
-      ...x,
-      old_salary: canViewSalary && x.old_salary != null ? Number(x.old_salary) : null,
-      new_salary: canViewSalary && x.new_salary != null ? Number(x.new_salary) : null,
+      ...g,
+      luongcu: canViewSalary && g.luongcu != null ? Number(g.luongcu) : null,
+      luongmoi: canViewSalary && g.luongmoi != null ? Number(g.luongmoi) : null,
     };
   });
 
-  const rawRewards = await db.all(
-    'SELECT * FROM rewards_disciplines WHERE employee_id = ANY($1::text[]) ORDER BY effective_date DESC, id DESC',
-    [ids]
-  );
-  const rewards = rawRewards.map((r) => ({
-    ...r,
-    amount: Number(r.amount),
-  }));
-  const rewardDecisionIds = rawRewards.map((r) => r.decision_id);
-  const allDecisionIds = Array.from(new Set([...decisionIds, ...rewardDecisionIds]));
-
   const decisions = fullAccess
-    ? await db.all('SELECT * FROM decisions ORDER BY effective_date DESC')
-    : await db.all(
-        'SELECT * FROM decisions WHERE id = ANY($1::text[]) ORDER BY effective_date DESC',
-        [allDecisionIds]
-      );
+    ? await db.all('SELECT * FROM quyetdinh ORDER BY ngayhieuluc DESC')
+    : await db.all('SELECT * FROM quyetdinh WHERE maqd = ANY($1::text[]) ORDER BY ngayhieuluc DESC', [
+        decisionIds.filter(Boolean),
+      ]);
 
   const users =
-    u.role === 'admin'
+    u.vaitro === 'admin'
       ? await db.all(
-          `SELECT u.id, u.username, u.role, u.employee_id, u.active, e.name
-           FROM users u
-           JOIN employees e ON e.id = u.employee_id
-           ORDER BY u.id`
+          `SELECT t.matk, t.tendangnhap, t.vaitro, t.manv, t.hoatdong, n.hoten
+           FROM taikhoan t
+           JOIN nhanvien n ON n.manv = t.manv
+           ORDER BY t.matk`
         )
       : [];
 
   const audit =
-    u.role === 'admin'
+    u.vaitro === 'admin'
       ? await db.all(
-          `SELECT a.*, u.username
-           FROM audit_log a
-           LEFT JOIN users u ON u.id = a.user_id
-           ORDER BY a.id DESC
+          `SELECT k.*, t.tendangnhap
+           FROM nhatkyhethong k
+           LEFT JOIN taikhoan t ON t.matk = k.matk
+           ORDER BY k.mank DESC
            LIMIT 100`
         )
       : [];
@@ -323,7 +302,6 @@ export async function buildScopedState(u: SessionUser) {
     extensions,
     assignments,
     decisions,
-    rewards,
     leaveTypes,
     leaves,
     balances,
@@ -350,16 +328,16 @@ authRouter.get(
     const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
     const offset = Math.max(Number(req.query.offset) || 0, 0);
     const q = typeof req.query.q === 'string' && req.query.q.trim() ? `%${req.query.q.trim()}%` : null;
-    const filter = `($1::text IS NULL OR a.action ILIKE $1 OR a.target ILIKE $1 OR u.username ILIKE $1)`;
+    const filter = `($1::text IS NULL OR k.hanhdong ILIKE $1 OR k.doituong ILIKE $1 OR t.tendangnhap ILIKE $1)`;
     const rows = await db.all(
-      `SELECT a.*, u.username
-       FROM audit_log a LEFT JOIN users u ON u.id = a.user_id
+      `SELECT k.*, t.tendangnhap
+       FROM nhatkyhethong k LEFT JOIN taikhoan t ON t.matk = k.matk
        WHERE ${filter}
-       ORDER BY a.id DESC LIMIT $2 OFFSET $3`,
+       ORDER BY k.mank DESC LIMIT $2 OFFSET $3`,
       [q, limit, offset]
     );
     const total = await db.one<{ n: string }>(
-      `SELECT COUNT(*) AS n FROM audit_log a LEFT JOIN users u ON u.id = a.user_id WHERE ${filter}`,
+      `SELECT COUNT(*) AS n FROM nhatkyhethong k LEFT JOIN taikhoan t ON t.matk = k.matk WHERE ${filter}`,
       [q]
     );
     res.json({ rows, total: Number(total?.n ?? 0) });

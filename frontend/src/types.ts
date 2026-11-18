@@ -1,173 +1,156 @@
 export type UserRole = 'admin' | 'hr' | 'manager' | 'employee' | 'director';
 
 export interface SessionUser {
-  id: string;
-  username: string;
-  role: UserRole;
-  employee_id: string;
-  name: string;
-  department_id: string | null;
+  matk: string;
+  tendangnhap: string;
+  vaitro: UserRole;
+  manv: string;
+  hoten: string;
+  mapb: string | null;
 }
 
 export interface Department {
-  id: string;
-  name: string;
-  description: string;
-  founded_date: string;
-  head_id?: string | null;
-  active?: boolean;
+  mapb: string;
+  tenpb: string;
+  mota: string;
+  ngaythanhlap: string;
+  matruongphong?: string | null;
+  hoatdong?: boolean;
 }
 
 export interface Position {
-  id: string;
-  name: string;
-  description: string;
-  level: number;
-  is_executive?: boolean;
-  default_role?: string | null;
-  active?: boolean;
+  macv: string;
+  tencv: string;
+  mota: string;
+  capbac: number;
+  ladieuhanh?: boolean;
+  vaitromacdinh?: string | null;
+  hoatdong?: boolean;
 }
 
 export interface Employee {
-  id: string;
-  name: string;
-  birth_date: string;
-  gender: 'Nam' | 'Nữ' | 'Khác';
-  address: string;
-  phone: string;
+  manv: string;
+  hoten: string;
+  ngaysinh: string;
+  gioitinh: 'Nam' | 'Nữ' | 'Khác';
+  diachi: string;
+  sodienthoai: string;
   email: string;
-  join_date: string;
-  status: 'Đang làm việc' | 'Thử việc' | 'Đã nghỉ việc' | 'Đã lưu trữ';
-  archived_date: string | null;
-  department_id: string | null;
-  position_id: string;
-  version?: number;
+  ngayvaolam: string;
+  trangthai: 'Đang làm việc' | 'Thử việc' | 'Đã nghỉ việc' | 'Đã lưu trữ';
+  ngayluutru: string | null;
+  mapb: string | null;
+  macv: string;
+  phienban?: number;
 }
 
 export interface Contract {
-  id: string;
-  employee_id: string;
-  type: 'Thử việc' | 'Xác định thời hạn' | 'Không xác định thời hạn';
-  start_date: string;
-  end_date: string | null;
-  original_end_date?: string | null;
-  salary: number | null;
-  status: string;
-  terminated_date: string | null;
-  termination_reason: string | null;
-  termination_type?: string | null;
-  termination_decision_id?: string | null;
-  contract_number?: string | null;
+  mahd: string;
+  manv: string;
+  loaihd: 'Thử việc' | 'Xác định thời hạn' | 'Không xác định thời hạn';
+  ngaybatdau: string;
+  ngayketthuc: string | null;
+  ngayketthucgoc?: string | null;
+  mucluong: number | null;
+  trangthai: string;
+  ngaychamdut: string | null;
+  lydochamdut: string | null;
+  loaichamdut?: string | null;
+  maqdchamdut?: string | null;
+  sohd?: string | null;
 }
 
 export interface ContractExtension {
-  id: string;
-  contract_id: string;
-  sequence: number;
-  created_date: string;
-  old_end_date: string | null;
-  new_end_date: string | null;
-  amendment_type: string;
-  old_salary: number | null;
-  new_salary: number | null;
-  reason: string;
-  effective_date?: string | null;
-  applied?: boolean;
-  decision_id?: string | null;
+  magh: string;
+  mahd: string;
+  langiahan: number;
+  ngaylap: string;
+  ngayketthuccu: string | null;
+  ngayketthucmoi: string | null;
+  loaiphuluc: string;
+  luongcu: number | null;
+  luongmoi: number | null;
+  lydo: string;
+  ngayhieuluc?: string | null;
+  daapdung?: boolean;
+  maqd?: string | null;
 }
 
 export interface Decision {
-  id: string;
-  number: string;
-  type: string;
-  signed_date: string;
-  effective_date: string;
-  signer: string;
-  content: string;
+  maqd: string;
+  soqd: string;
+  loaiqd: string;
+  ngayky: string;
+  ngayhieuluc: string;
+  nguoiky: string;
+  noidung: string;
 }
 
 export interface Assignment {
-  id: string;
-  employee_id: string;
-  decision_id: string;
-  type: 'Điều chuyển' | 'Bổ nhiệm' | 'Miễn nhiệm' | 'Điều chuyển và bổ nhiệm';
-  old_department_id: string | null;
-  new_department_id: string;
-  old_position_id: string;
-  new_position_id: string;
-  effective_date: string;
-  reason: string;
-  status?: 'Chờ hiệu lực' | 'Hiệu lực' | 'Đã hủy';
-  cancel_reason?: string | null;
-}
-
-export interface RewardDiscipline {
-  id: string;
-  employee_id: string;
-  decision_id: string;
-  type: 'Khen thưởng' | 'Kỷ luật';
-  category: string;
-  amount: number;
-  effective_date: string;
-  reason: string;
-  employee_name?: string;
-  department_name?: string;
-  position_name?: string;
-  decision_number?: string;
-  signer?: string;
-  signed_date?: string;
+  maqt: string;
+  manv: string;
+  maqd: string;
+  loaibiendong: 'Điều chuyển' | 'Bổ nhiệm' | 'Miễn nhiệm' | 'Điều chuyển và bổ nhiệm';
+  mapbcu: string | null;
+  mapbmoi: string;
+  macvcu: string;
+  macvmoi: string;
+  ngayhieuluc: string;
+  lydo: string;
+  trangthai?: 'Chờ hiệu lực' | 'Hiệu lực' | 'Đã hủy';
+  lydohuy?: string | null;
 }
 
 export interface LeaveType {
-  id: string;
-  name: string;
-  max_days: number;
-  deduct_annual: number;
+  maloai: string;
+  tenloai: string;
+  songaytoida: number;
+  truphepnam: number;
 }
 
 export interface LeaveRequest {
-  id: string;
-  employee_id: string;
-  type_id: string;
-  submitted_date: string;
-  start_date: string;
-  end_date: string;
-  days: number;
-  reason: string;
-  status: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối' | 'Đã hủy';
-  approver_id: string | null;
-  approver_name?: string | null;
-  approved_date: string | null;
-  review_note: string | null;
-  can_review?: boolean;
+  madon: string;
+  manv: string;
+  maloai: string;
+  ngaynop: string;
+  tungay: string;
+  denngay: string;
+  songay: number;
+  lydo: string;
+  trangthai: 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối' | 'Đã hủy';
+  manvduyet: string | null;
+  tennguoiduyet?: string | null;
+  ngayduyet: string | null;
+  ghichuduyet: string | null;
+  coquyenduyet?: boolean;
 }
 
 export interface LeaveBalance {
-  employee_id: string;
-  year: number;
-  total: number;
-  used: number;
-  remaining: number;
+  manv: string;
+  nam: number;
+  tongsongayphep: number;
+  songaydanghi: number;
+  songayconlai: number;
 }
 
 export interface UserAccount {
-  id: string;
-  username: string;
-  role: UserRole;
-  employee_id: string;
-  active: number;
-  name: string;
+  matk: string;
+  tendangnhap: string;
+  vaitro: UserRole;
+  manv: string;
+  hoatdong: number;
+  hoten: string;
 }
 
 export interface AuditEntry {
-  id: number;
-  user_id: string | null;
-  username: string | null;
-  action: string;
-  target: string;
-  created_at: string;
-  details?: Record<string, unknown> | null;
-  ip?: string | null;
+  mank: number;
+  matk: string | null;
+  tendangnhap: string | null;
+  hanhdong: string;
+  doituong: string;
+  thoigian: string;
+  chitiet?: Record<string, unknown> | null;
+  diachiip?: string | null;
 }
 
 export interface AppState {
@@ -180,7 +163,6 @@ export interface AppState {
   extensions: ContractExtension[];
   assignments: Assignment[];
   decisions: Decision[];
-  rewards?: RewardDiscipline[];
   leaveTypes: LeaveType[];
   leaves: LeaveRequest[];
   balances: LeaveBalance[];
@@ -194,7 +176,6 @@ export type RouteKey =
   | 'departments'
   | 'contracts'
   | 'assignments'
-  | 'rewards'
   | 'leaves'
   | 'reports'
   | 'settings';

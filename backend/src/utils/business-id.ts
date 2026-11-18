@@ -1,33 +1,22 @@
 import { DbExecutor } from '../db/pool.js';
 
-type IdTable = 'employees' | 'contracts' | 'departments' | 'positions' | 'decisions';
-const PREFIX: Record<IdTable, [string, number]> = {
-  employees: ['NV', 3],
-  contracts: ['HD', 3],
-  departments: ['PB', 2],
-  positions: ['CV', 2],
-  decisions: ['QD', 3],
+/** Bảng có mã nghiệp vụ tự sinh: tiền tố mã, số chữ số và tên cột khóa chính. */
+type IdTable = 'nhanvien' | 'hopdong' | 'phongban' | 'chucvu' | 'quyetdinh';
+const PREFIX: Record<IdTable, [string, number, string]> = {
+  nhanvien: ['NV', 3, 'manv'],
+  hopdong: ['HD', 3, 'mahd'],
+  phongban: ['PB', 2, 'mapb'],
+  chucvu: ['CV', 2, 'macv'],
+  quyetdinh: ['QD', 3, 'maqd'],
 };
 
 // Khóa theo loại mã trong transaction để các yêu cầu đồng thời không nhận trùng mã.
 export async function nextBusinessId(tx: DbExecutor, table: IdTable): Promise<string> {
-  const [prefix, pad] = PREFIX[table];
+  const [prefix, pad, pk] = PREFIX[table];
   await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`peopleops:${table}:id`]);
   const row = await tx.one<{ next: string }>(
-    `SELECT COALESCE(MAX(SUBSTRING(id FROM 3)::NUMERIC), 0) + 1 AS next
-     FROM ${table} WHERE id ~ $1`,
-    [`^${prefix}[0-9]+$`]
-  );
-  return prefix + String(row!.next).padStart(pad, '0');
-}
-
-export async function nextRewardDisciplineId(tx: DbExecutor, type: 'Khen thưởng' | 'Kỷ luật'): Promise<string> {
-  const prefix = type === 'Khen thưởng' ? 'KT' : 'KL';
-  const pad = 3;
-  await tx.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`peopleops:rewards_disciplines:${prefix}:id`]);
-  const row = await tx.one<{ next: string }>(
-    `SELECT COALESCE(MAX(SUBSTRING(id FROM 3)::NUMERIC), 0) + 1 AS next
-     FROM rewards_disciplines WHERE id ~ $1`,
+    `SELECT COALESCE(MAX(SUBSTRING(${pk} FROM 3)::NUMERIC), 0) + 1 AS next
+     FROM ${table} WHERE ${pk} ~ $1`,
     [`^${prefix}[0-9]+$`]
   );
   return prefix + String(row!.next).padStart(pad, '0');

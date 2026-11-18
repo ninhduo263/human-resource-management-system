@@ -31,10 +31,10 @@ export function daysUntil(targetDate: string, todayStr: string): number {
 }
 
 export function getContractStatus(c: Contract, todayStr: string): string {
-  if (c.status === 'Hiệu lực' && c.end_date && daysUntil(c.end_date, todayStr) <= 30) {
+  if (c.trangthai === 'Hiệu lực' && c.ngayketthuc && daysUntil(c.ngayketthuc, todayStr) <= 30) {
     return 'Sắp hết hạn';
   }
-  return c.status;
+  return c.trangthai;
 }
 
 export function getInitials(name?: string): string {
@@ -68,11 +68,8 @@ export function getAntTagColor(status: string): string {
   if (['Điều chuyển', 'Bổ nhiệm', 'Điều chuyển và bổ nhiệm'].includes(status)) {
     return 'processing';
   }
-  if (['Miễn nhiệm', 'Kỷ luật'].includes(status)) {
+  if (status === 'Miễn nhiệm') {
     return 'magenta';
-  }
-  if (['Khen thưởng'].includes(status)) {
-    return 'gold';
   }
   return 'success';
 }
@@ -119,8 +116,8 @@ export function matchEmployeeQuery(
   deptFilter: string
 ): boolean {
   if (!e) return false;
-  if (deptFilter && e.department_id !== deptFilter) return false;
+  if (deptFilter && e.mapb !== deptFilter) return false;
   if (!search.trim()) return true;
   const q = search.trim().toLocaleLowerCase('vi');
-  return [e.name, e.id, e.email].some((x) => x.toLocaleLowerCase('vi').includes(q));
+  return [e.hoten, e.manv, e.email].some((x) => x.toLocaleLowerCase('vi').includes(q));
 }

@@ -75,9 +75,9 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
   const [convertForm] = Form.useForm();
   const [salaryForm] = Form.useForm();
 
-  const emp = (id: string) => state.employees.find((e) => e.id === id);
+  const emp = (id: string) => state.employees.find((e) => e.manv === id);
   const activeEmployees = state.employees.filter(
-    (e) => ['Đang làm việc', 'Thử việc'].includes(e.status)
+    (e) => ['Đang làm việc', 'Thử việc'].includes(e.trangthai)
   );
 
   const filtered = state.contracts.filter((c) => {
@@ -87,7 +87,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     return (
       matchTab &&
       matchStatus &&
-      matchEmployeeQuery(emp(c.employee_id), search, deptFilter)
+      matchEmployeeQuery(emp(c.manv), search, deptFilter)
     );
   });
 
@@ -96,9 +96,9 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     setContractType('Xác định thời hạn');
     createForm.resetFields();
     createForm.setFieldsValue({
-      employee_id: activeEmployees[0]?.id,
-      type: 'Xác định thời hạn',
-      start_date: state.today,
+      manv: activeEmployees[0]?.manv,
+      loaihd: 'Xác định thời hạn',
+      ngaybatdau: state.today,
     });
     setCreateOpen(true);
   };
@@ -108,11 +108,11 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     setSubmitting(true);
     const body = {
       ...values,
-      salary: Number(values.salary),
-      end_date:
-        values.type === 'Không xác định thời hạn'
+      mucluong: Number(values.mucluong),
+      ngayketthuc:
+        values.loaihd === 'Không xác định thời hạn'
           ? null
-          : values.end_date || null,
+          : values.ngayketthuc || null,
     };
     try {
       await apiRequest('/api/contracts', body, 'POST');
@@ -132,7 +132,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     setSubmitting(true);
     try {
       await apiRequest(
-        `/api/contracts/${encodeURIComponent(extendTarget.id)}/extend`,
+        `/api/contracts/${encodeURIComponent(extendTarget.mahd)}/extend`,
         values,
         'POST'
       );
@@ -153,7 +153,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     setSubmitting(true);
     try {
       await apiRequest(
-        `/api/contracts/${encodeURIComponent(terminateTarget.id)}/terminate`,
+        `/api/contracts/${encodeURIComponent(terminateTarget.mahd)}/terminate`,
         values,
         'POST'
       );
@@ -174,8 +174,8 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     setSubmitting(true);
     try {
       await apiRequest(
-        `/api/contracts/${encodeURIComponent(convertTarget.id)}/convert`,
-        { ...values, end_date: values.type === 'Không xác định thời hạn' ? null : values.end_date },
+        `/api/contracts/${encodeURIComponent(convertTarget.mahd)}/convert`,
+        { ...values, ngayketthuc: values.loaihd === 'Không xác định thời hạn' ? null : values.ngayketthuc },
         'POST'
       );
       setConvertTarget(null);
@@ -193,7 +193,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     const reason = window.prompt('Lý do hủy bỏ hợp đồng (hợp đồng nhập sai, vẫn được giữ lại để truy vết):');
     if (!reason || !reason.trim()) return;
     try {
-      await apiRequest(`/api/contracts/${encodeURIComponent(c.id)}/void`, { reason: reason.trim() }, 'POST');
+      await apiRequest(`/api/contracts/${encodeURIComponent(c.mahd)}/void`, { lydo: reason.trim() }, 'POST');
       setDetailContract(null);
       notify('Đã hủy bỏ hợp đồng.');
       await onRefresh();
@@ -207,7 +207,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     setFormError('');
     setSubmitting(true);
     try {
-      await apiRequest(`/api/contracts/${encodeURIComponent(salaryTarget.id)}/salary`, values, 'POST');
+      await apiRequest(`/api/contracts/${encodeURIComponent(salaryTarget.mahd)}/salary`, values, 'POST');
       setSalaryTarget(null);
       setDetailContract(null);
       notify('Đã cập nhật mức lương và lưu phụ lục hợp đồng.');
@@ -231,11 +231,11 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
         'Trạng thái',
       ],
       filtered.map((c) => [
-        emp(c.employee_id)?.name || 'Nhân viên',
-        c.type,
-        c.start_date,
-        c.end_date || 'Không xác định',
-        c.salary ?? 'Hạn chế truy cập',
+        emp(c.manv)?.hoten || 'Nhân viên',
+        c.loaihd,
+        c.ngaybatdau,
+        c.ngayketthuc || 'Không xác định',
+        c.mucluong ?? 'Hạn chế truy cập',
         getContractStatus(c, state.today),
       ])
     );
@@ -246,15 +246,15 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
       title: 'Nhân viên',
       key: 'employee',
       render: (_: unknown, c: Contract) => {
-        const e = emp(c.employee_id);
+        const e = emp(c.manv);
         return (
           <Space>
-            <Avatar style={{ backgroundColor: getAvatarHex(e?.id) }}>
-              {getInitials(e?.name)}
+            <Avatar style={{ backgroundColor: getAvatarHex(e?.manv) }}>
+              {getInitials(e?.hoten)}
             </Avatar>
             <div>
               <div className="font-semibold text-slate-900">
-                {e?.name || 'Nhân viên'}
+                {e?.hoten || 'Nhân viên'}
               </div>
             </div>
           </Space>
@@ -263,7 +263,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
     },
     {
       title: 'Loại hợp đồng',
-      dataIndex: 'type',
+      dataIndex: 'loaihd',
       key: 'type',
     },
     {
@@ -271,14 +271,14 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
       key: 'duration',
       render: (_: unknown, c: Contract) => (
         <div className="text-xs">
-          <div>{formatDate(c.start_date)}</div>
-          <Text type="secondary">đến {formatDate(c.end_date)}</Text>
+          <div>{formatDate(c.ngaybatdau)}</div>
+          <Text type="secondary">đến {formatDate(c.ngayketthuc)}</Text>
         </div>
       ),
     },
     {
       title: 'Mức lương / tháng',
-      dataIndex: 'salary',
+      dataIndex: 'mucluong',
       key: 'salary',
       render: (salary: number | null) => (
         <Text strong={salary != null} type={salary == null ? 'secondary' : undefined}>
@@ -327,7 +327,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
           <Button icon={<DownloadOutlined />} onClick={handleExport}>
             Xuất CSV
           </Button>
-          {canEdit(state.user.role) && (
+          {canEdit(state.user.vaitro) && (
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -376,8 +376,8 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               options={[
                 { value: '', label: 'Tất cả phòng ban' },
                 ...state.departments.map((d) => ({
-                  value: d.id,
-                  label: d.name,
+                  value: d.mapb,
+                  label: d.tenpb,
                 })),
               ]}
             />
@@ -401,7 +401,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
         </div>
 
         <Table
-          rowKey="id"
+          rowKey="mahd"
           columns={columns}
           dataSource={filtered}
           pagination={{ pageSize: 8, showSizeChanger: false }}
@@ -432,20 +432,20 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
 
             <Form.Item
-              name="employee_id"
+              name="manv"
               label="Nhân viên"
               rules={[{ required: true, message: 'Chọn nhân viên' }]}
             >
               <Select
                 options={activeEmployees.map((e) => ({
-                  value: e.id,
-                  label: `${e.name} (${e.email})`,
+                  value: e.manv,
+                  label: `${e.hoten} (${e.email})`,
                 }))}
               />
             </Form.Item>
 
             <Form.Item
-              name="type"
+              name="loaihd"
               label="Loại hợp đồng"
               rules={[{ required: true }]}
             >
@@ -463,7 +463,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             </Form.Item>
 
             <Form.Item
-              name="salary"
+              name="mucluong"
               label="Mức lương tháng (VND)"
               rules={[{ required: true, message: 'Nhập mức lương' }]}
             >
@@ -476,7 +476,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             </Form.Item>
 
             <Form.Item
-              name="start_date"
+              name="ngaybatdau"
               label="Ngày bắt đầu"
               rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}
             >
@@ -484,7 +484,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             </Form.Item>
 
             <Form.Item
-              name="end_date"
+              name="ngayketthuc"
               label="Ngày kết thúc"
               rules={[
                 {
@@ -526,20 +526,20 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
           detailContract && (
             <Space wrap>
               <Button onClick={() => setDetailContract(null)}>Đóng</Button>
-              {canEdit(state.user.role) &&
-                detailContract.status !== 'Đã chấm dứt' &&
-                detailContract.status !== 'Đã hủy bỏ' && (
+              {canEdit(state.user.vaitro) &&
+                detailContract.trangthai !== 'Đã chấm dứt' &&
+                detailContract.trangthai !== 'Đã hủy bỏ' && (
                   <>
-                    {detailContract.type === 'Thử việc' && (
+                    {detailContract.loaihd === 'Thử việc' && (
                       <Button
                         onClick={() => {
                           setFormError('');
                           setConvertType('Xác định thời hạn');
                           convertForm.resetFields();
                           convertForm.setFieldsValue({
-                            type: 'Xác định thời hạn',
-                            start_date: state.today,
-                            salary: detailContract.salary,
+                            loaihd: 'Xác định thời hạn',
+                            ngaybatdau: state.today,
+                            mucluong: detailContract.mucluong,
                           });
                           setConvertTarget(detailContract);
                         }}
@@ -553,7 +553,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
                     <Button icon={<DollarOutlined />} onClick={() => {
                       setFormError('');
                       salaryForm.resetFields();
-                      salaryForm.setFieldsValue({ salary: detailContract.salary });
+                      salaryForm.setFieldsValue({ mucluong: detailContract.mucluong });
                       setSalaryTarget(detailContract);
                     }}>
                       Điều chỉnh lương
@@ -565,14 +565,14 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
                         setFormError('');
                         terminateForm.resetFields();
                         terminateForm.setFieldsValue({
-                          terminated_date: state.today,
+                          ngaychamdut: state.today,
                         });
                         setTerminateTarget(detailContract);
                       }}
                     >
                       Chấm dứt HĐ
                     </Button>
-                    {detailContract.end_date && (
+                    {detailContract.ngayketthuc && (
                       <Button
                         type="primary"
                         icon={<CalendarOutlined />}
@@ -609,41 +609,41 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               </Descriptions.Item>
               <Descriptions.Item label="Nhân viên">
                 <strong>
-                  {emp(detailContract.employee_id)?.name ||
+                  {emp(detailContract.manv)?.hoten ||
                     'Nhân viên'}
                 </strong>{' '}
               </Descriptions.Item>
               <Descriptions.Item label="Loại hợp đồng">
-                {detailContract.type}
+                {detailContract.loaihd}
               </Descriptions.Item>
               <Descriptions.Item label="Mức lương / tháng">
-                <strong>{formatMoney(detailContract.salary)}</strong>
+                <strong>{formatMoney(detailContract.mucluong)}</strong>
               </Descriptions.Item>
               <Descriptions.Item label="Thời hạn gốc ban đầu">
-                {formatDate(detailContract.start_date)} →{' '}
-                {formatDate(detailContract.original_end_date || detailContract.end_date)}
+                {formatDate(detailContract.ngaybatdau)} →{' '}
+                {formatDate(detailContract.ngayketthucgoc || detailContract.ngayketthuc)}
               </Descriptions.Item>
               <Descriptions.Item label="Thời hạn hiện tại">
-                {formatDate(detailContract.start_date)} →{' '}
-                {formatDate(detailContract.end_date)}
+                {formatDate(detailContract.ngaybatdau)} →{' '}
+                {formatDate(detailContract.ngayketthuc)}
               </Descriptions.Item>
-              {detailContract.terminated_date && (
+              {detailContract.ngaychamdut && (
                 <>
                   <Descriptions.Item label="Ngày chấm dứt">
                     <Text type="danger">
-                      {formatDate(detailContract.terminated_date)}
+                      {formatDate(detailContract.ngaychamdut)}
                     </Text>
                   </Descriptions.Item>
                   <Descriptions.Item label="Hình thức & Lý do">
                     <div>
-                      <Tag color="error" className="mr-1">{detailContract.termination_type || 'Thỏa thuận'}</Tag>
-                      {detailContract.termination_reason}
+                      <Tag color="error" className="mr-1">{detailContract.loaichamdut || 'Thỏa thuận'}</Tag>
+                      {detailContract.lydochamdut}
                     </div>
                   </Descriptions.Item>
-                  {detailContract.termination_decision_id && (
+                  {detailContract.maqdchamdut && (
                     <Descriptions.Item label="Căn cứ Quyết định">
                       <Tag color="purple">
-                        {state.decisions.find((d) => d.id === detailContract.termination_decision_id)?.number || detailContract.termination_decision_id}
+                        {state.decisions.find((d) => d.maqd === detailContract.maqdchamdut)?.soqd || detailContract.maqdchamdut}
                       </Tag>
                     </Descriptions.Item>
                   )}
@@ -656,33 +656,33 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             </Divider>
             <div className="space-y-2">
               {state.extensions
-                .filter((ex) => ex.contract_id === detailContract.id)
+                .filter((ex) => ex.mahd === detailContract.mahd)
                 .map((ex) => (
-                  <Card key={ex.id} size="small">
+                  <Card key={ex.magh} size="small">
                     <div className="flex justify-between font-semibold">
                       <span>
-                        Phụ lục {ex.sequence} · {ex.amendment_type}
+                        Phụ lục {ex.langiahan} · {ex.loaiphuluc}
                       </span>
-                      <span>Ngày lập: {formatDate(ex.created_date)}</span>
+                      <span>Ngày lập: {formatDate(ex.ngaylap)}</span>
                     </div>
-                    {(ex.new_salary !== null || ex.amendment_type.includes('lương')) && (
+                    {(ex.luongmoi !== null || ex.loaiphuluc.includes('lương')) && (
                       <div className="text-xs text-slate-600 mt-1">
-                        Lương cũ: {formatMoney(ex.old_salary)} → Lương mới: <strong>{formatMoney(ex.new_salary)}</strong>
+                        Lương cũ: {formatMoney(ex.luongcu)} → Lương mới: <strong>{formatMoney(ex.luongmoi)}</strong>
                       </div>
                     )}
                     <div className="text-xs text-slate-600 mt-1">
-                      Hạn cũ: {formatDate(ex.old_end_date)} → Hạn mới:{' '}
+                      Hạn cũ: {formatDate(ex.ngayketthuccu)} → Hạn mới:{' '}
                       <strong className="text-emerald-700">
-                        {formatDate(ex.new_end_date)}
+                        {formatDate(ex.ngayketthucmoi)}
                       </strong>
                     </div>
                     <div className="text-xs text-slate-500 mt-0.5">
-                      Lý do: {ex.reason}
+                      Lý do: {ex.lydo}
                     </div>
                   </Card>
                 ))}
               {state.extensions.filter(
-                (ex) => ex.contract_id === detailContract.id
+                (ex) => ex.mahd === detailContract.mahd
               ).length === 0 && (
                 <Text type="secondary">Chưa có phụ lục hợp đồng.</Text>
               )}
@@ -710,7 +710,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               showIcon
               className="mb-4"
               message={`Ngày kết thúc hiện tại: ${formatDate(
-                extendTarget.end_date
+                extendTarget.ngayketthuc
               )}`}
             />
             {formError && (
@@ -722,33 +722,33 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               />
             )}
             <Form.Item
-              name="new_end_date"
+              name="ngayketthucmoi"
               label="Ngày kết thúc mới"
               rules={[{ required: true, message: 'Chọn ngày kết thúc mới' }]}
             >
               <Input type="date" />
             </Form.Item>
             <Form.Item
-              name="reason"
+              name="lydo"
               label="Lý do gia hạn"
               rules={[{ required: true, message: 'Nhập lý do gia hạn' }]}
             >
               <Input.TextArea rows={3} />
             </Form.Item>
-            <Form.Item name="salary" label="Mức lương mới / tháng (VND, nếu thay đổi)"
-              extra={`Lương hiện tại: ${formatMoney(extendTarget.salary)}. Để trống để giữ nguyên.`}>
+            <Form.Item name="mucluong" label="Mức lương mới / tháng (VND, nếu thay đổi)"
+              extra={`Lương hiện tại: ${formatMoney(extendTarget.mucluong)}. Để trống để giữ nguyên.`}>
               <InputNumber min={1} max={100000000000} className="w-full" />
             </Form.Item>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
               <Form.Item
-                name="decision_number"
+                name="soqd"
                 label="Số quyết định/phụ lục (tùy chọn)"
                 extra="Nếu có quyết định gia hạn"
               >
                 <Input placeholder="VD: PL01/2026/QD-GH" />
               </Form.Item>
               <Form.Item
-                name="signer"
+                name="nguoiky"
                 label="Người ký phụ lục"
                 initialValue="Trần Hải Đăng"
               >
@@ -769,16 +769,16 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
       <Modal open={!!salaryTarget} title="Điều chỉnh lương — Lập phụ lục hợp đồng" footer={null}
         onCancel={() => setSalaryTarget(null)}>
         {salaryTarget && <Form name="salaryContract" form={salaryForm} layout="vertical" onFinish={handleSalaryChange}>
-          <Alert type="info" showIcon className="mb-4" message={`Lương hiện tại: ${formatMoney(salaryTarget.salary)}`}
+          <Alert type="info" showIcon className="mb-4" message={`Lương hiện tại: ${formatMoney(salaryTarget.mucluong)}`}
             description="Mặc định áp dụng ngay. Chọn ngày hiệu lực trong tương lai để hẹn áp dụng, hoặc ngày trong quá khứ để ghi bù. Phụ lục lưu lương cũ, lương mới và lý do." />
           {formError && <Alert type="error" showIcon message={formError} className="mb-4" />}
-          <Form.Item name="salary" label="Mức lương mới / tháng (VND)" rules={[{ required: true, message: 'Nhập mức lương mới' }]}>
+          <Form.Item name="mucluong" label="Mức lương mới / tháng (VND)" rules={[{ required: true, message: 'Nhập mức lương mới' }]}>
             <InputNumber min={1} max={100000000000} className="w-full" />
           </Form.Item>
-          <Form.Item name="effective_date" label="Ngày hiệu lực (tùy chọn)">
+          <Form.Item name="ngayhieuluc" label="Ngày hiệu lực (tùy chọn)">
             <Input type="date" />
           </Form.Item>
-          <Form.Item name="reason" label="Lý do điều chỉnh lương" rules={[{ required: true, message: 'Nhập lý do điều chỉnh' }]}>
+          <Form.Item name="lydo" label="Lý do điều chỉnh lương" rules={[{ required: true, message: 'Nhập lý do điều chỉnh' }]}>
             <Input.TextArea rows={3} />
           </Form.Item>
           <div className="flex justify-end gap-2">
@@ -804,7 +804,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               message="Hợp đồng thử việc tự kết thúc vào ngày trước khi hợp đồng chính thức bắt đầu."
             />
             {formError && <Alert type="error" showIcon message={formError} className="mb-4" />}
-            <Form.Item name="type" label="Loại hợp đồng" rules={[{ required: true }]}>
+            <Form.Item name="loaihd" label="Loại hợp đồng" rules={[{ required: true }]}>
               <Select
                 onChange={(v) => setConvertType(v)}
                 options={[
@@ -813,15 +813,15 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
                 ]}
               />
             </Form.Item>
-            <Form.Item name="start_date" label="Ngày bắt đầu" rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}>
+            <Form.Item name="ngaybatdau" label="Ngày bắt đầu" rules={[{ required: true, message: 'Chọn ngày bắt đầu' }]}>
               <Input type="date" />
             </Form.Item>
             {convertType === 'Xác định thời hạn' && (
-              <Form.Item name="end_date" label="Ngày kết thúc" rules={[{ required: true, message: 'Chọn ngày kết thúc' }]}>
+              <Form.Item name="ngayketthuc" label="Ngày kết thúc" rules={[{ required: true, message: 'Chọn ngày kết thúc' }]}>
                 <Input type="date" />
               </Form.Item>
             )}
-            <Form.Item name="salary" label="Mức lương / tháng (VND)" rules={[{ required: true, message: 'Nhập mức lương' }]}>
+            <Form.Item name="mucluong" label="Mức lương / tháng (VND)" rules={[{ required: true, message: 'Nhập mức lương' }]}>
               <InputNumber min={1} max={100000000000} className="w-full" />
             </Form.Item>
             <div className="flex justify-end gap-2">
@@ -861,14 +861,14 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               />
             )}
             <Form.Item
-              name="terminated_date"
+              name="ngaychamdut"
               label="Ngày chấm dứt"
               rules={[{ required: true, message: 'Chọn ngày chấm dứt' }]}
             >
               <Input type="date" />
             </Form.Item>
             <Form.Item
-              name="termination_type"
+              name="loaichamdut"
               label="Hình thức chấm dứt"
               initialValue="Thỏa thuận chấm dứt"
             >
@@ -882,7 +882,7 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
               />
             </Form.Item>
             <Form.Item
-              name="reason"
+              name="lydochamdut"
               label="Lý do chấm dứt"
               rules={[{ required: true, message: 'Nhập lý do chấm dứt' }]}
             >
@@ -890,14 +890,14 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
             </Form.Item>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
               <Form.Item
-                name="decision_number"
+                name="soqd"
                 label="Số quyết định chấm dứt (tùy chọn)"
                 extra="Nếu có quyết định do Ban Giám đốc ký"
               >
                 <Input placeholder="VD: 06/2026/QD-CD" />
               </Form.Item>
               <Form.Item
-                name="signer"
+                name="nguoiky"
                 label="Người ký quyết định"
                 initialValue="Trần Hải Đăng"
               >

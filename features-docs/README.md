@@ -13,14 +13,13 @@ Thư mục này lưu trữ toàn bộ tài liệu kỹ thuật của từng tín
 
 | STT | File tài liệu | Phân hệ / Nội dung | Đối chiếu BFD / DFD / ERD |
 | :--- | :--- | :--- | :--- |
-| 00 | [00-ha-tang-docker-va-database.md](./00-ha-tang-docker-va-database.md) | Hạ tầng Docker Compose, PostgreSQL 16 & Khởi tạo dữ liệu | 11 thực thể ERD (`ERD_QLNS_v2.drawio`) + 3 bảng hệ thống |
-| 01 | [01-xac-thuc-phan-quyen-va-quan-tri.md](./01-xac-thuc-phan-quyen-va-quan-tri.md) | Đăng nhập, Phiên, Phân quyền 5 vai trò, Quản trị & Dashboard | Tác nhân DFD Mức 0 (`BFD_DFD_QLNS_v2.drawio`), RBAC/ABAC |
-| 02 | [02-ho-so-nhan-vien.md](./02-ho-so-nhan-vien.md) | Quản lý Hồ sơ nhân viên | BFD `1.1`, `1.2`, `1.3`, `1.4` — Kho `D1` |
-| 03 | [03-phong-ban-va-chuc-vu.md](./03-phong-ban-va-chuc-vu.md) | Quản lý Phòng ban & Chức vụ | BFD `2.1`, `2.2`, `2.3`, `2.4` — Kho `D2`, `D4` |
-| 04 | [04-hop-dong-lao-dong.md](./04-hop-dong-lao-dong.md) | Quản lý Hợp đồng lao động | BFD `3.1`, `3.2`, `3.3`, `3.4` — Kho `D3`, `D6` |
-| 05 | [05-cong-tac-va-nghi-phep.md](./05-cong-tac-va-nghi-phep.md) | Quản lý Công tác & Nghỉ phép | BFD `4.1`, `4.2`, `4.3`, `4.4` — Kho `D4`, `D5` |
+| 00 | [00-ha-tang-docker-va-database.md](./00-ha-tang-docker-va-database.md) | Hạ tầng Docker Compose, PostgreSQL 16 & Khởi tạo dữ liệu | 10 thực thể nghiệp vụ + 5 thực thể hệ thống (`thietke/erd.drawio`), tên bảng/cột theo ERD |
+| 01 | [01-xac-thuc-phan-quyen-va-quan-tri.md](./01-xac-thuc-phan-quyen-va-quan-tri.md) | Đăng nhập, Phiên, Phân quyền 5 vai trò, Quản trị & Dashboard | 4 tác nhân DFD Mức 0 (`DFD-MUC0.png`) + Quản trị viên, RBAC/ABAC |
+| 02 | [02-ho-so-nhan-vien.md](./02-ho-so-nhan-vien.md) | Quản lý Hồ sơ nhân viên | BFD `1.1`, `1.2`, `1.3`, `1.4` — Kho `D1` (`NHANVIEN`) |
+| 03 | [03-phong-ban-va-chuc-vu.md](./03-phong-ban-va-chuc-vu.md) | Quản lý Phòng ban & Chức vụ | BFD `2.1`, `2.2`, `2.3`, `2.4` — Kho `D2` (`PHONGBAN`, `CHUCVU`) |
+| 04 | [04-hop-dong-lao-dong.md](./04-hop-dong-lao-dong.md) | Quản lý Hợp đồng lao động | BFD `3.1`, `3.2`, `3.3`, `3.4` — Kho `D3` (`HOPDONG`) |
+| 05 | [05-cong-tac-va-nghi-phep.md](./05-cong-tac-va-nghi-phep.md) | Quản lý Công tác & Nghỉ phép | BFD `4.1`, `4.2`, `4.3`, `4.4` — Kho `D4` (`QUATRINHCONGTAC`), `D5` (`DONNGHIPHEP`, `LOAINGHIPHEP`, `SONGAYPHEP`) |
 | 06 | [06-bao-cao-nhan-su.md](./06-bao-cao-nhan-su.md) | Báo cáo & Thống kê nhân sự | BFD `5.1`, `5.2`, `5.3`, `5.4` — Kho `D1`–`D5` |
-| 07 | [07-khen-thuong-va-ky-luat.md](./07-khen-thuong-va-ky-luat.md) | Quản lý Khen thưởng & Kỷ luật | BFD `3.4` — Kho `D6` (liên kết `D1`, `D4`) |
 
 ## Kiến trúc Giao diện Thích ứng Đa thiết bị (Responsive Architecture)
 
@@ -41,4 +40,7 @@ Hệ thống được thiết kế theo tiêu chuẩn giao diện thích ứng �
   5. Xuất bộ file thiết kế chuẩn Draw.io tại thư mục `diagrams/`: `diagrams/ERD_QLNS_v2.drawio` và `diagrams/BFD_DFD_QLNS_v2.drawio` (cùng 4 file gốc `BFD.jpeg`, `DFD-MUC0.png`, `ERD_QLNS_v2.drawio.pdf`, `Nhom_16_QL_Nhan_su.pdf`).
 - **17/11/2026 — Nâng cấp giao diện Ant Design (`Botanical Forest & Warm Ivory`) & Kiểm thử toàn bộ**:
   - Đồng bộ bảng màu `#0d392f` / `#155e4b` / `#f6f7f3`, font `Plus Jakarta Sans`, Bento Dashboard bất đối xứng và tối ưu responsive.
-  - Mở rộng bộ kiểm thử tích hợp `backend/tests/workflows.test.mjs` (23/23 pass) bao phủ đầy đủ các phân hệ `00`–`07`.
+- **18/11/2026 — Đồng bộ hóa hệ thống & báo cáo theo bộ sơ đồ chuẩn hóa trong `diagrams/`**:
+  - Đồng bộ cấu trúc 20 chức năng BFD (`diagrams/BFD.jpeg`), DFD mức 0 (`diagrams/DFD-MUC0.png`), 5 sơ đồ DFD mức 1 (`diagrams/Nhom_16_QL_Nhan_su.pdf`) và lược đồ ERD cơ bản 8 thực thể / 10 mối liên kết (`diagrams/ERD_QLNS.drawio.png`: `NHANVIEN`, `PHONGBAN`, `CHUCVU`, `HOPDONG`, `QUATRINHCONGTAC`, `LOAINGHIPHEP`, `DONNGHIPHEP`, `SONGAYPHEP`).
+  - Lược bỏ phân hệ mở rộng `Khen thưởng & Kỷ luật` ngoài phạm vi 20 chức năng BFD, chuẩn hóa 4 loại báo cáo `5.1`–`5.4` và cập nhật toàn bộ chương 3, 4, 5, 6 trong `BAO_CAO_HTTTQL.docx`.
+- **18/11/2026 — Đồng bộ cơ sở dữ liệu với thiết kế `thietke/`**: bộ sơ đồ `thietke/bfd-dfd.drawio` và `thietke/erd.drawio` (bổ sung nhóm 6 Quản trị hệ thống, kho D6, 5 thực thể hệ thống); đổi toàn bộ tên bảng và tên cột sang tên thực thể/thuộc tính ERD (tiếng Việt không dấu) ở database, backend, API, frontend và kiểm thử; database cũ tự đổi tên khi khởi động; loại bỏ hẳn khen thưởng, kỷ luật. Chi tiết trong `00-ha-tang-docker-va-database.md`.

@@ -3,7 +3,7 @@ import { passwordHash } from '../utils/crypto.js';
 import { today, shift, countWorkingDays, nextWorkingDay } from '../utils/validation.js';
 
 async function seedHolidays(): Promise<void> {
-  const any = await db.one<{ n: string }>('SELECT COUNT(*) AS n FROM holidays');
+  const any = await db.one<{ n: string }>('SELECT COUNT(*) AS n FROM ngayle');
   if (any && Number(any.n) > 0) return;
   const year = Number(today().slice(0, 4));
   for (const y of [year - 1, year, year + 1]) {
@@ -13,14 +13,14 @@ async function seedHolidays(): Promise<void> {
       ['05-01', 'Ngày Quốc tế Lao động'],
       ['09-02', 'Quốc khánh'],
     ]) {
-      await db.run('INSERT INTO holidays(day, name) VALUES($1, $2) ON CONFLICT DO NOTHING', [`${y}-${md}`, name]);
+      await db.run('INSERT INTO ngayle(ngay, tenngayle) VALUES($1, $2) ON CONFLICT DO NOTHING', [`${y}-${md}`, name]);
     }
   }
 }
 
 export async function seedDatabase(): Promise<void> {
   await seedHolidays();
-  const existing = await db.one<{ n: string }>('SELECT COUNT(*) AS n FROM departments');
+  const existing = await db.one<{ n: string }>('SELECT COUNT(*) AS n FROM phongban');
   if (existing && Number(existing.n) > 0) {
     return;
   }
@@ -40,7 +40,7 @@ export async function seedDatabase(): Promise<void> {
 
     for (const [id, name, desc] of departments) {
       await tx.run(
-        'INSERT INTO departments(id, name, description, founded_date) VALUES($1, $2, $3, $4)',
+        'INSERT INTO phongban(mapb, tenpb, mota, ngaythanhlap) VALUES($1, $2, $3, $4)',
         [id, name, desc, `${year - 4}-01-01`]
       );
     }
@@ -56,7 +56,7 @@ export async function seedDatabase(): Promise<void> {
 
     for (const [id, name, level, executive, defaultRole] of positions) {
       await tx.run(
-        'INSERT INTO positions(id, name, description, level, is_executive, default_role) VALUES($1, $2, $3, $4, $5, $6)',
+        'INSERT INTO chucvu(macv, tencv, mota, capbac, ladieuhanh, vaitromacdinh) VALUES($1, $2, $3, $4, $5, $6)',
         [id, name, '', level, executive, defaultRole]
       );
     }
@@ -85,7 +85,7 @@ export async function seedDatabase(): Promise<void> {
           : `${year - (i % 3)}-${String((i % 9) + 1).padStart(2, '0')}-05`;
 
       await tx.run(
-        `INSERT INTO employees(id, name, birth_date, gender, address, phone, email, join_date, status, archived_date, department_id, position_id)
+        `INSERT INTO nhanvien(manv, hoten, ngaysinh, gioitinh, diachi, sodienthoai, email, ngayvaolam, trangthai, ngayluutru, mapb, macv)
          VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
         [
           id,
@@ -104,7 +104,7 @@ export async function seedDatabase(): Promise<void> {
       );
 
       await tx.run(
-        'INSERT INTO leave_balances(employee_id, year, total) VALUES($1, $2, $3)',
+        'INSERT INTO songayphep(manv, nam, tongsongayphep) VALUES($1, $2, $3)',
         [id, year, 12]
       );
 
@@ -116,8 +116,8 @@ export async function seedDatabase(): Promise<void> {
           : `${year + 1}-12-31`;
 
       await tx.run(
-        `INSERT INTO contracts(id, employee_id, type, start_date, end_date, salary, status)
-         VALUES($1, $2, $3, $4, $5, $6, 'Hiệu lực')`,
+        `INSERT INTO hopdong(mahd, manv, loaihd, ngaybatdau, ngayketthuc, ngayketthucgoc, mucluong, trangthai)
+         VALUES($1, $2, $3, $4, $5, $5, $6, 'Hiệu lực')`,
         [
           `HD${String(i + 1).padStart(3, '0')}`,
           id,
@@ -138,7 +138,7 @@ export async function seedDatabase(): Promise<void> {
 
     for (const [id, name, maxDays, deductAnnual] of leaveTypes) {
       await tx.run(
-        'INSERT INTO leave_types(id, name, max_days, deduct_annual) VALUES($1, $2, $3, $4)',
+        'INSERT INTO loainghiphep(maloai, tenloai, songaytoida, truphepnam) VALUES($1, $2, $3, $4)',
         [id, name, maxDays, deductAnnual]
       );
     }
@@ -155,7 +155,7 @@ export async function seedDatabase(): Promise<void> {
 
     for (const [id, empId, typeId, start, end, reason, status] of leaves) {
       await tx.run(
-        `INSERT INTO leave_requests(id, employee_id, type_id, submitted_date, start_date, end_date, days, reason, status, approver_id, approved_date)
+        `INSERT INTO donnghiphep(madon, manv, maloai, ngaynop, tungay, denngay, songay, lydo, trangthai, manvduyet, ngayduyet)
          VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           id,
@@ -184,33 +184,31 @@ export async function seedDatabase(): Promise<void> {
     for (let i = 0; i < roles.length; i++) {
       const [username, role, empId] = roles[i];
       await tx.run(
-        'INSERT INTO users(id, username, password_hash, role, employee_id, active) VALUES($1, $2, $3, $4, $5, 1)',
+        'INSERT INTO taikhoan(matk, tendangnhap, matkhau, vaitro, manv, hoatdong) VALUES($1, $2, $3, $4, $5, 1)',
         [`U${i + 1}`, username, passwordHash(role === 'admin' ? process.env.ADMIN_PASSWORD || 'Demo@12345' : 'Demo@12345'), role, empId]
       );
     }
 
     await tx.run(
-      `UPDATE departments d SET head_id = e.id
-       FROM employees e WHERE e.department_id = d.id AND e.position_id = 'CV02'`
+      `UPDATE phongban p SET matruongphong = n.manv
+       FROM nhanvien n WHERE n.mapb = p.mapb AND n.macv = 'CV02'`
     );
     await tx.run(
-      `UPDATE departments SET head_id = 'NV010' WHERE id = 'PB06' AND head_id IS NULL`
+      `UPDATE phongban SET matruongphong = 'NV010' WHERE mapb = 'PB06' AND matruongphong IS NULL`
     );
 
     const sampleDecisions: [string, string, string, string, string][] = [
-      ['QD001', `01/${year}/QD-NS`, 'Bổ nhiệm', 'Trần Hải Đăng', 'Bổ nhiệm trưởng phòng Marketing'],
+      ['QD001', `01/${year}/QD-NS`, 'Bổ nhiệm', 'Trần Hải Đăng', 'Bổ nhiệm Trưởng phòng Marketing'],
       ['QD002', `02/${year}/QD-DC`, 'Điều chuyển', 'Trần Hải Đăng', 'Điều chuyển chuyên viên Lê Hoàng Nam sang phòng Marketing hỗ trợ dự án'],
       ['QD003', `03/${year}/QD-MN`, 'Miễn nhiệm', 'Trần Hải Đăng', 'Miễn nhiệm chức vụ phó phòng đối với nhân sự để nhận công tác mới'],
-      ['QD004', `04/${year}/QD-KT`, 'Khen thưởng', 'Trần Hải Đăng', 'Khen thưởng thành tích xuất sắc quý cho nhân viên Lê Hoàng Nam'],
-      ['QD005', `05/${year}/QD-KL`, 'Kỷ luật', 'Trần Hải Đăng', 'Kỷ luật Khiển trách đối với nhân viên Đặng Đức Huy do vi phạm quy chế bảo mật'],
       ['QD006', `06/${year}/QD-CD`, 'Chấm dứt hợp đồng', 'Trần Hải Đăng', 'Quyết định chấm dứt hợp đồng lao động theo thỏa thuận đôi bên'],
     ];
 
     for (const [id, num, type, signer, content] of sampleDecisions) {
       await tx.run(
-        `INSERT INTO decisions(id, number, type, signed_date, effective_date, signer, content)
+        `INSERT INTO quyetdinh(maqd, soqd, loaiqd, ngayky, ngayhieuluc, nguoiky, noidung)
          VALUES($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (id) DO UPDATE SET number = EXCLUDED.number, content = EXCLUDED.content`,
+         ON CONFLICT (maqd) DO UPDATE SET soqd = EXCLUDED.soqd, noidung = EXCLUDED.noidung`,
         [id, num, type, date, date, signer, content]
       );
     }
@@ -223,24 +221,10 @@ export async function seedDatabase(): Promise<void> {
 
     for (const [id, empId, decId, type, oldDept, newDept, oldPos, newPos, reason] of sampleAssignments) {
       await tx.run(
-        `INSERT INTO assignments(id, employee_id, decision_id, type, old_department_id, new_department_id, old_position_id, new_position_id, effective_date, reason)
+        `INSERT INTO quatrinhcongtac(maqt, manv, maqd, loaibiendong, mapbcu, mapbmoi, macvcu, macvmoi, ngayhieuluc, lydo)
          VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-         ON CONFLICT (id) DO NOTHING`,
+         ON CONFLICT (maqt) DO NOTHING`,
         [id, empId, decId, type, oldDept, newDept, oldPos, newPos, date, reason]
-      );
-    }
-
-    const sampleRewards: [string, string, string, string, string, number, string][] = [
-      ['KT001', 'NV003', 'QD004', 'Khen thưởng', 'Thưởng tiền mặt', 5000000, 'Hoàn thành xuất sắc dự án nâng cấp hệ thống vượt tiến độ'],
-      ['KL001', 'NV006', 'QD005', 'Kỷ luật', 'Khiển trách', 0, 'Vi phạm quy định an toàn và bảo mật thông tin nội bộ'],
-    ];
-
-    for (const [id, empId, decId, type, category, amount, reason] of sampleRewards) {
-      await tx.run(
-        `INSERT INTO rewards_disciplines(id, employee_id, decision_id, type, category, amount, effective_date, reason)
-         VALUES($1, $2, $3, $4, $5, $6, $7, $8)
-         ON CONFLICT (id) DO NOTHING`,
-        [id, empId, decId, type, category, amount, date, reason]
       );
     }
   });

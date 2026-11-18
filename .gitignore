@@ -21,6 +21,8 @@ skills-lock.json
 
 # Report documents, Word temporary files & diagrams (local only)
 diagrams/
+bao-cao/
+demo/
 *.docx
 *.doc
 ~$*

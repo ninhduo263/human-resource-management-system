@@ -21,47 +21,41 @@ export async function runScheduledJobs(force = false): Promise<void> {
     const day = today();
 
     const terminations = await tx.all<{
-      id: string;
-      employee_id: string;
-      termination_type: string | null;
+      mahd: string;
+      manv: string;
+      loaichamdut: string | null;
     }>(
-      `SELECT id, employee_id, termination_type FROM contracts
-       WHERE status NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')
-         AND terminated_date IS NOT NULL AND terminated_date <= $1
-       ORDER BY terminated_date`,
+      `SELECT mahd, manv, loaichamdut FROM hopdong
+       WHERE trangthai NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')
+         AND ngaychamdut IS NOT NULL AND ngaychamdut <= $1
+       ORDER BY ngaychamdut`,
       [day]
     );
     for (const c of terminations) {
-      await finalizeTermination(
-        tx,
-        c,
-        null,
-        'Chấm dứt hợp đồng đến hạn',
-        c.termination_type
-      );
+      await finalizeTermination(tx, c, null, 'Chấm dứt hợp đồng đến hạn', c.loaichamdut);
     }
 
-    const salaries = await tx.all<{ id: string; contract_id: string; new_salary: number }>(
-      `SELECT x.id, x.contract_id, x.new_salary
-       FROM extensions x JOIN contracts c ON c.id = x.contract_id
-       WHERE x.applied = FALSE AND x.effective_date <= $1
-         AND c.status NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')
-       ORDER BY x.effective_date, x.sequence`,
+    const salaries = await tx.all<{ magh: string; mahd: string; luongmoi: number }>(
+      `SELECT g.magh, g.mahd, g.luongmoi
+       FROM giahanhopdong g JOIN hopdong h ON h.mahd = g.mahd
+       WHERE g.daapdung = FALSE AND g.ngayhieuluc <= $1
+         AND h.trangthai NOT IN ('Đã chấm dứt', 'Đã hủy bỏ')
+       ORDER BY g.ngayhieuluc, g.langiahan`,
       [day]
     );
-    for (const x of salaries) {
-      await tx.run('UPDATE contracts SET salary = $1 WHERE id = $2', [x.new_salary, x.contract_id]);
-      await tx.run('UPDATE extensions SET applied = TRUE WHERE id = $1', [x.id]);
+    for (const g of salaries) {
+      await tx.run('UPDATE hopdong SET mucluong = $1 WHERE mahd = $2', [g.luongmoi, g.mahd]);
+      await tx.run('UPDATE giahanhopdong SET daapdung = TRUE WHERE magh = $1', [g.magh]);
     }
 
-    const due = await tx.all<{ id: string }>(
-      `SELECT id FROM assignments
-       WHERE status = 'Chờ hiệu lực' AND effective_date <= $1
-       ORDER BY effective_date, id`,
+    const due = await tx.all<{ maqt: string }>(
+      `SELECT maqt FROM quatrinhcongtac
+       WHERE trangthai = 'Chờ hiệu lực' AND ngayhieuluc <= $1
+       ORDER BY ngayhieuluc, maqt`,
       [day]
     );
     for (const a of due) {
-      await applyAssignment(tx, a.id, null);
+      await applyAssignment(tx, a.maqt, null);
     }
 
     await syncEmployeeStatuses(tx);

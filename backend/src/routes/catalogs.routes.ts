@@ -21,19 +21,19 @@ function readFlag(b: Record<string, unknown>, k: string, fallback: boolean): boo
 async function readHead(
   tx: DbExecutor,
   b: Record<string, unknown>,
-  departmentId: string,
+  mapb: string,
   current: string | null
 ): Promise<string | null> {
-  if (!('head_id' in b)) return current;
-  if (b.head_id === null || b.head_id === '') return null;
-  const head = await existsInTable<any>(tx, 'employees', text(b, 'head_id'));
-  if (head.department_id !== departmentId) {
+  if (!('matruongphong' in b)) return current;
+  if (b.matruongphong === null || b.matruongphong === '') return null;
+  const head = await existsInTable<any>(tx, 'nhanvien', text(b, 'matruongphong'));
+  if (head.mapb !== mapb) {
     fail('Trưởng phòng phải là nhân viên thuộc chính phòng ban này.');
   }
-  if (['Đã lưu trữ', 'Đã nghỉ việc'].includes(head.status)) {
+  if (['Đã lưu trữ', 'Đã nghỉ việc'].includes(head.trangthai)) {
     fail('Trưởng phòng phải là nhân viên đang làm việc.');
   }
-  return head.id;
+  return head.manv;
 }
 
 async function usageSummary(tx: DbExecutor, parts: [string, string, any[]][]): Promise<string[]> {
@@ -53,20 +53,22 @@ catalogsRouter.post(
     requireRole(u, ['admin', 'hr']);
 
     const b = req.body;
-    const name = text(b, 'name', 120);
-    const description = optional(b, 'description');
-    const founded = date(b, 'founded_date');
+    const tenpb = text(b, 'tenpb', 120);
+    const mota = optional(b, 'mota');
+    const ngaythanhlap = date(b, 'ngaythanhlap');
 
-    const rid = await withTransaction(async (tx) => {
-      const rid = await nextBusinessId(tx, 'departments');
-      await tx.run(
-        'INSERT INTO departments(id, name, description, founded_date) VALUES($1, $2, $3, $4)',
-        [rid, name, description, founded]
-      );
-      await auditLog(tx, u.id, 'Thêm phòng ban', rid);
-      return rid;
+    const mapb = await withTransaction(async (tx) => {
+      const mapb = await nextBusinessId(tx, 'phongban');
+      await tx.run('INSERT INTO phongban(mapb, tenpb, mota, ngaythanhlap) VALUES($1, $2, $3, $4)', [
+        mapb,
+        tenpb,
+        mota,
+        ngaythanhlap,
+      ]);
+      await auditLog(tx, u.matk, 'Thêm phòng ban', mapb);
+      return mapb;
     });
-    res.status(201).json({ ok: true, id: rid });
+    res.status(201).json({ ok: true, id: mapb });
   })
 );
 
@@ -77,25 +79,25 @@ catalogsRouter.put(
     requireRole(u, ['admin', 'hr']);
     const rid = paramId(req);
     const b = req.body;
-    const name = text(b, 'name', 120);
-    const description = optional(b, 'description');
-    const founded = date(b, 'founded_date');
+    const tenpb = text(b, 'tenpb', 120);
+    const mota = optional(b, 'mota');
+    const ngaythanhlap = date(b, 'ngaythanhlap');
 
     await withTransaction(async (tx) => {
-      const old = await existsInTable<any>(tx, 'departments', rid);
-      const active = readFlag(b, 'active', old.active);
-      const head = await readHead(tx, b, rid, old.head_id);
+      const old = await existsInTable<any>(tx, 'phongban', rid);
+      const hoatdong = readFlag(b, 'hoatdong', old.hoatdong);
+      const matruongphong = await readHead(tx, b, rid, old.matruongphong);
       await tx.run(
-        `UPDATE departments SET name = $1, description = $2, founded_date = $3, active = $4, head_id = $5
-         WHERE id = $6`,
-        [name, description, founded, active, head, rid]
+        `UPDATE phongban SET tenpb = $1, mota = $2, ngaythanhlap = $3, hoatdong = $4, matruongphong = $5
+         WHERE mapb = $6`,
+        [tenpb, mota, ngaythanhlap, hoatdong, matruongphong, rid]
       );
       await auditLog(
         tx,
-        u.id,
+        u.matk,
         'Cập nhật phòng ban',
         rid,
-        diffFields(old, { name, description, founded_date: founded, active, head_id: head })
+        diffFields(old, { tenpb, mota, ngaythanhlap, hoatdong, matruongphong })
       );
     });
     res.json({ ok: true });
@@ -110,12 +112,12 @@ catalogsRouter.delete(
     const rid = paramId(req);
 
     await withTransaction(async (tx) => {
-      await existsInTable(tx, 'departments', rid);
+      await existsInTable(tx, 'phongban', rid);
       const used = await usageSummary(tx, [
-        ['nhân viên', 'SELECT COUNT(*) AS n FROM employees WHERE department_id = $1', [rid]],
+        ['nhân viên', 'SELECT COUNT(*) AS n FROM nhanvien WHERE mapb = $1', [rid]],
         [
           'quyết định công tác',
-          'SELECT COUNT(*) AS n FROM assignments WHERE old_department_id = $1 OR new_department_id = $1',
+          'SELECT COUNT(*) AS n FROM quatrinhcongtac WHERE mapbcu = $1 OR mapbmoi = $1',
           [rid],
         ],
       ]);
@@ -125,8 +127,8 @@ catalogsRouter.delete(
           409
         );
       }
-      await tx.run('DELETE FROM departments WHERE id = $1', [rid]);
-      await auditLog(tx, u.id, 'Xóa phòng ban', rid);
+      await tx.run('DELETE FROM phongban WHERE mapb = $1', [rid]);
+      await auditLog(tx, u.matk, 'Xóa phòng ban', rid);
     });
     res.json({ ok: true });
   })
@@ -134,21 +136,24 @@ catalogsRouter.delete(
 
 // 2.2 Quản lý chức vụ
 function readPosition(b: Record<string, unknown>, oldRow?: any) {
-  const level = numeric(b, 'level', 1, 10);
-  if (!Number.isInteger(level)) fail('Cấp bậc phải là số nguyên.');
-  const defaultRole =
-    b.default_role === undefined
-      ? oldRow?.default_role ?? null
-      : b.default_role === null || b.default_role === ''
+  const capbac =
+    b.capbac !== undefined && b.capbac !== null && b.capbac !== ''
+      ? numeric(b, 'capbac', 1, 10)
+      : oldRow?.capbac ?? 2;
+  if (!Number.isInteger(capbac)) fail('Cấp bậc phải là số nguyên.');
+  const vaitromacdinh =
+    b.vaitromacdinh === undefined
+      ? oldRow?.vaitromacdinh ?? null
+      : b.vaitromacdinh === null || b.vaitromacdinh === ''
       ? null
-      : choice(b, 'default_role', CATALOG_ROLES);
+      : choice(b, 'vaitromacdinh', CATALOG_ROLES);
   return {
-    name: text(b, 'name', 120),
-    description: optional(b, 'description'),
-    level,
-    isExecutive: readFlag(b, 'is_executive', oldRow?.is_executive ?? false),
-    defaultRole,
-    active: readFlag(b, 'active', oldRow?.active ?? true),
+    tencv: text(b, 'tencv', 120),
+    mota: optional(b, 'mota'),
+    capbac,
+    ladieuhanh: readFlag(b, 'ladieuhanh', oldRow?.ladieuhanh ?? false),
+    vaitromacdinh,
+    hoatdong: readFlag(b, 'hoatdong', oldRow?.hoatdong ?? true),
   };
 }
 
@@ -159,17 +164,17 @@ catalogsRouter.post(
     requireRole(u, ['admin', 'hr']);
     const p = readPosition(req.body);
 
-    const rid = await withTransaction(async (tx) => {
-      const rid = await nextBusinessId(tx, 'positions');
+    const macv = await withTransaction(async (tx) => {
+      const macv = await nextBusinessId(tx, 'chucvu');
       await tx.run(
-        `INSERT INTO positions(id, name, description, level, is_executive, default_role, active)
+        `INSERT INTO chucvu(macv, tencv, mota, capbac, ladieuhanh, vaitromacdinh, hoatdong)
          VALUES($1, $2, $3, $4, $5, $6, $7)`,
-        [rid, p.name, p.description, p.level, p.isExecutive, p.defaultRole, p.active]
+        [macv, p.tencv, p.mota, p.capbac, p.ladieuhanh, p.vaitromacdinh, p.hoatdong]
       );
-      await auditLog(tx, u.id, 'Thêm chức vụ', rid);
-      return rid;
+      await auditLog(tx, u.matk, 'Thêm chức vụ', macv);
+      return macv;
     });
-    res.status(201).json({ ok: true, id: rid });
+    res.status(201).json({ ok: true, id: macv });
   })
 );
 
@@ -181,27 +186,14 @@ catalogsRouter.put(
     const rid = paramId(req);
 
     await withTransaction(async (tx) => {
-      const old = await existsInTable<any>(tx, 'positions', rid);
+      const old = await existsInTable<any>(tx, 'chucvu', rid);
       const p = readPosition(req.body, old);
       await tx.run(
-        `UPDATE positions SET name = $1, description = $2, level = $3, is_executive = $4,
-                default_role = $5, active = $6 WHERE id = $7`,
-        [p.name, p.description, p.level, p.isExecutive, p.defaultRole, p.active, rid]
+        `UPDATE chucvu SET tencv = $1, mota = $2, capbac = $3, ladieuhanh = $4,
+                vaitromacdinh = $5, hoatdong = $6 WHERE macv = $7`,
+        [p.tencv, p.mota, p.capbac, p.ladieuhanh, p.vaitromacdinh, p.hoatdong, rid]
       );
-      await auditLog(
-        tx,
-        u.id,
-        'Cập nhật chức vụ',
-        rid,
-        diffFields(old, {
-          name: p.name,
-          description: p.description,
-          level: p.level,
-          is_executive: p.isExecutive,
-          default_role: p.defaultRole,
-          active: p.active,
-        })
-      );
+      await auditLog(tx, u.matk, 'Cập nhật chức vụ', rid, diffFields(old, p));
     });
     res.json({ ok: true });
   })
@@ -215,12 +207,12 @@ catalogsRouter.delete(
     const rid = paramId(req);
 
     await withTransaction(async (tx) => {
-      await existsInTable(tx, 'positions', rid);
+      await existsInTable(tx, 'chucvu', rid);
       const used = await usageSummary(tx, [
-        ['nhân viên', 'SELECT COUNT(*) AS n FROM employees WHERE position_id = $1', [rid]],
+        ['nhân viên', 'SELECT COUNT(*) AS n FROM nhanvien WHERE macv = $1', [rid]],
         [
           'quyết định công tác',
-          'SELECT COUNT(*) AS n FROM assignments WHERE old_position_id = $1 OR new_position_id = $1',
+          'SELECT COUNT(*) AS n FROM quatrinhcongtac WHERE macvcu = $1 OR macvmoi = $1',
           [rid],
         ],
       ]);
@@ -230,10 +222,9 @@ catalogsRouter.delete(
           409
         );
       }
-      await tx.run('DELETE FROM positions WHERE id = $1', [rid]);
-      await auditLog(tx, u.id, 'Xóa chức vụ', rid);
+      await tx.run('DELETE FROM chucvu WHERE macv = $1', [rid]);
+      await auditLog(tx, u.matk, 'Xóa chức vụ', rid);
     });
     res.json({ ok: true });
   })
 );
-
