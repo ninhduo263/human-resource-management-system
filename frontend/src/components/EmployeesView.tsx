@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Card,
   Table,
@@ -69,41 +69,51 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   const [selfContactModal, setSelfContactModal] = useState<Employee | null>(null);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [createdAccount, setCreatedAccount] = useState<{ username: string; password: string } | null>(null);
+  const [createdAccount, setCreatedAccount] = useState<{ tendangnhap: string; matkhau: string } | null>(null);
 
   const [empForm] = Form.useForm();
   const [contactForm] = Form.useForm();
-  const selectedRole = Form.useWatch('role', empForm);
-  const selectedPosition = Form.useWatch('position_id', empForm);
+  const selectedRole = Form.useWatch('vaitro', empForm);
+  const selectedPosition = Form.useWatch('macv', empForm);
   const accountEmail = Form.useWatch('email', empForm);
   const isDirector = selectedRole === 'director' ||
-    state.positions.find((p) => p.id === selectedPosition)?.name === 'Giám đốc' ||
-    (!!editingEmp && editingEmp.department_id === null);
+    state.positions.find((p) => p.macv === selectedPosition)?.tencv === 'Giám đốc' ||
+    (!!editingEmp && editingEmp.mapb === null);
 
   const deptName = (id: string | null) =>
-    state.departments.find((d) => d.id === id)?.name || id || 'Không thuộc phòng ban';
+    state.departments.find((d) => d.mapb === id)?.tenpb || id || 'Không thuộc phòng ban';
   const posName = (id: string) =>
-    state.positions.find((p) => p.id === id)?.name || id;
+    state.positions.find((p) => p.macv === id)?.tencv || id;
 
   const filtered = state.employees.filter((e) => {
     const matchTab =
-      tab === 'archived' ? e.status === 'Đã lưu trữ' : tab === 'departed'
-        ? e.status === 'Đã nghỉ việc' : ['Đang làm việc', 'Thử việc'].includes(e.status);
-    const matchStatus = !statusFilter || e.status === statusFilter;
+      tab === 'archived' ? e.trangthai === 'Đã lưu trữ' : tab === 'departed'
+        ? e.trangthai === 'Đã nghỉ việc' : ['Đang làm việc', 'Thử việc'].includes(e.trangthai);
+    const matchStatus = !statusFilter || e.trangthai === statusFilter;
     return matchTab && matchStatus && matchEmployeeQuery(e, search, deptFilter);
   });
+
+  // Giá trị ban đầu của form Thêm/Sửa. Gán SAU khi modal đã render (useEffect bên dưới):
+  // antd chỉ render nội dung Modal khi mở, nên gán trước lúc đó thì ô "Phòng ban"
+  // (render có điều kiện, preserve={false}) bị mất giá trị và form không lưu được.
+  const [formInit, setFormInit] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    if (!formOpen || !formInit) return;
+    empForm.resetFields();
+    empForm.setFieldsValue(formInit);
+  }, [formOpen, formInit, empForm]);
 
   const handleOpenAdd = () => {
     setEditingEmp(null);
     setFormError('');
-    empForm.resetFields();
-    empForm.setFieldsValue({
-      gender: 'Nam',
-      join_date: state.today,
-      status: 'Đang làm việc',
-      department_id: state.departments[0]?.id,
-      position_id: 'CV01',
-      role: 'employee',
+    setFormInit({
+      gioitinh: 'Nam',
+      ngayvaolam: state.today,
+      trangthai: 'Đang làm việc',
+      mapb: state.departments[0]?.mapb,
+      macv: 'CV01',
+      vaitro: 'employee',
     });
     setFormOpen(true);
   };
@@ -112,10 +122,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     setDetailEmp(null);
     setEditingEmp(emp);
     setFormError('');
-    empForm.resetFields();
-    empForm.setFieldsValue({
-      ...emp,
-    });
+    setFormInit({ ...emp });
     setFormOpen(true);
   };
 
@@ -126,19 +133,19 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
       if (editingEmp) {
         const body = {
           ...values,
-          department_id: editingEmp.department_id,
-          position_id: editingEmp.position_id,
-          version: editingEmp.version,
+          mapb: editingEmp.mapb,
+          macv: editingEmp.macv,
+          phienban: editingEmp.phienban,
         };
         await apiRequest(
-          `/api/employees/${encodeURIComponent(editingEmp.id)}`,
+          `/api/employees/${encodeURIComponent(editingEmp.manv)}`,
           body,
           'PUT'
         );
         notify('Đã cập nhật hồ sơ nhân viên.');
       } else {
-        const result = await apiRequest('/api/employees', { ...values, department_id: isDirector ? null : values.department_id }, 'POST');
-        setCreatedAccount(result.account);
+        const result = await apiRequest('/api/employees', { ...values, mapb: isDirector ? null : values.mapb }, 'POST');
+        setCreatedAccount(result.taikhoan);
         notify('Đã thêm nhân viên và tạo tài khoản đăng nhập bằng email.');
       }
       setFormOpen(false);
@@ -155,10 +162,10 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             try {
               const result = await apiRequest(
                 '/api/employees',
-                { ...values, department_id: isDirector ? null : values.department_id, confirm_duplicate: true },
+                { ...values, mapb: isDirector ? null : values.mapb, confirm_duplicate: true },
                 'POST'
               );
-              setCreatedAccount(result.account);
+              setCreatedAccount(result.taikhoan);
               notify('Đã thêm nhân viên và tạo tài khoản đăng nhập bằng email.');
               setFormOpen(false);
               await onRefresh();
@@ -181,8 +188,8 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     setSubmitting(true);
     try {
       await apiRequest(
-        `/api/employees/${encodeURIComponent(selfContactModal.id)}`,
-        { ...values, self_contact: true, version: state.employees.find((x) => x.id === selfContactModal.id)?.version },
+        `/api/employees/${encodeURIComponent(selfContactModal.manv)}`,
+        { ...values, self_contact: true, phienban: state.employees.find((x) => x.manv === selfContactModal.manv)?.phienban },
         'PUT'
       );
       notify('Đã cập nhật thông tin liên hệ cá nhân.');
@@ -198,7 +205,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   const handleArchive = async (emp: Employee) => {
     try {
       await apiRequest(
-        `/api/employees/${encodeURIComponent(emp.id)}/archive`,
+        `/api/employees/${encodeURIComponent(emp.manv)}/archive`,
         {},
         'POST'
       );
@@ -213,7 +220,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
   const handleRestore = async (emp: Employee) => {
     try {
       await apiRequest(
-        `/api/employees/${encodeURIComponent(emp.id)}/restore`,
+        `/api/employees/${encodeURIComponent(emp.manv)}/restore`,
         {},
         'POST'
       );
@@ -240,15 +247,15 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         'Trạng thái',
       ],
       filtered.map((e) => [
-        e.name,
-        e.birth_date,
-        e.gender,
+        e.hoten,
+        e.ngaysinh,
+        e.gioitinh,
         e.email,
-        e.phone,
-        deptName(e.department_id),
-        posName(e.position_id),
-        e.join_date,
-        e.status,
+        e.sodienthoai,
+        deptName(e.mapb),
+        posName(e.macv),
+        e.ngayvaolam,
+        e.trangthai,
       ])
     );
   };
@@ -259,13 +266,13 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
       key: 'employee',
       render: (_: unknown, e: Employee) => (
         <Space>
-          <Avatar style={{ backgroundColor: getAvatarHex(e.id) }}>
-            {getInitials(e.name)}
+          <Avatar style={{ backgroundColor: getAvatarHex(e.manv) }}>
+            {getInitials(e.hoten)}
           </Avatar>
           <div>
-            <div className="font-semibold text-slate-900">{e.name}</div>
+            <div className="font-semibold text-slate-900">{e.hoten}</div>
             <div className="text-xs text-slate-500">
-              {e.email} · {e.phone}
+              {e.email} · {e.sodienthoai}
             </div>
           </div>
         </Space>
@@ -273,25 +280,25 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
     },
     {
       title: 'Phòng ban',
-      dataIndex: 'department_id',
+      dataIndex: 'mapb',
       key: 'department_id',
       render: (id: string) => deptName(id),
     },
     {
       title: 'Chức vụ',
-      dataIndex: 'position_id',
+      dataIndex: 'macv',
       key: 'position_id',
       render: (id: string) => posName(id),
     },
     {
       title: 'Ngày vào làm',
-      dataIndex: 'join_date',
+      dataIndex: 'ngayvaolam',
       key: 'join_date',
       render: (d: string) => formatDate(d),
     },
     {
       title: 'Trạng thái',
-      dataIndex: 'status',
+      dataIndex: 'trangthai',
       key: 'status',
       render: (status: string) => (
         <Tag color={getAntTagColor(status)}>{status}</Tag>
@@ -311,7 +318,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           >
             Chi tiết
           </Button>
-          {canEdit(state.user.role) && ['Đang làm việc', 'Thử việc'].includes(e.status) && (
+          {canEdit(state.user.vaitro) && ['Đang làm việc', 'Thử việc'].includes(e.trangthai) && (
             <Button
               size="small"
               type="text"
@@ -321,9 +328,9 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
               Sửa
             </Button>
           )}
-          {!canEdit(state.user.role) &&
-            e.id === state.user.employee_id &&
-            e.status !== 'Đã lưu trữ' && (
+          {!canEdit(state.user.vaitro) &&
+            e.manv === state.user.manv &&
+            e.trangthai !== 'Đã lưu trữ' && (
               <Button
                 size="small"
                 type="text"
@@ -331,9 +338,9 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                 onClick={() => {
                   setFormError('');
                   contactForm.setFieldsValue({
-                    phone: e.phone,
+                    sodienthoai: e.sodienthoai,
                     email: e.email,
-                    address: e.address,
+                    diachi: e.diachi,
                   });
                   setSelfContactModal(e);
                 }}
@@ -363,7 +370,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           <Button icon={<DownloadOutlined />} onClick={handleExport}>
             Xuất danh sách
           </Button>
-          {canEdit(state.user.role) && (
+          {canEdit(state.user.vaitro) && (
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -384,17 +391,17 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
               {
                 key: 'active',
                 label: `Đang làm việc (${
-                  state.employees.filter((e) => ['Đang làm việc', 'Thử việc'].includes(e.status)).length
+                  state.employees.filter((e) => ['Đang làm việc', 'Thử việc'].includes(e.trangthai)).length
                 })`,
               },
               {
                 key: 'departed',
-                label: `Đã nghỉ việc (${state.employees.filter((e) => e.status === 'Đã nghỉ việc').length})`,
+                label: `Đã nghỉ việc (${state.employees.filter((e) => e.trangthai === 'Đã nghỉ việc').length})`,
               },
               {
                 key: 'archived',
                 label: `Đã lưu trữ (${
-                  state.employees.filter((e) => e.status === 'Đã lưu trữ').length
+                  state.employees.filter((e) => e.trangthai === 'Đã lưu trữ').length
                 })`,
               },
             ]}
@@ -416,8 +423,8 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
               options={[
                 { value: '', label: 'Tất cả phòng ban' },
                 ...state.departments.map((d) => ({
-                  value: d.id,
-                  label: d.name,
+                  value: d.mapb,
+                  label: d.tenpb,
                 })),
               ]}
             />
@@ -437,7 +444,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         </div>
 
         <Table
-          rowKey="id"
+          rowKey="manv"
           columns={columns}
           dataSource={filtered}
           pagination={{ pageSize: 8, showSizeChanger: false }}
@@ -456,8 +463,8 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           detailEmp && (
             <Space wrap>
               <Button onClick={() => setDetailEmp(null)}>Đóng</Button>
-              {canEdit(state.user.role) &&
-                (detailEmp.status === 'Đã lưu trữ' ? (
+              {canEdit(state.user.vaitro) &&
+                (detailEmp.trangthai === 'Đã lưu trữ' ? (
                   <Button
                     type="primary"
                     icon={<RollbackOutlined />}
@@ -480,7 +487,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                     </Popconfirm>
                     <Button
                       type="primary"
-                      disabled={detailEmp.status === 'Đã nghỉ việc'}
+                      disabled={detailEmp.trangthai === 'Đã nghỉ việc'}
                       icon={<EditOutlined />}
                       onClick={() => handleOpenEdit(detailEmp)}
                     >
@@ -497,21 +504,21 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             <div className="flex items-center gap-4 pb-3 border-b border-slate-100">
               <Avatar
                 size={56}
-                style={{ backgroundColor: getAvatarHex(detailEmp.id) }}
+                style={{ backgroundColor: getAvatarHex(detailEmp.manv) }}
               >
-                {getInitials(detailEmp.name)}
+                {getInitials(detailEmp.hoten)}
               </Avatar>
               <div>
                 <Title level={4} style={{ margin: 0 }}>
-                  {detailEmp.name}
+                  {detailEmp.hoten}
                 </Title>
                 <Text type="secondary">
-                  {posName(detailEmp.position_id)} ·{' '}
-                  {deptName(detailEmp.department_id)}
+                  {posName(detailEmp.macv)} ·{' '}
+                  {deptName(detailEmp.mapb)}
                 </Text>
                 <div className="mt-1">
-                  <Tag color={getAntTagColor(detailEmp.status)}>
-                    {detailEmp.status}
+                  <Tag color={getAntTagColor(detailEmp.trangthai)}>
+                    {detailEmp.trangthai}
                   </Tag>
                 </div>
               </div>
@@ -523,26 +530,26 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
               column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
             >
               <Descriptions.Item label="Ngày sinh">
-                {formatDate(detailEmp.birth_date)}
+                {formatDate(detailEmp.ngaysinh)}
               </Descriptions.Item>
               <Descriptions.Item label="Giới tính">
-                {detailEmp.gender}
+                {detailEmp.gioitinh}
               </Descriptions.Item>
               <Descriptions.Item label="Ngày vào làm">
-                {formatDate(detailEmp.join_date)}
+                {formatDate(detailEmp.ngayvaolam)}
               </Descriptions.Item>
               <Descriptions.Item label="Số điện thoại">
-                {detailEmp.phone}
+                {detailEmp.sodienthoai}
               </Descriptions.Item>
               <Descriptions.Item label="Email" span={2}>
                 {detailEmp.email}
               </Descriptions.Item>
               <Descriptions.Item label="Địa chỉ" span={2}>
-                {detailEmp.address || '—'}
+                {detailEmp.diachi || '—'}
               </Descriptions.Item>
-              {detailEmp.archived_date && (
+              {detailEmp.ngayluutru && (
                 <Descriptions.Item label="Ngày lưu trữ" span={2}>
-                  <Text type="danger">{formatDate(detailEmp.archived_date)}</Text>
+                  <Text type="danger">{formatDate(detailEmp.ngayluutru)}</Text>
                 </Descriptions.Item>
               )}
             </Descriptions>
@@ -552,14 +559,14 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             </Divider>
             <div className="space-y-2">
               {state.contracts
-                .filter((c) => c.employee_id === detailEmp.id)
+                .filter((c) => c.manv === detailEmp.manv)
                 .map((c) => (
-                  <Card key={c.id} size="small">
+                  <Card key={c.mahd} size="small">
                     <div className="flex items-center justify-between">
                       <div>
-                        {c.type}
+                        {c.loaihd}
                         <div className="text-xs text-slate-500">
-                          {formatDate(c.start_date)} → {formatDate(c.end_date)}
+                          {formatDate(c.ngaybatdau)} → {formatDate(c.ngayketthuc)}
                         </div>
                       </div>
                       <Tag color={getAntTagColor(getContractStatus(c, state.today))}>
@@ -568,7 +575,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
                     </div>
                   </Card>
                 ))}
-              {state.contracts.filter((c) => c.employee_id === detailEmp.id)
+              {state.contracts.filter((c) => c.manv === detailEmp.manv)
                 .length === 0 && (
                 <Text type="secondary">Chưa có hợp đồng.</Text>
               )}
@@ -579,22 +586,22 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             </Divider>
             <div className="space-y-2">
               {state.assignments
-                .filter((a) => a.employee_id === detailEmp.id)
+                .filter((a) => a.manv === detailEmp.manv)
                 .map((a) => (
-                  <Card key={a.id} size="small">
+                  <Card key={a.maqt} size="small">
                     <div className="flex justify-between font-semibold">
-                      <span>{a.type}</span>
-                      <span>Hiệu lực: {formatDate(a.effective_date)}</span>
+                      <span>{a.loaibiendong}</span>
+                      <span>Hiệu lực: {formatDate(a.ngayhieuluc)}</span>
                     </div>
                     <div className="text-xs text-slate-600 mt-1">
-                      Phòng ban: {deptName(a.old_department_id)} →{' '}
-                      <strong>{deptName(a.new_department_id)}</strong> | Chức vụ:{' '}
-                      {posName(a.old_position_id)} →{' '}
-                      <strong>{posName(a.new_position_id)}</strong>
+                      Phòng ban: {deptName(a.mapbcu)} →{' '}
+                      <strong>{deptName(a.mapbmoi)}</strong> | Chức vụ:{' '}
+                      {posName(a.macvcu)} →{' '}
+                      <strong>{posName(a.macvmoi)}</strong>
                     </div>
                   </Card>
                 ))}
-              {state.assignments.filter((a) => a.employee_id === detailEmp.id)
+              {state.assignments.filter((a) => a.manv === detailEmp.manv)
                 .length === 0 && (
                 <Text type="secondary">Chưa có biến động công tác.</Text>
               )}
@@ -645,7 +652,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
 
             <Form.Item
-              name="name"
+              name="hoten"
               label="Họ và tên"
               rules={[{ required: true, message: 'Nhập họ và tên' }]}
             >
@@ -653,7 +660,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             </Form.Item>
 
             <Form.Item
-              name="birth_date"
+              name="ngaysinh"
               label="Ngày sinh"
               rules={[{ required: true, message: 'Chọn ngày sinh' }]}
             >
@@ -661,7 +668,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             </Form.Item>
 
             <Form.Item
-              name="gender"
+              name="gioitinh"
               label="Giới tính"
               rules={[{ required: true }]}
             >
@@ -675,7 +682,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             </Form.Item>
 
             <Form.Item
-              name="phone"
+              name="sodienthoai"
               label="Số điện thoại"
               rules={[{ required: true, message: 'Nhập số điện thoại' }]}
             >
@@ -693,7 +700,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             </Form.Item>
 
             <Form.Item
-              name="join_date"
+              name="ngayvaolam"
               label="Ngày vào làm"
               rules={[{ required: true, message: 'Chọn ngày vào làm' }]}
             >
@@ -703,7 +710,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             {/* Khi sửa hồ sơ, trạng thái do hợp đồng quyết định nên không cho nhập tay. */}
             {!editingEmp && (
               <Form.Item
-                name="status"
+                name="trangthai"
                 label="Trạng thái ban đầu"
                 rules={[{ required: true }]}
               >
@@ -717,18 +724,18 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             )}
 
             {!editingEmp && (
-              <Form.Item name="role" label="Vai trò tài khoản" rules={[{ required: true }]}>
+              <Form.Item name="vaitro" label="Vai trò tài khoản" rules={[{ required: true }]}>
                 <Select
-                  options={Object.entries(ROLE_NAMES).filter(([role]) => role !== 'admin' || state.user.role === 'admin')
+                  options={Object.entries(ROLE_NAMES).filter(([role]) => role !== 'admin' || state.user.vaitro === 'admin')
                     .map(([value, label]) => ({ value, label }))}
                   onChange={(role) => {
                     if (role === 'director') {
-                      empForm.setFieldsValue({ department_id: undefined,
-                        position_id: state.positions.find((p) => p.name === 'Giám đốc')?.id || selectedPosition });
+                      empForm.setFieldsValue({ mapb: undefined,
+                        macv: state.positions.find((p) => p.tencv === 'Giám đốc')?.macv || selectedPosition });
                     } else {
-                      empForm.setFieldsValue({ department_id: state.departments[0]?.id,
-                        ...(state.positions.find((p) => p.id === selectedPosition)?.name === 'Giám đốc'
-                          ? { position_id: state.positions.find((p) => p.name !== 'Giám đốc')?.id } : {}) });
+                      empForm.setFieldsValue({ mapb: state.departments[0]?.mapb,
+                        ...(state.positions.find((p) => p.macv === selectedPosition)?.tencv === 'Giám đốc'
+                          ? { macv: state.positions.find((p) => p.tencv !== 'Giám đốc')?.macv } : {}) });
                     }
                   }}
                 />
@@ -736,7 +743,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             )}
 
             {!isDirector && <Form.Item
-              name="department_id"
+              name="mapb"
               label="Phòng ban"
               rules={[{ required: true }]}
               preserve={false}
@@ -744,35 +751,35 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
               <Select
                 disabled={!!editingEmp}
                 options={state.departments.map((d) => ({
-                  value: d.id,
-                  label: d.name,
+                  value: d.mapb,
+                  label: d.tenpb,
                 }))}
               />
             </Form.Item>}
 
             <Form.Item
-              name="position_id"
+              name="macv"
               label="Chức vụ"
               rules={[{ required: true }]}
             >
               <Select
                 disabled={!!editingEmp}
                 onChange={(positionId) => {
-                  if (state.positions.find((p) => p.id === positionId)?.name === 'Giám đốc') {
-                    empForm.setFieldsValue({ role: 'director', department_id: undefined });
+                  if (state.positions.find((p) => p.macv === positionId)?.tencv === 'Giám đốc') {
+                    empForm.setFieldsValue({ vaitro: 'director', mapb: undefined });
                   } else if (selectedRole === 'director') {
-                    empForm.setFieldsValue({ role: 'employee', department_id: state.departments[0]?.id });
+                    empForm.setFieldsValue({ vaitro: 'employee', mapb: state.departments[0]?.mapb });
                   }
                 }}
                 options={state.positions.map((p) => ({
-                  value: p.id,
-                  label: p.name,
+                  value: p.macv,
+                  label: p.tencv,
                 }))}
               />
             </Form.Item>
 
             <Form.Item
-              name="address"
+              name="diachi"
               label="Địa chỉ"
               className="sm:col-span-2"
             >
@@ -798,8 +805,8 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
         {createdAccount && <>
           <Alert type="success" showIcon message="Gửi thông tin này cho nhân viên để đăng nhập." className="mb-4" />
           <Descriptions bordered column={1}>
-            <Descriptions.Item label="Tài khoản (email)"><Text copyable>{createdAccount.username}</Text></Descriptions.Item>
-            <Descriptions.Item label="Mật khẩu ban đầu"><Text copyable>{createdAccount.password}</Text></Descriptions.Item>
+            <Descriptions.Item label="Tài khoản (email)"><Text copyable>{createdAccount.tendangnhap}</Text></Descriptions.Item>
+            <Descriptions.Item label="Mật khẩu ban đầu"><Text copyable>{createdAccount.matkhau}</Text></Descriptions.Item>
           </Descriptions>
           <p className="mt-3">Hãy lưu mật khẩu trước khi đóng. Nhân viên có thể đổi mật khẩu sau khi đăng nhập.</p>
         </>}
@@ -822,7 +829,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
             <Alert type="error" showIcon message={formError} className="mb-4" />
           )}
           <Form.Item
-            name="phone"
+            name="sodienthoai"
             label="Số điện thoại"
             rules={[{ required: true }]}
           >
@@ -835,7 +842,7 @@ export const EmployeesView: React.FC<EmployeesViewProps> = ({
           >
             <Input />
           </Form.Item>
-          <Form.Item name="address" label="Địa chỉ">
+          <Form.Item name="diachi" label="Địa chỉ">
             <Input />
           </Form.Item>
           <div className="flex justify-end gap-2">

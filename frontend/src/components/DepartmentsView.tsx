@@ -70,7 +70,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
   const [posForm] = Form.useForm();
 
   const activeEmployees = state.employees.filter(
-    (e) => ['Đang làm việc', 'Thử việc'].includes(e.status)
+    (e) => ['Đang làm việc', 'Thử việc'].includes(e.trangthai)
   );
 
   const openDeptModal = (item: Department | null) => {
@@ -79,7 +79,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
     if (item) {
       deptForm.setFieldsValue(item);
     } else {
-      deptForm.setFieldsValue({ founded_date: state.today, description: '', active: true });
+      deptForm.setFieldsValue({ ngaythanhlap: state.today, mota: '', hoatdong: true });
     }
     setDeptModal({ open: true, item });
   };
@@ -90,7 +90,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
     if (item) {
       posForm.setFieldsValue(item);
     } else {
-      posForm.setFieldsValue({ level: 2, description: '', active: true, is_executive: false });
+      posForm.setFieldsValue({ capbac: 2, mota: '', hoatdong: true, ladieuhanh: false });
     }
     setPosModal({ open: true, item });
   };
@@ -101,8 +101,8 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
     try {
       if (deptModal.item) {
         await apiRequest(
-          `/api/departments/${encodeURIComponent(deptModal.item.id)}`,
-          { ...values, head_id: values.head_id ?? null },
+          `/api/departments/${encodeURIComponent(deptModal.item.mapb)}`,
+          { ...values, matruongphong: values.matruongphong ?? null },
           'PUT'
         );
         notify('Đã cập nhật phòng ban.');
@@ -138,10 +138,10 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
     setFormError('');
     setSubmitting(true);
     try {
-      const body = { ...values, level: Number(values.level) };
+      const body = { ...values, capbac: Number(values.capbac) };
       if (posModal.item) {
         await apiRequest(
-          `/api/positions/${encodeURIComponent(posModal.item.id)}`,
+          `/api/positions/${encodeURIComponent(posModal.item.macv)}`,
           body,
           'PUT'
         );
@@ -173,26 +173,26 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
   const posColumns = [
     {
       title: 'Mã chức vụ',
-      dataIndex: 'id',
-      key: 'id',
+      dataIndex: 'macv',
+      key: 'macv',
       render: (id: string) => <Text code>{id}</Text>,
     },
     {
       title: 'Tên chức vụ',
-      dataIndex: 'name',
-      key: 'name',
+      dataIndex: 'tencv',
+      key: 'tencv',
       render: (name: string) => <strong>{name}</strong>,
     },
     {
       title: 'Cấp bậc (1–10)',
-      dataIndex: 'level',
-      key: 'level',
+      dataIndex: 'capbac',
+      key: 'capbac',
       render: (level: number) => <Tag color="processing">Cấp {level}</Tag>,
     },
     {
       title: 'Mô tả',
-      dataIndex: 'description',
-      key: 'description',
+      dataIndex: 'mota',
+      key: 'mota',
       render: (d: string) => d || '—',
     },
     {
@@ -200,7 +200,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
       key: 'count',
       render: (_: unknown, p: Position) =>
         `${
-          activeEmployees.filter((e) => e.position_id === p.id).length
+          activeEmployees.filter((e) => e.macv === p.macv).length
         } nhân viên`,
     },
     {
@@ -208,7 +208,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
       key: 'actions',
       align: 'right' as const,
       render: (_: unknown, p: Position) =>
-        canEdit(state.user.role) ? (
+        canEdit(state.user.vaitro) ? (
           <Button
             size="small"
             type="link"
@@ -234,7 +234,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
         </div>
 
         <Space className="no-print w-full sm:w-auto flex-wrap">
-          {canAssign(state.user.role) && (
+          {canAssign(state.user.vaitro) && (
             <Button
               icon={<SwapOutlined />}
               onClick={() => onNavigate('assignments')}
@@ -242,7 +242,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
               Phân bổ / Bổ nhiệm
             </Button>
           )}
-          {canEdit(state.user.role) && (
+          {canEdit(state.user.vaitro) && (
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -277,17 +277,17 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
         <Row gutter={[16, 16]}>
           {state.departments.map((d) => {
             const members = activeEmployees.filter(
-              (e) => e.department_id === d.id
+              (e) => e.mapb === d.mapb
             );
             return (
-              <Col xs={24} md={12} lg={8} key={d.id}>
+              <Col xs={24} md={12} lg={8} key={d.mapb}>
                 <Card
                   bordered={false}
                   className="shadow-xs h-full flex flex-col justify-between"
                   title={
                     <Space>
                       <BankOutlined className="text-[#12584b]" />
-                      <span>{d.name}</span>
+                      <span>{d.tenpb}</span>
                     </Space>
                   }
                   actions={[
@@ -296,11 +296,11 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
                       type="link"
                       size="small"
                       icon={<TeamOutlined />}
-                      onClick={() => onViewDepartmentMembers(d.id)}
+                      onClick={() => onViewDepartmentMembers(d.mapb)}
                     >
                       Xem ({members.length} NV)
                     </Button>,
-                    ...(canEdit(state.user.role)
+                    ...(canEdit(state.user.vaitro)
                       ? [
                           <Button
                             key="edit"
@@ -320,17 +320,17 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
                     ellipsis={{ rows: 2 }}
                     style={{ minHeight: 40, marginBottom: 8 }}
                   >
-                    {d.description || 'Chưa có mô tả phòng ban.'}
+                    {d.mota || 'Chưa có mô tả phòng ban.'}
                   </Paragraph>
                   <div className="text-xs text-slate-400 mb-2">
-                    Thành lập: {formatDate(d.founded_date)}
+                    Thành lập: {formatDate(d.ngaythanhlap)}
                   </div>
                   {(() => {
-                    const head = state.employees.find((e) => e.id === d.head_id);
+                    const head = state.employees.find((e) => e.manv === d.matruongphong);
                     return head ? (
                       <div className="text-xs text-slate-700 font-medium mb-3 flex items-center gap-1.5">
                         <Tag color="cyan" className="m-0">Trưởng phòng</Tag>
-                        <span className="font-semibold text-slate-800">{head.name}</span>
+                        <span className="font-semibold text-slate-800">{head.hoten}</span>
                       </div>
                     ) : (
                       <div className="text-xs text-slate-400 mb-3 flex items-center gap-1.5">
@@ -341,10 +341,10 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
                   <Avatar.Group max={{ count: 6 }}>
                     {members.map((e) => (
                       <Avatar
-                        key={e.id}
-                        style={{ backgroundColor: getAvatarHex(e.id) }}
+                        key={e.manv}
+                        style={{ backgroundColor: getAvatarHex(e.manv) }}
                       >
-                        {getInitials(e.name)}
+                        {getInitials(e.hoten)}
                       </Avatar>
                     ))}
                   </Avatar.Group>
@@ -356,7 +356,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
       ) : (
         <Card bordered={false} className="shadow-xs">
           <Table
-            rowKey="id"
+            rowKey="macv"
             columns={posColumns}
             dataSource={state.positions}
             pagination={false}
@@ -382,38 +382,38 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
             <Alert type="error" showIcon message={formError} className="mb-4" />
           )}
           <Form.Item
-            name="name"
+            name="tenpb"
             label="Tên phòng ban"
             rules={[{ required: true, message: 'Nhập tên phòng ban' }]}
           >
             <Input />
           </Form.Item>
           <Form.Item
-            name="founded_date"
+            name="ngaythanhlap"
             label="Ngày thành lập"
             rules={[{ required: true, message: 'Chọn ngày thành lập' }]}
           >
             <Input type="date" />
           </Form.Item>
-          <Form.Item name="description" label="Mô tả chức năng">
+          <Form.Item name="mota" label="Mô tả chức năng">
             <Input.TextArea rows={3} />
           </Form.Item>
           {deptModal.item && (
             <>
-              <Form.Item name="head_id" label="Trưởng phòng">
+              <Form.Item name="matruongphong" label="Trưởng phòng">
                 <Select
                   allowClear
                   placeholder="Chưa có trưởng phòng"
                   options={state.employees
                     .filter(
                       (e) =>
-                        e.department_id === deptModal.item!.id &&
-                        ['Đang làm việc', 'Thử việc'].includes(e.status)
+                        e.mapb === deptModal.item!.mapb &&
+                        ['Đang làm việc', 'Thử việc'].includes(e.trangthai)
                     )
-                    .map((e) => ({ value: e.id, label: `${e.name} (${e.id})` }))}
+                    .map((e) => ({ value: e.manv, label: `${e.hoten} (${e.manv})` }))}
                 />
               </Form.Item>
-              <Form.Item name="active" label="Đang sử dụng" valuePropName="checked">
+              <Form.Item name="hoatdong" label="Đang sử dụng" valuePropName="checked">
                 <Switch />
               </Form.Item>
             </>
@@ -424,7 +424,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
               <Popconfirm
                 title="Xóa phòng ban này?"
                 description="Chỉ xóa được danh mục chưa có nhân viên hoặc lịch sử công tác."
-                onConfirm={() => handleDeleteDepartment(deptModal.item!.id)}
+                onConfirm={() => handleDeleteDepartment(deptModal.item!.mapb)}
                 okText="Xóa"
                 cancelText="Hủy"
               >
@@ -461,36 +461,36 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
             <Alert type="error" showIcon message={formError} className="mb-4" />
           )}
           {posModal.item && (
-            <Form.Item name="id" label="Mã chức vụ">
+            <Form.Item name="macv" label="Mã chức vụ">
               <Input disabled />
             </Form.Item>
           )}
           <Form.Item
-            name="name"
+            name="tencv"
             label="Tên chức vụ"
             rules={[{ required: true, message: 'Nhập tên chức vụ' }]}
           >
             <Input />
           </Form.Item>
           <Form.Item
-            name="level"
+            name="capbac"
             label="Cấp bậc (1–10)"
             rules={[{ required: true, message: 'Nhập cấp bậc từ 1 đến 10' }]}
           >
             <InputNumber min={1} max={10} className="w-full" />
           </Form.Item>
-          <Form.Item name="description" label="Mô tả">
+          <Form.Item name="mota" label="Mô tả">
             <Input.TextArea rows={3} />
           </Form.Item>
           <Form.Item
-            name="is_executive"
+            name="ladieuhanh"
             label="Chức vụ điều hành (không thuộc phòng ban)"
             valuePropName="checked"
           >
             <Switch />
           </Form.Item>
           <Form.Item
-            name="default_role"
+            name="vaitromacdinh"
             label="Vai trò tài khoản mặc định"
             extra="Khi bổ nhiệm vào chức vụ này, vai trò tài khoản tự đồng bộ theo."
           >
@@ -505,7 +505,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
             />
           </Form.Item>
           {posModal.item && (
-            <Form.Item name="active" label="Đang sử dụng" valuePropName="checked">
+            <Form.Item name="hoatdong" label="Đang sử dụng" valuePropName="checked">
               <Switch />
             </Form.Item>
           )}
@@ -515,7 +515,7 @@ export const DepartmentsView: React.FC<DepartmentsViewProps> = ({
               <Popconfirm
                 title="Xóa chức vụ này?"
                 description="Chỉ xóa được chức vụ chưa được sử dụng."
-                onConfirm={() => handleDeletePosition(posModal.item!.id)}
+                onConfirm={() => handleDeletePosition(posModal.item!.macv)}
                 okText="Xóa"
                 cancelText="Hủy"
               >

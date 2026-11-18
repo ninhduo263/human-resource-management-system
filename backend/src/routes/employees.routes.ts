@@ -45,80 +45,81 @@ employeesRouter.post(
     requireRole(u, ['admin', 'hr']);
 
     const b = req.body;
-    const name = text(b, 'name', 120);
-    const birth = date(b, 'birth_date');
-    const join = date(b, 'join_date');
+    const hoten = text(b, 'hoten', 120);
+    const ngaysinh = date(b, 'ngaysinh');
+    const ngayvaolam = date(b, 'ngayvaolam');
     const currentDay = today();
-    assertPersonalDates(birth, join, currentDay);
+    assertPersonalDates(ngaysinh, ngayvaolam, currentDay);
 
-    const gender = choice(b, 'gender', ['Nam', 'Nữ', 'Khác'] as const);
-    const phone = text(b, 'phone', 20);
+    const gioitinh = choice(b, 'gioitinh', ['Nam', 'Nữ', 'Khác'] as const);
+    const sodienthoai = text(b, 'sodienthoai', 20);
     const email = text(b, 'email', 150);
-    assertContact(phone, email);
+    assertContact(sodienthoai, email);
 
-    const pos = await existsInTable(db, 'positions', text(b, 'position_id'));
-    if (pos.active === false) fail('Chức vụ này đã ngừng sử dụng.');
-    const role = choice(
-      { role: b.role || (pos.is_executive ? 'director' : pos.default_role || 'employee') },
-      'role',
+    const pos = await existsInTable(db, 'chucvu', text(b, 'macv'));
+    if (pos.hoatdong === false) fail('Chức vụ này đã ngừng sử dụng.');
+    const vaitro = choice(
+      { vaitro: b.vaitro || (pos.ladieuhanh ? 'director' : pos.vaitromacdinh || 'employee') },
+      'vaitro',
       ['admin', 'hr', 'manager', 'employee', 'director'] as const
     );
-    if (role === 'admin' && u.role !== 'admin') {
+    if (vaitro === 'admin' && u.vaitro !== 'admin') {
       fail('Chỉ quản trị viên được tạo tài khoản quản trị.', 403);
     }
     const dept =
-      role === 'director' || pos.is_executive
+      vaitro === 'director' || pos.ladieuhanh
         ? null
-        : await existsInTable(db, 'departments', text(b, 'department_id'));
-    if (dept && dept.active === false) fail('Phòng ban này đã ngừng sử dụng.');
-    const status = choice(b, 'status', ['Đang làm việc', 'Thử việc'] as const);
-    const address = optional(b, 'address');
+        : await existsInTable(db, 'phongban', text(b, 'mapb'));
+    if (dept && dept.hoatdong === false) fail('Phòng ban này đã ngừng sử dụng.');
+    const trangthai = choice(b, 'trangthai', ['Đang làm việc', 'Thử việc'] as const);
+    const diachi = optional(b, 'diachi');
 
     if (b.confirm_duplicate !== true) {
-      const dup = await db.one<{ id: string; name: string }>(
-        `SELECT id, name FROM employees
-         WHERE (LOWER(name) = LOWER($1) AND birth_date = $2) OR phone = $3
+      const dup = await db.one<{ manv: string; hoten: string }>(
+        `SELECT manv, hoten FROM nhanvien
+         WHERE (LOWER(hoten) = LOWER($1) AND ngaysinh = $2) OR sodienthoai = $3
          LIMIT 1`,
-        [name, birth, phone]
+        [hoten, ngaysinh, sodienthoai]
       );
       if (dup) {
         fail(
-          `Có thể trùng hồ sơ ${dup.id} (${dup.name}) về họ tên + ngày sinh hoặc số điện thoại. Xác nhận lại nếu vẫn muốn tạo mới.`,
+          `Có thể trùng hồ sơ ${dup.manv} (${dup.hoten}) về họ tên + ngày sinh hoặc số điện thoại. Xác nhận lại nếu vẫn muốn tạo mới.`,
           409
         );
       }
     }
 
-    const password = `Nv@${randomBytes(9).toString('base64url')}`;
-    const userId = generateId('U');
+    const matkhau = `Nv@${randomBytes(9).toString('base64url')}`;
+    const matk = generateId('U');
 
-    const eid = await withTransaction(async (tx) => {
-      const eid = await nextBusinessId(tx, 'employees');
+    const manv = await withTransaction(async (tx) => {
+      const manv = await nextBusinessId(tx, 'nhanvien');
       await tx.run(
-        `INSERT INTO employees(id, name, birth_date, gender, address, phone, email, join_date, status, archived_date, department_id, position_id)
+        `INSERT INTO nhanvien(manv, hoten, ngaysinh, gioitinh, diachi, sodienthoai, email, ngayvaolam, trangthai, ngayluutru, mapb, macv)
          VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, NULL, $10, $11)`,
-        [eid, name, birth, gender, address, phone, email, join, status, dept?.id ?? null, pos.id]
+        [manv, hoten, ngaysinh, gioitinh, diachi, sodienthoai, email, ngayvaolam, trangthai, dept?.mapb ?? null, pos.macv]
       );
       await tx.run(
-        'INSERT INTO users(id, username, password_hash, role, employee_id, active) VALUES($1, $2, $3, $4, $5, 1)',
-        [userId, email, passwordHash(password), role, eid]
+        'INSERT INTO taikhoan(matk, tendangnhap, matkhau, vaitro, manv, hoatdong) VALUES($1, $2, $3, $4, $5, 1)',
+        [matk, email, passwordHash(matkhau), vaitro, manv]
       );
+      const nam = Number(currentDay.slice(0, 4));
       await tx.run(
-        'INSERT INTO leave_balances(employee_id, year, total) VALUES($1, $2, $3) ON CONFLICT DO NOTHING',
-        [eid, Number(currentDay.slice(0, 4)), defaultEntitlement(join, Number(currentDay.slice(0, 4)))]
+        'INSERT INTO songayphep(manv, nam, tongsongayphep) VALUES($1, $2, $3) ON CONFLICT DO NOTHING',
+        [manv, nam, defaultEntitlement(ngayvaolam, nam)]
       );
-      if (role === 'manager' && dept) {
-        await tx.run('UPDATE departments SET head_id = $1 WHERE id = $2 AND head_id IS NULL', [
-          eid,
-          dept.id,
+      if (vaitro === 'manager' && dept) {
+        await tx.run('UPDATE phongban SET matruongphong = $1 WHERE mapb = $2 AND matruongphong IS NULL', [
+          manv,
+          dept.mapb,
         ]);
       }
-      await auditLog(tx, u.id, 'Thêm hồ sơ', eid);
-      await auditLog(tx, u.id, 'Tạo tài khoản theo email', email);
-      return eid;
+      await auditLog(tx, u.matk, 'Thêm hồ sơ', manv);
+      await auditLog(tx, u.matk, 'Tạo tài khoản theo email', email);
+      return manv;
     });
 
-    res.status(201).json({ id: eid, account: { username: email, password, role } });
+    res.status(201).json({ id: manv, taikhoan: { tendangnhap: email, matkhau, vaitro } });
   })
 );
 
@@ -131,70 +132,67 @@ employeesRouter.put(
     const b = req.body;
 
     // Nhân viên/trưởng phòng/giám đốc tự cập nhật thông tin liên hệ cá nhân (theo DFD 1.2)
-    if (!['admin', 'hr'].includes(u.role)) {
-      if (rid !== u.employee_id || b.self_contact !== true) {
+    if (!['admin', 'hr'].includes(u.vaitro)) {
+      if (rid !== u.manv || b.self_contact !== true) {
         fail('Bạn không có quyền thực hiện thao tác này.', 403);
       }
-      const phone = text(b, 'phone', 20);
+      const sodienthoai = text(b, 'sodienthoai', 20);
       const email = text(b, 'email', 150);
-      const address = optional(b, 'address');
-      assertContact(phone, email);
+      const diachi = optional(b, 'diachi');
+      assertContact(sodienthoai, email);
 
       await withTransaction(async (tx) => {
-        const old = await tx.one<any>('SELECT * FROM employees WHERE id = $1 FOR UPDATE', [rid]);
+        const old = await tx.one<any>('SELECT * FROM nhanvien WHERE manv = $1 FOR UPDATE', [rid]);
         if (!old) fail('Không tìm thấy dữ liệu.', 404);
         await requireActiveEmployee(tx, rid);
         assertVersion(old, b);
         await tx.run(
-          `UPDATE employees SET phone = $1, email = $2, address = $3, version = version + 1 WHERE id = $4`,
-          [phone, email, address, rid]
+          `UPDATE nhanvien SET sodienthoai = $1, email = $2, diachi = $3, phienban = phienban + 1 WHERE manv = $4`,
+          [sodienthoai, email, diachi, rid]
         );
         await syncUsername(tx, rid, old.email, email);
         await auditLog(
           tx,
-          u.id,
+          u.matk,
           'Cập nhật thông tin liên hệ cá nhân',
           rid,
-          diffFields(old, { phone, email, address })
+          diffFields(old, { sodienthoai, email, diachi })
         );
       });
       res.json({ ok: true });
       return;
     }
 
-    const name = text(b, 'name', 120);
-    const birth = date(b, 'birth_date');
-    const join = date(b, 'join_date');
+    const hoten = text(b, 'hoten', 120);
+    const ngaysinh = date(b, 'ngaysinh');
+    const ngayvaolam = date(b, 'ngayvaolam');
     const currentDay = today();
-    assertPersonalDates(birth, join, currentDay);
+    assertPersonalDates(ngaysinh, ngayvaolam, currentDay);
 
-    const gender = choice(b, 'gender', ['Nam', 'Nữ', 'Khác'] as const);
-    const phone = text(b, 'phone', 20);
+    const gioitinh = choice(b, 'gioitinh', ['Nam', 'Nữ', 'Khác'] as const);
+    const sodienthoai = text(b, 'sodienthoai', 20);
     const email = text(b, 'email', 150);
-    assertContact(phone, email);
-    const address = optional(b, 'address');
+    assertContact(sodienthoai, email);
+    const diachi = optional(b, 'diachi');
 
     await withTransaction(async (tx) => {
-      const old = await tx.one<any>('SELECT * FROM employees WHERE id = $1 FOR UPDATE', [rid]);
+      const old = await tx.one<any>('SELECT * FROM nhanvien WHERE manv = $1 FOR UPDATE', [rid]);
       if (!old) fail('Không tìm thấy dữ liệu.', 404);
       await requireActiveEmployee(tx, rid);
       assertVersion(old, b);
 
-      const dept =
-        old.department_id === null
-          ? null
-          : await existsInTable(tx, 'departments', text(b, 'department_id'));
-      const pos = await existsInTable(tx, 'positions', text(b, 'position_id'));
-      if (old.department_id !== (dept?.id ?? null) || old.position_id !== pos.id) {
+      const dept = old.mapb === null ? null : await existsInTable(tx, 'phongban', text(b, 'mapb'));
+      const pos = await existsInTable(tx, 'chucvu', text(b, 'macv'));
+      if (old.mapb !== (dept?.mapb ?? null) || old.macv !== pos.macv) {
         fail('Hãy dùng chức năng Công tác để điều chuyển hoặc bổ nhiệm và lưu quyết định.');
       }
 
       const history = await tx.one(
         `SELECT 1 AS x WHERE
-           EXISTS (SELECT 1 FROM contracts WHERE employee_id = $1 AND start_date < $2)
-        OR EXISTS (SELECT 1 FROM assignments WHERE employee_id = $1 AND effective_date < $2 AND status <> 'Đã hủy')
-        OR EXISTS (SELECT 1 FROM leave_requests WHERE employee_id = $1 AND start_date < $2)`,
-        [rid, join]
+           EXISTS (SELECT 1 FROM hopdong WHERE manv = $1 AND ngaybatdau < $2)
+        OR EXISTS (SELECT 1 FROM quatrinhcongtac WHERE manv = $1 AND ngayhieuluc < $2 AND trangthai <> 'Đã hủy')
+        OR EXISTS (SELECT 1 FROM donnghiphep WHERE manv = $1 AND tungay < $2)`,
+        [rid, ngayvaolam]
       );
       if (history) {
         fail('Ngày vào làm không được sau lịch sử hợp đồng, công tác hoặc nghỉ phép.');
@@ -202,27 +200,27 @@ employeesRouter.put(
 
       // Trạng thái làm việc do hợp đồng quyết định; không cho sửa tay ở đây.
       await tx.run(
-        `UPDATE employees
-         SET name = $1, birth_date = $2, gender = $3, address = $4, phone = $5, email = $6,
-             join_date = $7, version = version + 1
-         WHERE id = $8`,
-        [name, birth, gender, address, phone, email, join, rid]
+        `UPDATE nhanvien
+         SET hoten = $1, ngaysinh = $2, gioitinh = $3, diachi = $4, sodienthoai = $5, email = $6,
+             ngayvaolam = $7, phienban = phienban + 1
+         WHERE manv = $8`,
+        [hoten, ngaysinh, gioitinh, diachi, sodienthoai, email, ngayvaolam, rid]
       );
       await syncUsername(tx, rid, old.email, email);
       await auditLog(
         tx,
-        u.id,
+        u.matk,
         'Cập nhật hồ sơ',
         rid,
-        diffFields(old, { name, birth_date: birth, gender, address, phone, email, join_date: join })
+        diffFields(old, { hoten, ngaysinh, gioitinh, diachi, sodienthoai, email, ngayvaolam })
       );
     });
     res.json({ ok: true });
   })
 );
 
-function assertVersion(old: { version: number }, body: Record<string, unknown>): void {
-  if (body.version !== undefined && body.version !== null && Number(body.version) !== Number(old.version)) {
+function assertVersion(old: { phienban: number }, body: Record<string, unknown>): void {
+  if (body.phienban !== undefined && body.phienban !== null && Number(body.phienban) !== Number(old.phienban)) {
     fail('Hồ sơ vừa được người khác cập nhật. Vui lòng tải lại trang và thực hiện lại.', 409);
   }
 }
@@ -230,14 +228,14 @@ function assertVersion(old: { version: number }, body: Record<string, unknown>):
 /** Khi email đổi, tài khoản tạo theo email cũng đổi tên đăng nhập theo. */
 async function syncUsername(
   tx: import('../db/pool.js').DbExecutor,
-  employeeId: string,
+  manv: string,
   oldEmail: string,
   newEmail: string
 ): Promise<void> {
   if (oldEmail.toLowerCase() === newEmail.toLowerCase()) return;
   await tx.run(
-    `UPDATE users SET username = $1 WHERE employee_id = $2 AND LOWER(username) = LOWER($3)`,
-    [newEmail, employeeId, oldEmail]
+    `UPDATE taikhoan SET tendangnhap = $1 WHERE manv = $2 AND LOWER(tendangnhap) = LOWER($3)`,
+    [newEmail, manv, oldEmail]
   );
 }
 
@@ -250,43 +248,43 @@ employeesRouter.post(
     const rid = paramId(req);
 
     await withTransaction(async (tx) => {
-      const e = await tx.one<any>('SELECT * FROM employees WHERE id = $1 FOR UPDATE', [rid]);
+      const e = await tx.one<any>('SELECT * FROM nhanvien WHERE manv = $1 FOR UPDATE', [rid]);
       if (!e) fail('Không tìm thấy dữ liệu.', 404);
-      if (e.status === 'Đã lưu trữ') fail('Hồ sơ nhân viên đã lưu trữ.');
-      if (e.id === u.employee_id) fail('Không thể lưu trữ hồ sơ của chính bạn.');
+      if (e.trangthai === 'Đã lưu trữ') fail('Hồ sơ nhân viên đã lưu trữ.');
+      if (e.manv === u.manv) fail('Không thể lưu trữ hồ sơ của chính bạn.');
 
       const currentDay = today();
       const activeContract = await tx.one(
-        `SELECT id FROM contracts
-         WHERE employee_id = $1 AND ${LIVE_CONTRACT}
-           AND (end_date IS NULL OR end_date >= $2)`,
+        `SELECT mahd FROM hopdong
+         WHERE manv = $1 AND ${LIVE_CONTRACT}
+           AND (ngayketthuc IS NULL OR ngayketthuc >= $2)`,
         [rid, currentDay]
       );
       if (activeContract) fail('Cần chấm dứt các hợp đồng hiện hành trước khi lưu trữ.');
 
       const pendingLeave = await tx.one(
-        `SELECT id FROM leave_requests WHERE employee_id = $1 AND status = 'Chờ duyệt'`,
+        `SELECT madon FROM donnghiphep WHERE manv = $1 AND trangthai = 'Chờ duyệt'`,
         [rid]
       );
       if (pendingLeave) fail('Cần xử lý các đơn nghỉ phép chờ duyệt trước khi lưu trữ.');
 
       const pendingAssignment = await tx.one(
-        `SELECT id FROM assignments WHERE employee_id = $1 AND status = 'Chờ hiệu lực'`,
+        `SELECT maqt FROM quatrinhcongtac WHERE manv = $1 AND trangthai = 'Chờ hiệu lực'`,
         [rid]
       );
       if (pendingAssignment) fail('Cần hủy các quyết định công tác chờ hiệu lực trước khi lưu trữ.');
 
       await tx.run(
-        `UPDATE employees SET status = 'Đã lưu trữ', archived_date = $1, version = version + 1 WHERE id = $2`,
+        `UPDATE nhanvien SET trangthai = 'Đã lưu trữ', ngayluutru = $1, phienban = phienban + 1 WHERE manv = $2`,
         [currentDay, rid]
       );
-      await tx.run('UPDATE departments SET head_id = NULL WHERE head_id = $1', [rid]);
-      await tx.run('UPDATE users SET active = 0 WHERE employee_id = $1', [rid]);
+      await tx.run('UPDATE phongban SET matruongphong = NULL WHERE matruongphong = $1', [rid]);
+      await tx.run('UPDATE taikhoan SET hoatdong = 0 WHERE manv = $1', [rid]);
       await tx.run(
-        'DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE employee_id = $1)',
+        'DELETE FROM phiendangnhap WHERE matk IN (SELECT matk FROM taikhoan WHERE manv = $1)',
         [rid]
       );
-      await auditLog(tx, u.id, 'Lưu trữ hồ sơ', rid);
+      await auditLog(tx, u.matk, 'Lưu trữ hồ sơ', rid);
     });
 
     res.json({ ok: true });
@@ -302,18 +300,18 @@ employeesRouter.post(
     const rid = paramId(req);
 
     await withTransaction(async (tx) => {
-      const archived = await tx.one<any>('SELECT * FROM employees WHERE id = $1 FOR UPDATE', [rid]);
+      const archived = await tx.one<any>('SELECT * FROM nhanvien WHERE manv = $1 FOR UPDATE', [rid]);
       if (!archived) fail('Không tìm thấy dữ liệu.', 404);
-      if (archived.status !== 'Đã lưu trữ') fail('Chỉ khôi phục hồ sơ đã lưu trữ.');
+      if (archived.trangthai !== 'Đã lưu trữ') fail('Chỉ khôi phục hồ sơ đã lưu trữ.');
 
       await tx.run(
-        `UPDATE employees SET status = 'Đang làm việc', archived_date = NULL, version = version + 1
-         WHERE id = $1`,
+        `UPDATE nhanvien SET trangthai = 'Đang làm việc', ngayluutru = NULL, phienban = phienban + 1
+         WHERE manv = $1`,
         [rid]
       );
       // Trạng thái thật (Thử việc / Đang làm việc) suy ra từ hợp đồng hiện hành, nếu có.
       await syncEmployeeStatuses(tx, rid);
-      await auditLog(tx, u.id, 'Khôi phục hồ sơ', rid);
+      await auditLog(tx, u.matk, 'Khôi phục hồ sơ', rid);
     });
     // Tài khoản không tự mở lại: quản trị viên mở lại tường minh trong mục Tài khoản.
     res.json({ ok: true, account_locked: true });

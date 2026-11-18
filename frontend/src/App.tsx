@@ -166,7 +166,7 @@ export const App: React.FC = () => {
   }
 
   const pendingLeavesCount = state.leaves.filter(
-    (l) => l.status === 'Chờ duyệt'
+    (l) => l.trangthai === 'Chờ duyệt'
   ).length;
 
   const menuItems = [
@@ -216,7 +216,7 @@ export const App: React.FC = () => {
       key: 'settings',
       icon: <SafetyCertificateOutlined />,
       label:
-        state.user.role === 'admin' ? 'Quản trị hệ thống' : 'Tài khoản của tôi',
+        state.user.vaitro === 'admin' ? 'Quản trị hệ thống' : 'Tài khoản của tôi',
     },
   ];
 
@@ -313,17 +313,17 @@ export const App: React.FC = () => {
             <Space>
               <Avatar
                 style={{
-                  backgroundColor: getAvatarHex(state.user.employee_id),
+                  backgroundColor: getAvatarHex(state.user.manv),
                 }}
               >
-                {getInitials(state.user.name)}
+                {getInitials(state.user.hoten)}
               </Avatar>
               <div className="leading-tight">
                 <div className="text-xs font-semibold text-white truncate max-w-[130px]">
-                  {state.user.name}
+                  {state.user.hoten}
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  {ROLE_NAMES[state.user.role]}
+                  {ROLE_NAMES[state.user.vaitro]}
                 </div>
               </div>
             </Space>
@@ -405,18 +405,18 @@ export const App: React.FC = () => {
               <Space size={6}>
                 <Avatar
                   style={{
-                    backgroundColor: getAvatarHex(state.user.employee_id),
+                    backgroundColor: getAvatarHex(state.user.manv),
                   }}
                   size="default"
                 >
-                  {getInitials(state.user.name)}
+                  {getInitials(state.user.hoten)}
                 </Avatar>
                 <div className="hidden sm:block leading-tight">
                   <div className="text-xs font-semibold text-slate-900 max-w-[120px] truncate">
-                    {state.user.name}
+                    {state.user.hoten}
                   </div>
                   <div className="text-[11px] text-slate-500">
-                    {ROLE_NAMES[state.user.role]}
+                    {ROLE_NAMES[state.user.vaitro]}
                   </div>
                 </div>
               </Space>

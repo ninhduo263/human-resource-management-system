@@ -13,7 +13,7 @@ Thư mục này lưu trữ toàn bộ tài liệu kỹ thuật của từng tín
 
 | STT | File tài liệu | Phân hệ / Nội dung | Đối chiếu BFD / DFD / ERD |
 | :--- | :--- | :--- | :--- |
-| 00 | [00-ha-tang-docker-va-database.md](./00-ha-tang-docker-va-database.md) | Hạ tầng Docker Compose, PostgreSQL 16 & Khởi tạo dữ liệu | 8 thực thể ERD cơ bản (`ERD_QLNS.drawio.png`) + các bảng mở rộng hệ thống |
+| 00 | [00-ha-tang-docker-va-database.md](./00-ha-tang-docker-va-database.md) | Hạ tầng Docker Compose, PostgreSQL 16 & Khởi tạo dữ liệu | 10 thực thể nghiệp vụ + 5 thực thể hệ thống (`thietke/erd.drawio`), tên bảng/cột theo ERD |
 | 01 | [01-xac-thuc-phan-quyen-va-quan-tri.md](./01-xac-thuc-phan-quyen-va-quan-tri.md) | Đăng nhập, Phiên, Phân quyền 5 vai trò, Quản trị & Dashboard | 4 tác nhân DFD Mức 0 (`DFD-MUC0.png`) + Quản trị viên, RBAC/ABAC |
 | 02 | [02-ho-so-nhan-vien.md](./02-ho-so-nhan-vien.md) | Quản lý Hồ sơ nhân viên | BFD `1.1`, `1.2`, `1.3`, `1.4` — Kho `D1` (`NHANVIEN`) |
 | 03 | [03-phong-ban-va-chuc-vu.md](./03-phong-ban-va-chuc-vu.md) | Quản lý Phòng ban & Chức vụ | BFD `2.1`, `2.2`, `2.3`, `2.4` — Kho `D2` (`PHONGBAN`, `CHUCVU`) |
@@ -43,3 +43,4 @@ Hệ thống được thiết kế theo tiêu chuẩn giao diện thích ứng �
 - **18/11/2026 — Đồng bộ hóa hệ thống & báo cáo theo bộ sơ đồ chuẩn hóa trong `diagrams/`**:
   - Đồng bộ cấu trúc 20 chức năng BFD (`diagrams/BFD.jpeg`), DFD mức 0 (`diagrams/DFD-MUC0.png`), 5 sơ đồ DFD mức 1 (`diagrams/Nhom_16_QL_Nhan_su.pdf`) và lược đồ ERD cơ bản 8 thực thể / 10 mối liên kết (`diagrams/ERD_QLNS.drawio.png`: `NHANVIEN`, `PHONGBAN`, `CHUCVU`, `HOPDONG`, `QUATRINHCONGTAC`, `LOAINGHIPHEP`, `DONNGHIPHEP`, `SONGAYPHEP`).
   - Lược bỏ phân hệ mở rộng `Khen thưởng & Kỷ luật` ngoài phạm vi 20 chức năng BFD, chuẩn hóa 4 loại báo cáo `5.1`–`5.4` và cập nhật toàn bộ chương 3, 4, 5, 6 trong `BAO_CAO_HTTTQL.docx`.
+- **18/11/2026 — Đồng bộ cơ sở dữ liệu với thiết kế `thietke/`**: bộ sơ đồ `thietke/bfd-dfd.drawio` và `thietke/erd.drawio` (bổ sung nhóm 6 Quản trị hệ thống, kho D6, 5 thực thể hệ thống); đổi toàn bộ tên bảng và tên cột sang tên thực thể/thuộc tính ERD (tiếng Việt không dấu) ở database, backend, API, frontend và kiểm thử; database cũ tự đổi tên khi khởi động; loại bỏ hẳn khen thưởng, kỷ luật. Chi tiết trong `00-ha-tang-docker-va-database.md`.

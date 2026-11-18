@@ -1,35 +1,35 @@
 # 04. Phân hệ 3.0 - Quản lý Hợp đồng Lao động (`3.1` – `3.4`)
 
 ## 1. Đối chiếu 4 Tài liệu Thiết kế
-- **BFD**: Nhóm `3. Hợp đồng lao động & Chế độ`:
+- **BFD**: Nhóm `3. Hợp đồng lao động`:
   - `3.1 Lập hợp đồng`
-  - `3.2 Gia hạn hợp đồng` (Kèm bảo toàn lịch sử HĐ gốc và lưu vết Phụ lục/Gia hạn)
-  - `3.3 Chấm dứt hợp đồng` (Gắn với Quyết định chấm dứt hợp đồng từ Ban Giám đốc)
-  - `3.4 Quản lý khen thưởng, kỷ luật` (Xem chi tiết tại [07-khen-thuong-va-ky-luat.md](./07-khen-thuong-va-ky-luat.md); tính năng cảnh báo hợp đồng hết hạn là tiện ích theo dõi tự động của phân hệ HĐ).
-- **DFD Mức 0 & Mức 1 (Trang 2)**:
-  - Tác nhân: `Cán bộ nhân sự` (lập hợp đồng mới, gia hạn, đề xuất chấm dứt, nhận cảnh báo hết hạn), `Ban giám đốc` (ban hành Quyết định chấm dứt HĐ, Quyết định khen thưởng/kỷ luật).
-  - Kho dữ liệu: `D3 - Hợp đồng`, `D6 - Khen thưởng, kỷ luật`.
-- **ERD**: Thực thể `HOPDONG` (`contracts`, lưu `original_end_date`, `termination_decision_id`), `GIAHANHOPDONG` (`extensions`, quan hệ 1-N lưu lịch sử từng lần gia hạn/phụ lục và quyết định `decision_id`), và `KHENTHUONG_KYLUAT` (`rewards_disciplines`).
+  - `3.2 Gia hạn hợp đồng` (kèm phụ lục điều chỉnh lương, bảo toàn ngày kết thúc gốc)
+  - `3.3 Chấm dứt hợp đồng` (gắn với Quyết định chấm dứt hợp đồng)
+  - `3.4 Theo dõi hết hạn HĐ` (cảnh báo hợp đồng còn ≤ 30 ngày)
+- **DFD Mức 0 & Mức 1** (`thietke/bfd-dfd.drawio`, trang `DFD muc 1 (3.0, 4.0)`):
+  - Tác nhân: `Cán bộ nhân sự` (lập hợp đồng, gia hạn/điều chỉnh lương, chấm dứt, nhận cảnh báo hết hạn).
+  - Kho dữ liệu: `D3 - Hợp đồng`.
+- **ERD**: Thực thể `HOPDONG` (`hopdong`, có `ngayketthucgoc`, `maqdchamdut`) và `GIAHANHOPDONG` (`giahanhopdong`, quan hệ 1-N lưu lịch sử từng lần gia hạn/phụ lục và quyết định `maqd`).
 
 ## 2. Các File Mã nguồn Liên quan
 - **Backend**:
   - `backend/src/routes/contracts.routes.ts`
-  - `backend/src/routes/auth.routes.ts` (Xử lý trạng thái hiệu lực và ẩn lương `salary` theo vai trò)
+  - `backend/src/routes/auth.routes.ts` (trạng thái hiệu lực và ẩn `mucluong` theo vai trò)
 - **Frontend (Ant Design)**: `frontend/src/components/ContractsView.tsx` (Sử dụng `Table`, `Tabs`, `Modal`, `Form`, `InputNumber`, `Descriptions`, `Tag` của `antd`)
-- **Database**: Bảng `contracts` và `extensions` trong `backend/src/db/schema.sql`
+- **Database**: Bảng `hopdong` và `giahanhopdong` trong `backend/src/db/schema.sql`
 
 ## 3. Danh sách API Endpoints & Quy tắc Nghiệp vụ
 
 | Mã BFD | Phương thức & Đường dẫn | Quyền hạn | Quy tắc Kiểm tra & Xử lý |
 | :--- | :--- | :--- | :--- |
-| `3.1` | `POST /api/contracts` | `admin`, `hr` | - Hỗ trợ 3 loại HĐ: `Thử việc`, `Xác định thời hạn`, `Không xác định thời hạn`.<br>- `start_date >= employee.join_date`, `salary > 0`.<br>- Lưu `original_end_date = end_date` để bảo toàn ngày kết thúc gốc.<br>- Chặn lập hợp đồng trùng khoảng thời gian với các hợp đồng chưa chấm dứt của cùng nhân viên. |
-| `3.2` | `POST /api/contracts/:id/extend` | `admin`, `hr` | - Chỉ gia hạn hợp đồng đang hoạt động và có `end_date`.<br>- `new_end_date` phải sau `old_end_date` và `>= today`.<br>- Tạo bản ghi phụ lục `extensions` (`GIAHANHOPDONG`) với `sequence = MAX(sequence) + 1`, lưu đầy đủ `old_end_date`, `new_end_date`, `decision_id` (nếu có Quyết định) và cập nhật `contracts.end_date` trong cùng 1 transaction (không làm mất lịch sử HĐ gốc). |
-| `3.3` | `POST /api/contracts/:id/terminate` | `admin`, `hr` | - Ghi nhận `terminated_date`, `termination_type`, `termination_reason` và liên kết `termination_decision_id` (`decisions.id` khi có Quyết định chấm dứt HĐ).<br>- Đổi trạng thái thành `Đã chấm dứt` và đồng bộ trạng thái nhân viên. |
-| `3.4` | `GET / POST / DELETE /api/rewards`<br>`GET /api/state` | `admin`, `hr`, `director` (ghi)<br>Tất cả (xem theo phạm vi) | - **BFD 3.4 Quản lý khen thưởng, kỷ luật**: Lưu vào bảng `rewards_disciplines` (`KHENTHUONG_KYLUAT`) gắn với `decisions` (`QUYETDINH`). Xem chi tiết tại [07-khen-thuong-va-ky-luat.md](./07-khen-thuong-va-ky-luat.md).<br>- Hỗ trợ thêm tiện ích tự động cảnh báo hợp đồng sắp hết hạn ($\le 30$ ngày) trên Dashboard và tab `Sắp hết hạn`. |
+| `3.1` | `POST /api/contracts` (`manv`, `loaihd`, `ngaybatdau`, `ngayketthuc`, `mucluong`, `sohd`) | `admin`, `hr` | - Hỗ trợ 3 loại HĐ: `Thử việc`, `Xác định thời hạn`, `Không xác định thời hạn`.<br>- `ngaybatdau >= nhanvien.ngayvaolam`, `mucluong > 0`.<br>- Lưu `ngayketthucgoc = ngayketthuc` để bảo toàn ngày kết thúc gốc.<br>- Chặn lập hợp đồng trùng khoảng thời gian với các hợp đồng chưa chấm dứt của cùng nhân viên. |
+| `3.2` | `POST /api/contracts/:id/extend` (`ngayketthucmoi`, `mucluong?`, `lydo`, `soqd?`, `nguoiky?`, `ngayky?`)<br>`POST /api/contracts/:id/salary` (`mucluong`, `lydo`, `ngayhieuluc?`) | `admin`, `hr` | - Chỉ gia hạn hợp đồng đang hoạt động và có `ngayketthuc`.<br>- `ngayketthucmoi` phải sau `ngayketthuccu` và `>= hôm nay`.<br>- Tạo phụ lục `giahanhopdong` với `langiahan = MAX(langiahan) + 1`, lưu `ngayketthuccu`, `ngayketthucmoi`, `luongcu`, `luongmoi`, `maqd` (nếu có quyết định) và cập nhật `hopdong.ngayketthuc` trong cùng 1 transaction. |
+| `3.3` | `POST /api/contracts/:id/terminate` (`ngaychamdut`, `lydochamdut`, `loaichamdut`, `soqd?`, `nguoiky?`, `ngayky?`) | `admin`, `hr` | - Ghi nhận `ngaychamdut`, `loaichamdut`, `lydochamdut` và liên kết `maqdchamdut` khi có Quyết định chấm dứt HĐ.<br>- Đổi trạng thái thành `Đã chấm dứt` và đồng bộ trạng thái nhân viên. |
+| `3.4` | `GET /api/state` (tính ở frontend) | `admin`, `hr`, `director` | - **Theo dõi hết hạn HĐ**: hợp đồng còn hiệu lực có `ngayketthuc` trong vòng 30 ngày được cảnh báo trên Dashboard và tab `Sắp hết hạn` (hàm `getContractStatus` trong `frontend/src/utils/format.ts`). |
 
 ## 4. Hướng dẫn Sửa đổi / Bảo trì sau này
 - **Thay đổi ngưỡng cảnh báo sắp hết hạn (hiện tại 30 ngày)**: Chỉnh sửa hàm `contractStatus` trong `frontend/src/utils/format.ts` (hoặc `ContractsView.tsx`).
-- **Thêm loại hợp đồng mới**: Cập nhật `CHECK (type IN (...))` trong `backend/src/db/schema.sql` và mảng `choice` trong `backend/src/routes/contracts.routes.ts`.
+- **Thêm loại hợp đồng mới**: Cập nhật `CHECK (loaihd IN (...))` trong `backend/src/db/schema.sql` và mảng `choice` trong `backend/src/routes/contracts.routes.ts`.
 
 ## 5. Cập nhật ngày 16/11/2026 — Phụ lục và trạng thái nhân viên
 

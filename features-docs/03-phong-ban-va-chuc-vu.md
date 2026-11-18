@@ -2,14 +2,14 @@
 
 ## 1. Đối chiếu 4 Tài liệu Thiết kế
 - **BFD**: Nhóm `2. Phòng ban và chức vụ`:
-  - `2.1 Quản lý phòng ban` (kèm chỉ định Trưởng phòng `MaTruongPhong` / `head_id`)
+  - `2.1 Quản lý phòng ban` (kèm chỉ định Trưởng phòng `MaTruongPhong` / `matruongphong`)
   - `2.2 Quản lý chức vụ`
   - `2.3 Phân bổ nhân sự` (Điều chuyển phòng ban theo Quyết định từ Ban giám đốc)
   - `2.4 Bổ nhiệm / Miễn nhiệm chức vụ` (Bổ nhiệm hoặc miễn nhiệm chức danh theo Quyết định từ Ban giám đốc)
 - **DFD Mức 0 & Mức 1 (Trang 1 - `BFD_DFD_QLNS_v2.drawio`)**:
   - Tác nhân: `Cán bộ nhân sự` (quản lý danh mục phòng ban `2.1`, chức vụ `2.2`), `Ban giám đốc` (ban hành Quyết định điều chuyển `2.3`, Quyết định bổ nhiệm / miễn nhiệm `2.4`).
   - Kho dữ liệu: `D2 - Phòng ban, chức vụ`, `D4 - Quá trình công tác & Quyết định` (liên kết `D1 - Hồ sơ nhân viên`).
-- **ERD (`ERD_QLNS_v2.drawio`)**: Thực thể `PHONGBAN` (`departments`, có khóa ngoại `MaTruongPhong` / `head_id` và mối kết hợp `Là Trưởng phòng` 1-1 với `NHANVIEN`), `CHUCVU` (`positions`), liên kết với `NHANVIEN` (`employees`), `QUYETDINH` (`decisions`) và `QUATRINHCONGTAC` (`assignments`).
+- **ERD (`ERD_QLNS_v2.drawio`)**: Thực thể `PHONGBAN` (`phongban`, có khóa ngoại `MaTruongPhong` / `matruongphong` và mối kết hợp `Là Trưởng phòng` 1-1 với `NHANVIEN`), `CHUCVU` (`chucvu`), liên kết với `NHANVIEN` (`nhanvien`), `QUYETDINH` (`quyetdinh`) và `QUATRINHCONGTAC` (`quatrinhcongtac`).
 
 ## 2. Các File Mã nguồn Liên quan
 - **Backend**:
@@ -23,10 +23,10 @@
 
 | Mã BFD | Phương thức & Đường dẫn | Quyền hạn | Quy tắc Kiểm tra & Xử lý |
 | :--- | :--- | :--- | :--- |
-| `2.1` | `POST /api/departments`<br>`PUT /api/departments/:id`<br>`DELETE /api/departments/:id` | `admin`, `hr` | - Mã `id` và `name` duy nhất; yêu cầu `founded_date` hợp lệ.<br>- Chặn xóa (`409 Conflict`) nếu phòng ban đang có nhân viên hoặc lịch sử công tác tham chiếu (`ON DELETE RESTRICT`). |
-| `2.2` | `POST /api/positions`<br>`PUT /api/positions/:id`<br>`DELETE /api/positions/:id` | `admin`, `hr` | - Mã `id` và `name` duy nhất; `level` là số nguyên từ `1` đến `10`.<br>- Chặn xóa (`409 Conflict`) nếu chức vụ đang được gán cho nhân viên hoặc lịch sử công tác. |
-| `2.3` | `POST /api/assignments` (`type = 'Điều chuyển'`) | `admin`, `hr`, `director` | - Ghi nhận quyết định điều chuyển từ `old_department_id` sang `new_department_id` và cập nhật đồng thời hồ sơ nhân viên trong 1 transaction. |
-| `2.4` | `POST /api/assignments` (`type = 'Bổ nhiệm'` / `'Điều chuyển và bổ nhiệm'`) | `admin`, `hr`, `director` | - Ghi nhận quyết định bổ nhiệm từ `old_position_id` sang `new_position_id` và cập nhật đồng thời hồ sơ nhân viên. |
+| `2.1` | `POST /api/departments`<br>`PUT /api/departments/:id`<br>`DELETE /api/departments/:id` | `admin`, `hr` | - Mã `mapb/macv` và `tenpb/tencv` duy nhất; yêu cầu `ngaythanhlap` hợp lệ.<br>- Chặn xóa (`409 Conflict`) nếu phòng ban đang có nhân viên hoặc lịch sử công tác tham chiếu (`ON DELETE RESTRICT`). |
+| `2.2` | `POST /api/positions`<br>`PUT /api/positions/:id`<br>`DELETE /api/positions/:id` | `admin`, `hr` | - Mã `mapb/macv` và `tenpb/tencv` duy nhất; `capbac` là số nguyên từ `1` đến `10`.<br>- Chặn xóa (`409 Conflict`) nếu chức vụ đang được gán cho nhân viên hoặc lịch sử công tác. |
+| `2.3` | `POST /api/assignments` (`type = 'Điều chuyển'`) | `admin`, `hr`, `director` | - Ghi nhận quyết định điều chuyển từ `mapbcu` sang `mapbmoi` và cập nhật đồng thời hồ sơ nhân viên trong 1 transaction. |
+| `2.4` | `POST /api/assignments` (`type = 'Bổ nhiệm'` / `'Điều chuyển và bổ nhiệm'`) | `admin`, `hr`, `director` | - Ghi nhận quyết định bổ nhiệm từ `macvcu` sang `macvmoi` và cập nhật đồng thời hồ sơ nhân viên. |
 
 ## 4. Hướng dẫn Sửa đổi / Bảo trì sau này
 - **Thay đổi thang cấp bậc chức vụ**: Sửa ràng buộc `CHECK (level BETWEEN 1 AND 10)` trong `backend/src/db/schema.sql` và hàm `numeric(b, 'level', 1, 10)` trong `backend/src/routes/catalogs.routes.ts`.

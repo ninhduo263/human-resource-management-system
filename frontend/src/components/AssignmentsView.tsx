@@ -54,13 +54,13 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   const activeEmployees = state.employees.filter(
-    (e) => ['Đang làm việc', 'Thử việc'].includes(e.status)
+    (e) => ['Đang làm việc', 'Thử việc'].includes(e.trangthai)
   );
   const [selectedEmpId, setSelectedEmpId] = useState(
-    activeEmployees[0]?.id || ''
+    activeEmployees[0]?.manv || ''
   );
-  const [newDeptId, setNewDeptId] = useState(state.departments[0]?.id || '');
-  const [newPosId, setNewPosId] = useState(state.positions[0]?.id || '');
+  const [newDeptId, setNewDeptId] = useState(state.departments[0]?.mapb || '');
+  const [newPosId, setNewPosId] = useState(state.positions[0]?.macv || '');
   const [moveType, setMoveType] = useState<string>('Điều chuyển');
   const [decisionNumber, setDecisionNumber] = useState('');
   const [signedDate, setSignedDate] = useState(state.today);
@@ -68,21 +68,21 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
   const [signer, setSigner] = useState('Trần Hải Đăng');
   const [reason, setReason] = useState('');
 
-  const emp = (id: string) => state.employees.find((e) => e.id === id);
+  const emp = (id: string) => state.employees.find((e) => e.manv === id);
   const deptName = (id: string | null) =>
-    state.departments.find((d) => d.id === id)?.name || id || 'Không thuộc phòng ban';
+    state.departments.find((d) => d.mapb === id)?.tenpb || id || 'Không thuộc phòng ban';
   const posName = (id: string) =>
-    state.positions.find((p) => p.id === id)?.name || id;
+    state.positions.find((p) => p.macv === id)?.tencv || id;
 
   const filtered = state.assignments.filter((a) =>
-    matchEmployeeQuery(emp(a.employee_id), search, deptFilter)
+    matchEmployeeQuery(emp(a.manv), search, deptFilter)
   );
 
   const handleOpenForm = () => {
     const first = activeEmployees[0];
-    setSelectedEmpId(first?.id || '');
-    setNewDeptId(first?.department_id || state.departments[0]?.id || '');
-    setNewPosId(first?.position_id || state.positions[0]?.id || '');
+    setSelectedEmpId(first?.manv || '');
+    setNewDeptId(first?.mapb || state.departments[0]?.mapb || '');
+    setNewPosId(first?.macv || state.positions[0]?.macv || '');
     setMoveType('Điều chuyển');
     setDecisionNumber('');
     setSignedDate(state.today);
@@ -96,24 +96,24 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
   const updateSuggestedType = (empId: string, dId: string, pId: string) => {
     const e = emp(empId);
     if (!e) return;
-    if (e.department_id !== dId && e.position_id !== pId) {
+    if (e.mapb !== dId && e.macv !== pId) {
       setMoveType('Điều chuyển và bổ nhiệm');
-    } else if (e.department_id !== dId) {
+    } else if (e.mapb !== dId) {
       setMoveType('Điều chuyển');
-    } else if (e.position_id !== pId) {
+    } else if (e.macv !== pId) {
       setMoveType('Bổ nhiệm');
     }
   };
 
   const handleSelectExistingDecision = (decId: string) => {
-    const d = state.decisions.find((x) => x.id === decId);
+    const d = state.decisions.find((x) => x.maqd === decId);
     if (!d) return;
-    setDecisionNumber(d.number);
-    setMoveType(d.type);
-    setSignedDate(d.signed_date);
-    setEffectiveDate(d.effective_date);
-    setSigner(d.signer);
-    setReason(d.content);
+    setDecisionNumber(d.soqd);
+    setMoveType(d.loaiqd);
+    setSignedDate(d.ngayky);
+    setEffectiveDate(d.ngayhieuluc);
+    setSigner(d.nguoiky);
+    setReason(d.noidung);
   };
 
   const handleSaveAssignment = async (e: React.FormEvent) => {
@@ -124,15 +124,15 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
       await apiRequest(
         '/api/assignments',
         {
-          employee_id: selectedEmpId,
-          type: moveType,
-          number: decisionNumber,
-          new_department_id: newDeptId,
-          new_position_id: newPosId,
-          signed_date: signedDate,
-          effective_date: effectiveDate,
-          signer,
-          reason,
+          manv: selectedEmpId,
+          loaibiendong: moveType,
+          soqd: decisionNumber,
+          mapbmoi: newDeptId,
+          macvmoi: newPosId,
+          ngayky: signedDate,
+          ngayhieuluc: effectiveDate,
+          nguoiky: signer,
+          lydo: reason,
         },
         'POST'
       );
@@ -148,15 +148,15 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
 
   const handleCancelAssignment = async (a: Assignment) => {
     const reason = window.prompt(
-      a.status === 'Chờ hiệu lực'
+      a.trangthai === 'Chờ hiệu lực'
         ? 'Lý do hủy quyết định chờ hiệu lực:'
         : 'Lý do hoàn tác quyết định (hồ sơ sẽ trở về phòng ban/chức vụ cũ):'
     );
     if (!reason || !reason.trim()) return;
     try {
       await apiRequest(
-        `/api/assignments/${encodeURIComponent(a.id)}/cancel`,
-        { reason: reason.trim() },
+        `/api/assignments/${encodeURIComponent(a.maqt)}/cancel`,
+        { lydohuy: reason.trim() },
         'POST'
       );
       notify('Đã hủy quyết định công tác.');
@@ -180,15 +180,15 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
         'Số quyết định',
       ],
       filtered.map((a) => [
-        emp(a.employee_id)?.name || 'Nhân viên',
-        a.type,
-        deptName(a.old_department_id),
-        deptName(a.new_department_id),
-        posName(a.old_position_id),
-        posName(a.new_position_id),
-        a.effective_date,
-        state.decisions.find((d) => d.id === a.decision_id)?.number ||
-          a.decision_id,
+        emp(a.manv)?.hoten || 'Nhân viên',
+        a.loaibiendong,
+        deptName(a.mapbcu),
+        deptName(a.mapbmoi),
+        posName(a.macvcu),
+        posName(a.macvmoi),
+        a.ngayhieuluc,
+        state.decisions.find((d) => d.maqd === a.maqd)?.soqd ||
+          a.maqd,
       ])
     );
   };
@@ -198,15 +198,15 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
       title: 'Nhân viên',
       key: 'employee',
       render: (_: unknown, a: Assignment) => {
-        const e = emp(a.employee_id);
+        const e = emp(a.manv);
         return (
           <Space>
-            <Avatar style={{ backgroundColor: getAvatarHex(e?.id) }}>
-              {getInitials(e?.name)}
+            <Avatar style={{ backgroundColor: getAvatarHex(e?.manv) }}>
+              {getInitials(e?.hoten)}
             </Avatar>
             <div>
               <div className="font-semibold text-slate-900">
-                {e?.name || 'Nhân viên'}
+                {e?.hoten || 'Nhân viên'}
               </div>
             </div>
           </Space>
@@ -215,8 +215,8 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
     },
     {
       title: 'Loại biến động',
-      dataIndex: 'type',
-      key: 'type',
+      dataIndex: 'loaibiendong',
+      key: 'loaibiendong',
       render: (type: string) => <Tag color={getAntTagColor(type)}>{type}</Tag>,
     },
     {
@@ -224,8 +224,8 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
       key: 'dept',
       render: (_: unknown, a: Assignment) => (
         <span className="text-xs">
-          <Text type="secondary">{deptName(a.old_department_id)}</Text> →{' '}
-          <strong>{deptName(a.new_department_id)}</strong>
+          <Text type="secondary">{deptName(a.mapbcu)}</Text> →{' '}
+          <strong>{deptName(a.mapbmoi)}</strong>
         </span>
       ),
     },
@@ -234,22 +234,22 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
       key: 'pos',
       render: (_: unknown, a: Assignment) => (
         <span className="text-xs">
-          <Text type="secondary">{posName(a.old_position_id)}</Text> →{' '}
-          <strong>{posName(a.new_position_id)}</strong>
+          <Text type="secondary">{posName(a.macvcu)}</Text> →{' '}
+          <strong>{posName(a.macvmoi)}</strong>
         </span>
       ),
     },
     {
       title: 'Ngày hiệu lực',
-      dataIndex: 'effective_date',
-      key: 'effective_date',
+      dataIndex: 'ngayhieuluc',
+      key: 'ngayhieuluc',
       render: (d: string) => formatDate(d),
     },
     {
       title: 'Trạng thái',
       key: 'status',
       render: (_: unknown, a: Assignment) => {
-        const status = a.status || 'Hiệu lực';
+        const status = a.trangthai || 'Hiệu lực';
         return (
           <Tag color={status === 'Hiệu lực' ? 'success' : status === 'Chờ hiệu lực' ? 'warning' : 'default'}>
             {status}
@@ -261,8 +261,8 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
       title: 'Số quyết định',
       key: 'decision',
       render: (_: unknown, a: Assignment) => {
-        const dec = state.decisions.find((d) => d.id === a.decision_id);
-        return <Text code>{dec?.number || a.decision_id}</Text>;
+        const dec = state.decisions.find((d) => d.maqd === a.maqd);
+        return <Text code>{dec?.soqd || a.maqd}</Text>;
       },
     },
     {
@@ -270,9 +270,9 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
       key: 'actions',
       align: 'right' as const,
       render: (_: unknown, a: Assignment) => {
-        const dec = state.decisions.find((d) => d.id === a.decision_id);
+        const dec = state.decisions.find((d) => d.maqd === a.maqd);
         const canCancel =
-          ['admin', 'hr', 'director'].includes(state.user.role) && a.status !== 'Đã hủy';
+          ['admin', 'hr', 'director'].includes(state.user.vaitro) && a.trangthai !== 'Đã hủy';
         return (
           <Space size={0}>
             {dec && (
@@ -312,7 +312,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
           <Button icon={<DownloadOutlined />} onClick={handleExport}>
             Xuất lịch sử
           </Button>
-          {canAssign(state.user.role) && (
+          {canAssign(state.user.vaitro) && (
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -349,8 +349,8 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
               options={[
                 { value: '', label: 'Tất cả phòng ban' },
                 ...state.departments.map((d) => ({
-                  value: d.id,
-                  label: d.name,
+                  value: d.mapb,
+                  label: d.tenpb,
                 })),
               ]}
             />
@@ -358,7 +358,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
         </div>
 
         <Table
-          rowKey="id"
+          rowKey="maqt"
           columns={columns}
           dataSource={filtered}
           pagination={{ pageSize: 8, showSizeChanger: false }}
@@ -391,8 +391,8 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                 allowClear
                 onChange={(val) => val && handleSelectExistingDecision(val)}
                 options={state.decisions.map((d) => ({
-                  value: d.id,
-                  label: `${d.number} · ${d.type} · Ngày HL: ${d.effective_date} (Người ký: ${d.signer})`,
+                  value: d.maqd,
+                  label: `${d.soqd} · ${d.loaiqd} · Ngày HL: ${d.ngayhieuluc} (Người ký: ${d.nguoiky})`,
                 }))}
               />
             </div>
@@ -409,16 +409,16 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                   setSelectedEmpId(id);
                   const target = emp(id);
                   if (target) {
-                    setNewDeptId(target.department_id || state.departments[0]?.id || '');
-                    setNewPosId(target.position_id);
+                    setNewDeptId(target.mapb || state.departments[0]?.mapb || '');
+                    setNewPosId(target.macv);
                   }
                 }}
                 className="w-full"
                 options={activeEmployees.map((e) => ({
-                  value: e.id,
-                  label: `${e.name} (${e.email}) (Hiện tại: ${deptName(
-                    e.department_id
-                  )} · ${posName(e.position_id)})`,
+                  value: e.manv,
+                  label: `${e.hoten} (${e.email}) (Hiện tại: ${deptName(
+                    e.mapb
+                  )} · ${posName(e.macv)})`,
                 }))}
               />
             </div>
@@ -435,8 +435,8 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                 }}
                 className="w-full"
                 options={state.departments.map((d) => ({
-                  value: d.id,
-                  label: d.name,
+                  value: d.mapb,
+                  label: d.tenpb,
                 }))}
               />
             </div>
@@ -453,8 +453,8 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                 }}
                 className="w-full"
                 options={state.positions.map((p) => ({
-                  value: p.id,
-                  label: p.name,
+                  value: p.macv,
+                  label: p.tencv,
                 }))}
               />
             </div>
@@ -567,25 +567,25 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
               column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
             >
               <Descriptions.Item label="Mã bản ghi">
-                <Text code>{detailDecision.id}</Text>
+                <Text code>{detailDecision.maqd}</Text>
               </Descriptions.Item>
               <Descriptions.Item label="Số quyết định">
-                <Text code>{detailDecision.number}</Text>
+                <Text code>{detailDecision.soqd}</Text>
               </Descriptions.Item>
               <Descriptions.Item label="Loại quyết định">
-                {detailDecision.type}
+                {detailDecision.loaiqd}
               </Descriptions.Item>
               <Descriptions.Item label="Người ký">
-                {detailDecision.signer}
+                {detailDecision.nguoiky}
               </Descriptions.Item>
               <Descriptions.Item label="Ngày ký">
-                {formatDate(detailDecision.signed_date)}
+                {formatDate(detailDecision.ngayky)}
               </Descriptions.Item>
               <Descriptions.Item label="Ngày hiệu lực">
-                {formatDate(detailDecision.effective_date)}
+                {formatDate(detailDecision.ngayhieuluc)}
               </Descriptions.Item>
               <Descriptions.Item label="Nội dung" span={2}>
-                {detailDecision.content}
+                {detailDecision.noidung}
               </Descriptions.Item>
             </Descriptions>
 
@@ -594,18 +594,18 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
             </Divider>
             <div className="space-y-2">
               {state.assignments
-                .filter((a) => a.decision_id === detailDecision.id)
+                .filter((a) => a.maqd === detailDecision.maqd)
                 .map((a) => (
-                  <Card key={a.id} size="small">
+                  <Card key={a.maqt} size="small">
                     <div className="flex justify-between text-xs">
                       <strong>
-                        {emp(a.employee_id)?.name || 'Nhân viên'}
+                        {emp(a.manv)?.hoten || 'Nhân viên'}
                       </strong>
                       <Text type="secondary">
-                        {deptName(a.old_department_id)} →{' '}
-                        {deptName(a.new_department_id)} |{' '}
-                        {posName(a.old_position_id)} →{' '}
-                        {posName(a.new_position_id)}
+                        {deptName(a.mapbcu)} →{' '}
+                        {deptName(a.mapbmoi)} |{' '}
+                        {posName(a.macvcu)} →{' '}
+                        {posName(a.macvmoi)}
                       </Text>
                     </div>
                   </Card>

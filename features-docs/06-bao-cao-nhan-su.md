@@ -24,10 +24,10 @@
 
 | Mã BFD | Tên báo cáo | Tiêu chí thời gian lọc | Các cột dữ liệu xuất / hiển thị |
 | :--- | :--- | :--- | :--- |
-| `5.1` | **Thống kê nhân sự** | `join_date` (Ngày vào làm) | Mã nhân viên, Họ tên, Giới tính, Phòng ban, Chức vụ, Ngày vào làm, Trạng thái |
-| `5.2` | **Báo cáo biến động nhân sự** | `effective_date` (Ngày hiệu lực QĐ) | Nhân viên, Loại biến động, Phòng ban cũ, Phòng ban mới, Chức vụ mới, Ngày hiệu lực |
-| `5.3` | **Báo cáo hợp đồng lao động** | `start_date` (Ngày bắt đầu HĐ) | Mã hợp đồng, Nhân viên, Loại hợp đồng, Ngày bắt đầu, Ngày kết thúc, Mức lương, Trạng thái |
-| `5.4` | **Báo cáo nghỉ phép** | `start_date` (Ngày bắt đầu nghỉ) | Nhân viên, Loại nghỉ, Từ ngày, Đến ngày, Số ngày, Trạng thái, Người duyệt |
+| `5.1` | **Thống kê nhân sự** | `ngayvaolam` (Ngày vào làm) | Mã nhân viên, Họ tên, Giới tính, Phòng ban, Chức vụ, Ngày vào làm, Trạng thái |
+| `5.2` | **Báo cáo biến động nhân sự** | `ngayhieuluc` (Ngày hiệu lực QĐ) | Nhân viên, Loại biến động, Phòng ban cũ, Phòng ban mới, Chức vụ mới, Ngày hiệu lực |
+| `5.3` | **Báo cáo hợp đồng lao động** | `tungay` (Ngày bắt đầu HĐ) | Mã hợp đồng, Nhân viên, Loại hợp đồng, Ngày bắt đầu, Ngày kết thúc, Mức lương, Trạng thái |
+| `5.4` | **Báo cáo nghỉ phép** | `tungay` (Ngày bắt đầu nghỉ) | Nhân viên, Loại nghỉ, Từ ngày, Đến ngày, Số ngày, Trạng thái, Người duyệt |
 
 ## 4. Hướng dẫn Sửa đổi / Bảo trì sau này
 - **Thêm loại báo cáo thứ 5 hoặc thêm cột vào báo cáo**: Chỉnh sửa hàm `buildReportData()` và hằng số `REPORT_LABELS` trong `frontend/src/components/ReportsView.tsx`.
