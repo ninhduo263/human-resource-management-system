@@ -16,6 +16,7 @@ import {
   Popconfirm,
   Alert,
   Typography,
+  Dropdown,
 } from 'antd';
 import {
   PlusOutlined,
@@ -25,9 +26,14 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   EditOutlined,
+  CalendarOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons';
 import { AppState, LeaveBalance, LeaveRequest } from '../types';
 import { apiRequest } from '../api';
+import { LeaveCalendar, findOverlaps } from './LeaveCalendar';
+import { exportExcel, printReportPdf } from '../utils/exportFiles';
 import {
   canEdit,
   downloadCsv,
@@ -52,7 +58,7 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
   notify,
 }) => {
   const currentYear = Number(state.today.slice(0, 4));
-  const [tab, setTab] = useState<'requests' | 'balances'>('requests');
+  const [tab, setTab] = useState<'requests' | 'calendar' | 'balances'>('requests');
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [search, setSearch] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
@@ -217,56 +223,64 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
     }
   };
 
-  const handleExport = () => {
-    if (tab === 'balances') {
-      downloadCsv(
-        `peopleops-leave-balances-${selectedYear}.csv`,
-        [
-          'Nhân viên',
-          'Phòng ban',
-          'Năm',
-          'Tổng phép',
-          'Đã nghỉ',
-          'Còn lại',
-        ],
-        filteredBalances.map((b) => {
-          const e = emp(b.MaNV);
-          return [
-            e?.HoTen || 'Nhân viên',
-            e ? deptName(e.MaPB) : '',
-            b.Nam,
-            b.TongSoNgayPhep,
-            b.SoNgayDaNghi,
-            b.SoNgayConLai,
-          ];
-        })
-      );
-    } else {
-      downloadCsv(
-        `peopleops-leave-requests-${state.today}.csv`,
-        [
-          'Mã đơn',
-          'Nhân viên',
-          'Loại nghỉ',
-          'Từ ngày',
-          'Đến ngày',
-          'Số ngày',
-          'Trạng thái',
-          'Người duyệt',
-        ],
-        filteredRequests.map((l) => [
-          l.MaDon,
-          emp(l.MaNV)?.HoTen || 'Nhân viên',
-          leaveTypeName(l.MaLoai),
-          l.TuNgay,
-          l.DenNgay,
-          l.SoNgay,
-          l.TrangThai,
-          l.tennguoiduyet || l.MaNVDuyet || '—',
-        ])
-      );
+  const exportData = () =>
+    tab === 'balances'
+      ? {
+          name: `quy-phep-${selectedYear}`,
+          title: `Quỹ phép năm ${selectedYear}`,
+          headers: ['Nhân viên', 'Phòng ban', 'Năm', 'Tổng phép', 'Đã nghỉ', 'Còn lại'],
+          numeric: [2, 3, 4, 5],
+          rows: filteredBalances.map((b) => {
+            const e = emp(b.MaNV);
+            return [
+              e?.HoTen || 'Nhân viên',
+              e ? deptName(e.MaPB) : '',
+              b.Nam,
+              b.TongSoNgayPhep,
+              b.SoNgayDaNghi,
+              b.SoNgayConLai,
+            ];
+          }),
+        }
+      : {
+          name: `don-nghi-phep-${state.today}`,
+          title: 'Danh sách đơn nghỉ phép',
+          headers: ['Mã đơn', 'Nhân viên', 'Loại nghỉ', 'Từ ngày', 'Đến ngày', 'Số ngày', 'Trạng thái', 'Người duyệt'],
+          numeric: [5],
+          rows: filteredRequests.map((l) => [
+            l.MaDon,
+            emp(l.MaNV)?.HoTen || 'Nhân viên',
+            leaveTypeName(l.MaLoai),
+            formatDate(l.TuNgay),
+            formatDate(l.DenNgay),
+            Number(l.SoNgay),
+            l.TrangThai,
+            l.tennguoiduyet || l.MaNVDuyet || '—',
+          ]),
+        };
+
+  const handleExport = async (format: 'xlsx' | 'pdf' | 'csv') => {
+    const d = exportData();
+    if (format === 'csv') return downloadCsv(`${d.name}.csv`, d.headers, d.rows);
+    const spec = {
+      title: d.title,
+      fileName: d.name,
+      headers: d.headers,
+      rows: d.rows,
+      numericColumns: d.numeric,
+      author: state.user.HoTen,
+      meta: [['Phòng ban', deptFilter ? deptName(deptFilter) : 'Tất cả']] as [string, string][],
+    };
+    try {
+      if (format === 'pdf') printReportPdf(spec);
+      else await exportExcel(spec);
+      notify(`Đã xuất ${d.rows.length} dòng.`);
+    } catch (err: any) {
+      notify(err?.message || 'Không thể xuất file.', true);
     }
   };
+
+  const reviewOverlaps = reviewModal ? findOverlaps(state, reviewModal.leave) : [];
 
   const requestColumns = [
     {
@@ -427,9 +441,20 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
         </div>
 
         <Space className="no-print w-full sm:w-auto flex-wrap">
-          <Button icon={<DownloadOutlined />} onClick={handleExport}>
-            Xuất CSV
-          </Button>
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'xlsx', icon: <FileExcelOutlined />, label: 'Excel (.xlsx)' },
+                { key: 'pdf', icon: <FilePdfOutlined />, label: 'PDF (in / lưu)' },
+                { key: 'csv', label: 'CSV' },
+              ],
+              onClick: ({ key }) => handleExport(key as 'xlsx' | 'pdf' | 'csv'),
+            }}
+          >
+            <Button icon={<DownloadOutlined />}>
+              Xuất {tab === 'balances' ? 'quỹ phép' : 'danh sách đơn'}
+            </Button>
+          </Dropdown>
           {state.user.VaiTro !== 'director' && (
             <Button
               type="primary"
@@ -445,18 +470,26 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
       <Alert
         type="info"
         showIcon
-        message="Số ngày nghỉ tính theo ngày lịch (gồm ngày bắt đầu và kết thúc). Chỉ các đơn loại Phép năm đã được phê duyệt mới khấu trừ vào quỹ phép năm (mặc định 12 ngày/năm)."
+        message="Số ngày nghỉ tính theo ngày làm việc (không tính thứ Bảy, Chủ nhật và ngày lễ). Chỉ các đơn loại Phép năm đã được phê duyệt mới khấu trừ vào quỹ phép năm (mặc định 12 ngày/năm)."
       />
 
       <Card bordered={false} className="shadow-xs">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
           <Tabs
             activeKey={tab}
-            onChange={(k) => setTab(k as 'requests' | 'balances')}
+            onChange={(k) => setTab(k as 'requests' | 'calendar' | 'balances')}
             items={[
               {
                 key: 'requests',
                 label: `Đơn nghỉ phép (${state.leaves.length})`,
+              },
+              {
+                key: 'calendar',
+                label: (
+                  <span>
+                    <CalendarOutlined /> Lịch nghỉ
+                  </span>
+                ),
               },
               {
                 key: 'balances',
@@ -524,6 +557,13 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
             pagination={{ pageSize: 8, showSizeChanger: false }}
             size="middle"
             scroll={{ x: 800 }}
+          />
+        ) : tab === 'calendar' ? (
+          <LeaveCalendar
+            state={state}
+            search={search}
+            deptFilter={deptFilter}
+            onOpenLeave={setDetailLeave}
           />
         ) : (
           <Table
@@ -753,6 +793,23 @@ export const LeavesView: React.FC<LeavesViewProps> = ({
                 reviewModal.leave.MaNV
               } · ${reviewModal.leave.SoNgay} ngày`}
             />
+            {reviewModal.approve && reviewOverlaps.length > 0 && (
+              <Alert
+                type="warning"
+                showIcon
+                className="mb-4"
+                message={`Trùng lịch: ${reviewOverlaps.length} người cùng phòng cũng nghỉ trong khoảng này`}
+                description={
+                  <ul className="list-disc pl-4 m-0 text-xs">
+                    {reviewOverlaps.slice(0, 5).map((l) => (
+                      <li key={l.MaDon}>
+                        {emp(l.MaNV)?.HoTen} · {formatDate(l.TuNgay)} – {formatDate(l.DenNgay)} ({l.TrangThai})
+                      </li>
+                    ))}
+                  </ul>
+                }
+              />
+            )}
             {formError && (
               <Alert
                 type="error"

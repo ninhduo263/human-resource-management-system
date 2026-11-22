@@ -11,11 +11,14 @@ import {
   Space,
   Tag,
   Typography,
+  Dropdown,
 } from 'antd';
 import {
   PrinterOutlined,
   DownloadOutlined,
   ReloadOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons';
 import { AppState } from '../types';
 import {
@@ -23,7 +26,9 @@ import {
   formatDate,
   formatMoney,
   getContractStatus,
+  ROLE_NAMES,
 } from '../utils/format';
+import { exportExcel, printReportPdf, ReportSpec } from '../utils/exportFiles';
 
 const { Title, Text } = Typography;
 
@@ -46,6 +51,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
   const [reportDept, setReportDept] = useState('');
   const [reportFrom, setReportFrom] = useState('');
   const [reportTo, setReportTo] = useState('');
+  const [exporting, setExporting] = useState(false);
 
   const emp = (id: string) => state.employees.find((e) => e.MaNV === id);
   const empName = (id: string) => emp(id)?.HoTen || id;
@@ -173,6 +179,42 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
     notify(`Đã xuất ${data.rows.length} bản ghi ra file CSV.`);
   };
 
+  const reportSpec = (): ReportSpec => ({
+    title: REPORT_LABELS[reportType],
+    fileName: `bao-cao-${reportType}-${state.today}`,
+    headers: data.headers,
+    rows: data.rows,
+    author: state.user.HoTen,
+    numericColumns: reportType === 'leaves' ? [4] : reportType === 'contracts' ? [4] : [],
+    meta: [
+      ['Phạm vi phòng ban', reportDept ? deptName(reportDept) : 'Toàn bộ đơn vị'],
+      [
+        'Khoảng thời gian',
+        reportFrom || reportTo
+          ? `${reportFrom ? formatDate(reportFrom) : '…'} – ${reportTo ? formatDate(reportTo) : '…'}`
+          : 'Tất cả',
+      ],
+      ['Người lập', `${state.user.HoTen} (${ROLE_NAMES[state.user.VaiTro]})`],
+    ],
+  });
+
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      await exportExcel(reportSpec());
+      notify(`Đã xuất ${data.rows.length} bản ghi ra file Excel.`);
+    } catch (err: any) {
+      notify(err?.message || 'Không thể tạo file Excel.', true);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportPdf = () => {
+    printReportPdf(reportSpec());
+    notify('Chọn "Lưu dưới dạng PDF" trong hộp thoại in để lưu báo cáo.');
+  };
+
   const tableColumns = data.headers.map((h, idx) => ({
     title: h,
     dataIndex: `col_${idx}`,
@@ -200,16 +242,24 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ state, notify }) => {
         </div>
 
         <Space className="no-print w-full sm:w-auto flex-wrap">
-          <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-            In / Lưu PDF
+          <Button icon={<FilePdfOutlined />} onClick={handleExportPdf}>
+            Xuất PDF
           </Button>
-          <Button
+          <Dropdown.Button
             type="primary"
+            loading={exporting}
+            onClick={handleExportExcel}
             icon={<DownloadOutlined />}
-            onClick={handleExportCsv}
+            menu={{
+              items: [
+                { key: 'csv', label: 'Tải file CSV' },
+                { key: 'print', icon: <PrinterOutlined />, label: 'In trang hiện tại' },
+              ],
+              onClick: ({ key }) => (key === 'csv' ? handleExportCsv() : window.print()),
+            }}
           >
-            Tải báo cáo CSV
-          </Button>
+            <FileExcelOutlined /> Xuất Excel
+          </Dropdown.Button>
         </Space>
       </div>
 

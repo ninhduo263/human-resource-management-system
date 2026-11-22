@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ConfigProvider,
   Layout,
@@ -11,6 +11,7 @@ import {
   Typography,
   Spin,
   message,
+  notification,
   Drawer,
 } from 'antd';
 import viVN from 'antd/locale/vi_VN';
@@ -24,7 +25,6 @@ import {
   BarChartOutlined,
   SafetyCertificateOutlined,
   LogoutOutlined,
-  BellOutlined,
   SearchOutlined,
   MenuOutlined,
   MoreOutlined,
@@ -46,6 +46,8 @@ import { AssignmentsView } from './components/AssignmentsView';
 import { LeavesView } from './components/LeavesView';
 import { ReportsView } from './components/ReportsView';
 import { SettingsView } from './components/SettingsView';
+import { AlertIcon, NotificationBell } from './components/NotificationBell';
+import { AssistantChat } from './components/AssistantChat';
 
 const { Sider, Header, Content, Footer } = Layout;
 const { Text } = Typography;
@@ -61,7 +63,14 @@ export const App: React.FC = () => {
   const [empSearchQuery, setEmpSearchQuery] = useState('');
   const [globalSearch, setGlobalSearch] = useState('');
 
-  const [messageApi, contextHolder] = message.useMessage();
+  const [messageApi, messageHolder] = message.useMessage();
+  const [notificationApi, notificationHolder] = notification.useNotification();
+  const contextHolder = (
+    <>
+      {messageHolder}
+      {notificationHolder}
+    </>
+  );
 
   const notify = (msg: string, isError = false) => {
     if (isError) {
@@ -98,6 +107,59 @@ export const App: React.FC = () => {
   useEffect(() => {
     refreshState();
   }, []);
+
+  // ---- Thông báo thời gian thực (SSE) -------------------------------------
+  // Máy chủ chỉ báo "có thay đổi"; ta tải lại state theo quyền và bật toast cho cảnh báo MỚI.
+  const [live, setLive] = useState(false);
+  const knownAlerts = useRef<Set<string> | null>(null);
+  const loggedInKey = state?.user.MaTK ?? null;
+
+  useEffect(() => {
+    if (!state) {
+      knownAlerts.current = null;
+      return;
+    }
+    const ids = new Set(state.alerts.map((a) => a.id));
+    if (knownAlerts.current) {
+      const fresh = state.alerts.filter(
+        (a) => !knownAlerts.current!.has(a.id) && ['danger', 'warning', 'success'].includes(a.severity)
+      );
+      fresh.slice(0, 3).forEach((a) =>
+        notificationApi.open({
+          message: a.title,
+          description: a.description,
+          placement: 'topRight',
+          duration: 6,
+          icon: <AlertIcon severity={a.severity} />,
+          onClick: () => navigateTo(a.route),
+          style: { cursor: 'pointer' },
+        })
+      );
+    }
+    knownAlerts.current = ids;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
+  useEffect(() => {
+    if (!loggedInKey || typeof EventSource === 'undefined') return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const es = new EventSource('/api/events');
+    es.addEventListener('ready', () => setLive(true));
+    es.addEventListener('changed', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        apiRequest<AppState>('/api/state')
+          .then(setState)
+          .catch((err) => err.status === 401 && setState(null));
+      }, 400);
+    });
+    es.onerror = () => setLive(false);
+    return () => {
+      clearTimeout(timer);
+      es.close();
+      setLive(false);
+    };
+  }, [loggedInKey]);
 
   const handleLogout = async () => {
     try {
@@ -392,15 +454,12 @@ export const App: React.FC = () => {
                 {formatDate(state.today)}
               </Text>
 
-              <Badge count={pendingLeavesCount} size="small">
-                <Button
-                  type="text"
-                  shape="circle"
-                  icon={<BellOutlined />}
-                  onClick={() => navigateTo('leaves')}
-                  title="Đơn nghỉ phép chờ duyệt"
-                />
-              </Badge>
+              <NotificationBell
+                alerts={state.alerts}
+                userKey={state.user.MaTK}
+                live={live}
+                onNavigate={navigateTo}
+              />
 
               <Space size={6}>
                 <Avatar
@@ -573,6 +632,7 @@ export const App: React.FC = () => {
           </nav>
         </Layout>
       </Layout>
+      <AssistantChat key={state.user.MaTK} user={state.user} />
     </ConfigProvider>
   );
 };

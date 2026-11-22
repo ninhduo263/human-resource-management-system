@@ -25,8 +25,10 @@ import {
   CalendarOutlined,
   CloseCircleOutlined,
   DollarOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons';
 import { AppState, Contract } from '../types';
+import { printContractPdf } from '../utils/exportFiles';
 import { apiRequest } from '../api';
 import {
   canEdit,
@@ -526,6 +528,21 @@ export const ContractsView: React.FC<ContractsViewProps> = ({
           detailContract && (
             <Space wrap>
               <Button onClick={() => setDetailContract(null)}>Đóng</Button>
+              <Button
+                icon={<FilePdfOutlined />}
+                onClick={() => {
+                  const e = state.employees.find((x) => x.MaNV === detailContract.MaNV);
+                  printContractPdf({
+                    contract: detailContract,
+                    employee: e,
+                    department: state.departments.find((d) => d.MaPB === e?.MaPB),
+                    position: state.positions.find((p) => p.MaCV === e?.MaCV),
+                    extensions: state.extensions.filter((x) => x.MaHD === detailContract.MaHD),
+                  });
+                }}
+              >
+                In hợp đồng (PDF)
+              </Button>
               {canEdit(state.user.VaiTro) &&
                 detailContract.TrangThai !== 'Đã chấm dứt' &&
                 detailContract.TrangThai !== 'Đã hủy bỏ' && (

@@ -153,6 +153,20 @@ export interface AuditEntry {
   DiaChiIP?: string | null;
 }
 
+export type AlertSeverity = 'danger' | 'warning' | 'info' | 'success';
+
+/** Cảnh báo do máy chủ suy ra từ dữ liệu trong phạm vi quyền của người dùng. */
+export interface AppAlert {
+  id: string;
+  kind: string;
+  severity: AlertSeverity;
+  title: string;
+  description: string;
+  date: string;
+  route: 'leaves' | 'contracts' | 'assignments' | 'employees';
+  refId?: string;
+}
+
 export interface AppState {
   user: SessionUser;
   today: string;
@@ -168,6 +182,7 @@ export interface AppState {
   balances: LeaveBalance[];
   users: UserAccount[];
   audit: AuditEntry[];
+  alerts: AppAlert[];
 }
 
 export type RouteKey =

@@ -6,6 +6,8 @@ import { catalogsRouter } from './routes/catalogs.routes.js';
 import { contractsRouter } from './routes/contracts.routes.js';
 import { assignmentsRouter } from './routes/assignments.routes.js';
 import { leavesRouter } from './routes/leaves.routes.js';
+import { assistantRouter } from './routes/assistant.routes.js';
+import { broadcastChange } from './services/realtime.js';
 import { fail } from './utils/validation.js';
 import { requestContext } from './utils/http.js';
 
@@ -67,6 +69,22 @@ export function createExpressApp() {
 
   app.use(express.json({ limit: '64kb' }));
 
+  // Thông báo thời gian thực: sau mỗi thao tác ghi thành công, báo cho mọi trình duyệt đang mở
+  // rằng phân hệ tương ứng vừa thay đổi (không gửi kèm dữ liệu).
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (
+      ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) &&
+      !/^\/api\/(login|logout|password|assistant)(\/|$)/.test(req.path)
+    ) {
+      // Lấy tên phân hệ ngay bây giờ: router con sẽ cắt tiền tố của req.url trong lúc xử lý.
+      const topic = req.path.split('/')[2] || 'state';
+      res.on('finish', () => {
+        if (res.statusCode < 400) broadcastChange(topic);
+      });
+    }
+    next();
+  });
+
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
   });
@@ -78,6 +96,7 @@ export function createExpressApp() {
   app.use('/api/contracts', contractsRouter);
   app.use('/api/assignments', assignmentsRouter);
   app.use('/api', leavesRouter);
+  app.use('/api/assistant', assistantRouter);
 
   app.use('/api/*', (_req, _res, next) => {
     try {

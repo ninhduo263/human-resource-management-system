@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  Dropdown,
   Card,
   Row,
   Col,
@@ -20,12 +21,15 @@ import {
   DownloadOutlined,
   PlusOutlined,
   ArrowRightOutlined,
-  ClockCircleOutlined,
+  FileExcelOutlined,
+  FilePdfOutlined,
 } from '@ant-design/icons';
-import { AppState, Employee, RouteKey } from '../types';
+import { AlertSeverity, AppState, Employee, RouteKey } from '../types';
+import { AlertIcon } from './NotificationBell';
+import { exportExcel, printReportPdf } from '../utils/exportFiles';
 import {
   canEdit,
-  daysUntil,
+  formatDate,
   downloadCsv,
   getAntTagColor,
   getAvatarHex,
@@ -34,6 +38,13 @@ import {
 } from '../utils/format';
 
 const { Title, Text } = Typography;
+
+const ALERT_BOX: Record<AlertSeverity, string> = {
+  danger: 'bg-rose-50/70 border-rose-200/80',
+  warning: 'bg-amber-50/70 border-amber-200/80',
+  info: 'bg-sky-50/60 border-sky-200/70',
+  success: 'bg-[#f4f8ef] border-[#dce6d2]',
+};
 
 interface DashboardViewProps {
   state: AppState;
@@ -84,32 +95,51 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     )
   );
 
-  const handleExportOverview = () => {
-    downloadCsv(
-      `peopleops-nhan-su-${state.today}.csv`,
-      [
-        'Họ tên',
-        'Ngày sinh',
-        'Giới tính',
-        'Email',
-        'Điện thoại',
-        'Phòng ban',
-        'Chức vụ',
-        'Ngày vào làm',
-        'Trạng thái',
-      ],
-      activeEmployees.map((e) => [
-        e.HoTen,
-        e.NgaySinh,
-        e.GioiTinh,
-        e.Email,
-        e.SoDienThoai,
-        deptName(e.MaPB),
-        posName(e.MaCV),
-        e.NgayVaoLam,
-        e.TrangThai,
-      ])
-    );
+  const [showAllAlerts, setShowAllAlerts] = useState(false);
+  const alertCounts = {
+    danger: state.alerts.filter((a) => a.severity === 'danger').length,
+    warning: state.alerts.filter((a) => a.severity === 'warning').length,
+  };
+
+  const overviewHeaders = [
+    'Họ tên',
+    'Ngày sinh',
+    'Giới tính',
+    'Email',
+    'Điện thoại',
+    'Phòng ban',
+    'Chức vụ',
+    'Ngày vào làm',
+    'Trạng thái',
+  ];
+  const overviewRows = () =>
+    activeEmployees.map((e) => [
+      e.HoTen,
+      formatDate(e.NgaySinh),
+      e.GioiTinh,
+      e.Email,
+      e.SoDienThoai,
+      deptName(e.MaPB),
+      posName(e.MaCV),
+      formatDate(e.NgayVaoLam),
+      e.TrangThai,
+    ]);
+
+  const handleExportOverview = async (format: 'xlsx' | 'pdf' | 'csv') => {
+    if (format === 'csv') {
+      downloadCsv(`peopleops-nhan-su-${state.today}.csv`, overviewHeaders, overviewRows());
+      return;
+    }
+    const spec = {
+      title: 'Danh sách nhân sự đang làm việc',
+      fileName: `danh-sach-nhan-su-${state.today}`,
+      headers: overviewHeaders,
+      rows: overviewRows(),
+      author: state.user.HoTen,
+      meta: [['Tổng số', `${activeEmployees.length} nhân viên`]] as [string, string][],
+    };
+    if (format === 'pdf') printReportPdf(spec);
+    else await exportExcel(spec);
   };
 
   const columns = [
@@ -164,9 +194,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         <Space className="no-print w-full sm:w-auto flex-wrap">
-          <Button icon={<DownloadOutlined />} onClick={handleExportOverview}>
-            Xuất danh sách nhân sự
-          </Button>
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'xlsx', icon: <FileExcelOutlined />, label: 'Excel (.xlsx)' },
+                { key: 'pdf', icon: <FilePdfOutlined />, label: 'PDF (in / lưu)' },
+                { key: 'csv', label: 'CSV' },
+              ],
+              onClick: ({ key }) => handleExportOverview(key as 'xlsx' | 'pdf' | 'csv'),
+            }}
+          >
+            <Button icon={<DownloadOutlined />}>Xuất danh sách nhân sự</Button>
+          </Dropdown>
           {canEdit(state.user.VaiTro) ? (
             <Button
               type="primary"
@@ -364,71 +403,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         <Col xs={24} lg={10}>
           <Card
-            title="Việc cần xử lý hôm nay"
+            title="Việc cần xử lý & cảnh báo"
+            extra={
+              <Space size={4}>
+                {alertCounts.danger > 0 && <Tag color="error" className="m-0">{alertCounts.danger} khẩn</Tag>}
+                {alertCounts.warning > 0 && <Tag color="warning" className="m-0">{alertCounts.warning} cần lưu ý</Tag>}
+              </Space>
+            }
             bordered={false}
             className="h-full"
           >
-            <div className="space-y-3">
-              {expiringContracts.slice(0, 3).map((c) => (
-                <div
-                  key={c.MaHD}
-                  className="flex items-start justify-between gap-3 rounded-xl bg-amber-50/70 border border-amber-200/80 p-3.5"
+            <div className="space-y-2.5">
+              {state.alerts.slice(0, showAllAlerts ? 30 : 5).map((a) => (
+                <button
+                  type="button"
+                  key={a.id}
+                  onClick={() => onNavigate(a.route)}
+                  className={`w-full text-left flex items-start gap-2.5 rounded-xl border p-3 transition-colors hover:brightness-[0.98] ${ALERT_BOX[a.severity]}`}
                 >
-                  <div className="flex items-start gap-2.5">
-                    <ClockCircleOutlined className="text-amber-600 mt-0.5 text-sm" />
-                    <div>
-                      <div className="text-xs font-semibold text-[#172b23]">
-                        Hợp đồng sắp hết hạn trong{' '}
-                        <span className="tabular-nums">
-                          {daysUntil(c.NgayKetThuc!, state.today)}
-                        </span>{' '}
-                        ngày
-                      </div>
-                      <div className="text-xs text-[#5e7066] mt-0.5">
-                        {empName(c.MaNV)} · Hết hạn: {c.NgayKetThuc}
-                      </div>
-                    </div>
+                  <AlertIcon severity={a.severity} />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold text-[#172b23]">{a.title}</div>
+                    <div className="text-xs text-[#5e7066] mt-0.5">{a.description}</div>
                   </div>
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => onNavigate('contracts')}
-                    className="shrink-0"
-                  >
-                    Xử lý
-                  </Button>
-                </div>
+                  <ArrowRightOutlined className="text-[#9aaba1] text-xs mt-1" />
+                </button>
               ))}
 
-              {pendingLeaves.length > 0 && (
-                <div className="flex items-start justify-between gap-3 rounded-xl bg-[#f4f8ef] border border-[#dce6d2] p-3.5">
-                  <div className="flex items-start gap-2.5">
-                    <CalendarOutlined className="text-[#155e4b] mt-0.5 text-sm" />
-                    <div>
-                      <div className="text-xs font-semibold text-[#172b23]">
-                        <span className="tabular-nums">{pendingLeaves.length}</span>{' '}
-                        đơn nghỉ phép đang chờ duyệt
-                      </div>
-                      <div className="text-xs text-[#5e7066] mt-0.5">
-                        Kiểm tra lịch làm việc và quỹ phép năm của nhân viên.
-                      </div>
-                    </div>
-                  </div>
-                  <Button
-                    type="link"
-                    size="small"
-                    onClick={() => onNavigate('leaves')}
-                    className="shrink-0"
-                  >
-                    Xem đơn
-                  </Button>
-                </div>
+              {state.alerts.length > 5 && (
+                <Button type="link" size="small" block onClick={() => setShowAllAlerts((v) => !v)}>
+                  {showAllAlerts ? 'Thu gọn' : `Xem thêm ${state.alerts.length - 5} cảnh báo`}
+                </Button>
               )}
 
-              {expiringContracts.length === 0 && pendingLeaves.length === 0 && (
+              {state.alerts.length === 0 && (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="Mọi hợp đồng và đơn nghỉ phép đã được xử lý"
+                  description="Không có việc nào cần xử lý — mọi thứ đều ổn 🎉"
                 />
               )}
             </div>

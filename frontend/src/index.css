@@ -317,3 +317,12 @@ h1.ant-typography, h2.ant-typography, h3.ant-typography, h4.ant-typography {
     border: 1px solid #e2e8f0 !important;
   }
 }
+
+/* Lịch nghỉ phép: ô ngày đang chọn dùng nền xanh nhạt của giao diện thay vì nền xám mặc định */
+.leave-calendar .ant-picker-cell-selected .ant-picker-calendar-date,
+.leave-calendar .ant-picker-cell-selected .ant-picker-cell-inner {
+  background: #eaf1e2 !important;
+  color: #172b23 !important;
+}
+.leave-calendar .ant-picker-cell-selected .ant-picker-calendar-date-value { color: #155e4b !important; font-weight: 700; }
+.leave-calendar .ant-picker-calendar-date-today { border-top-color: #155e4b !important; }

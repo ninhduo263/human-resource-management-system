@@ -51,3 +51,4 @@ Mỗi tính năng sau khi hoàn thành và toàn bộ nhật ký thay đổi đ�
 - [04. Phân hệ 3.0 - Quản lý Hợp đồng lao động (3.1 – 3.4)](./features-docs/04-hop-dong-lao-dong.md)
 - [05. Phân hệ 4.0 - Quản lý Công tác & Nghỉ phép (4.1 – 4.4)](./features-docs/05-cong-tac-va-nghi-phep.md)
 - [06. Phân hệ 5.0 - Báo cáo & Thống kê nhân sự (5.1 – 5.4)](./features-docs/06-bao-cao-nhan-su.md)
+- [07. Thông báo realtime, Lịch nghỉ phép, Xuất Excel/PDF, Trợ lý HR (AI)](./features-docs/07-thong-bao-lich-nghi-xuat-file-tro-ly-ai.md) — bật AI bằng cách thêm `ANTHROPIC_API_KEY=...` vào `.env`; để trống thì trợ lý chạy chế độ ngoại tuyến.

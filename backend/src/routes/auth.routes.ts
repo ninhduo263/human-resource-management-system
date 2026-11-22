@@ -7,6 +7,8 @@ import { extractToken, requireAuth, requireRole, SessionUser } from '../middlewa
 import { asyncHandler } from '../utils/http.js';
 import { runScheduledJobs } from '../services/jobs.js';
 import { canReviewLeave, defaultEntitlement } from '../services/leave.js';
+import { buildAlerts } from '../services/alerts.js';
+import { openEventStream } from '../services/realtime.js';
 
 export const authRouter = Router();
 
@@ -292,6 +294,8 @@ export async function buildScopedState(u: SessionUser) {
         )
       : [];
 
+  const alerts = buildAlerts({ user: u, today: currentDay, employees, contracts, assignments, leaves, balances });
+
   return {
     user: u,
     today: currentDay,
@@ -307,8 +311,12 @@ export async function buildScopedState(u: SessionUser) {
     balances,
     users,
     audit,
+    alerts,
   };
 }
+
+// Kênh thông báo thời gian thực (SSE): chỉ báo "có thay đổi", trình duyệt tự tải lại state theo quyền.
+authRouter.get('/events', requireAuth, (req, res) => openEventStream(req, res));
 
 authRouter.get(
   '/state',

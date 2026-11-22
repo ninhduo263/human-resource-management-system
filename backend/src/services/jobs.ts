@@ -2,6 +2,7 @@ import { withTransaction } from '../db/pool.js';
 import { today } from '../utils/validation.js';
 import { applyAssignment } from './assignments.js';
 import { finalizeTermination, syncEmployeeStatuses } from './employeeStatus.js';
+import { broadcastChange } from './realtime.js';
 
 let lastRun = 0;
 
@@ -13,6 +14,7 @@ let lastRun = 0;
 export async function runScheduledJobs(force = false): Promise<void> {
   if (!force && Date.now() - lastRun < 60_000) return;
   lastRun = Date.now();
+  let changed = false;
   await withTransaction(async (tx) => {
     const lock = await tx.one<{ ok: boolean }>(
       `SELECT pg_try_advisory_xact_lock(hashtext('peopleops:jobs')) AS ok`
@@ -59,7 +61,9 @@ export async function runScheduledJobs(force = false): Promise<void> {
     }
 
     await syncEmployeeStatuses(tx);
+    changed = terminations.length + salaries.length + due.length > 0;
   });
+  if (changed) broadcastChange('jobs');
 }
 
 export function startJobScheduler(): void {
