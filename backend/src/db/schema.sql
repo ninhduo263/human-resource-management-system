@@ -1,10 +1,10 @@
 -- ============================================================================
 -- PeopleOps HRMS - Nhom 16
--- PostgreSQL Schema ánh xạ trực tiếp từ thietke/erd.drawio:
---   10 thực thể nghiệp vụ + 5 thực thể hệ thống (taikhoan, phiendangnhap,
---   nhatkyhethong, ngayle, dangnhapthatbai).
--- Tên bảng và tên cột là tên thực thể/thuộc tính trong ERD, viết thường,
--- tiếng Việt không dấu (ví dụ NHANVIEN.MaNV -> nhanvien.manv).
+-- PostgreSQL Schema ánh xạ trực tiếp từ diagrams/erd.drawio:
+--   10 thực thể nghiệp vụ + 5 thực thể hệ thống (TAIKHOAN, PHIENDANGNHAP,
+--   NHATKYHETHONG, NGAYLE, DANGNHAPTHATBAI).
+-- Tên bảng viết IN HOA và tên cột viết PascalCase có dấu ngoặc kép trùng khớp
+-- 100% với tên thực thể/thuộc tính trong ERD (ví dụ "NHANVIEN"."MaNV").
 -- ============================================================================
 
 -- Đổi tên bảng cũ (tiếng Anh) sang tên tiếng Việt cho database đã khởi tạo trước đây.

@@ -177,7 +177,7 @@ export async function seedDatabase(): Promise<void> {
       ['admin', 'admin', 'NV001'],
       ['nhansu', 'hr', 'NV009'],
       ['truongphong', 'manager', 'NV002'],
-      ['NHANVIEN', 'employee', 'NV003'],
+      ['nhanvien', 'employee', 'NV003'],
       ['giamdoc', 'director', 'NV010'],
     ];
 

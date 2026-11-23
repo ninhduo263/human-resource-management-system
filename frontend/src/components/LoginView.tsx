@@ -121,7 +121,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSuccess }) => {
           <Form
             form={form}
             layout="vertical"
-            initialValues={{ username: 'admin', password: 'Demo@12345' }}
+            initialValues={{ TenDangNhap: 'admin', MatKhau: 'Demo@12345' }}
             onFinish={handleFinish}
             size="large"
           >
