@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Card,
   Table,
@@ -16,13 +16,20 @@ import {
   Typography,
 } from 'antd';
 import {
+  CalendarOutlined,
+  DeleteOutlined,
   KeyOutlined,
   PlusOutlined,
   SafetyOutlined,
 } from '@ant-design/icons';
 import { AppState, AuditEntry, UserAccount, UserRole } from '../types';
 import { apiRequest } from '../api';
-import { ROLE_NAMES } from '../utils/format';
+import { formatDate, ROLE_NAMES } from '../utils/format';
+
+interface HolidayRow {
+  Ngay: string;
+  TenNgayLe: string;
+}
 
 const { Title, Text } = Typography;
 
@@ -39,14 +46,64 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onForceLogout,
   notify,
 }) => {
-  const [tab, setTab] = useState<'users' | 'audit'>('users');
+  const [tab, setTab] = useState<'users' | 'holidays' | 'audit'>('users');
   const [pwOpen, setPwOpen] = useState(false);
   const [addUserOpen, setAddUserOpen] = useState(false);
+  const [addHolidayOpen, setAddHolidayOpen] = useState(false);
+  const [holidays, setHolidays] = useState<HolidayRow[]>([]);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const [pwForm] = Form.useForm();
   const [userForm] = Form.useForm();
+  const [holidayForm] = Form.useForm();
+
+  const canManageHolidays = ['admin', 'hr'].includes(state.user.VaiTro);
+
+  const loadHolidays = async () => {
+    try {
+      const rows = await apiRequest<HolidayRow[]>('/api/holidays');
+      setHolidays(
+        rows.map((r) => ({
+          Ngay: String(r.Ngay).slice(0, 10),
+          TenNgayLe: r.TenNgayLe,
+        }))
+      );
+    } catch {
+      setHolidays([]);
+    }
+  };
+
+  useEffect(() => {
+    loadHolidays();
+  }, [state.today]);
+
+  const handleSaveHoliday = async (values: { Ngay: string; TenNgayLe: string }) => {
+    setFormError('');
+    setSubmitting(true);
+    try {
+      await apiRequest('/api/holidays', values, 'POST');
+      setAddHolidayOpen(false);
+      notify('Đã lưu ngày nghỉ lễ.');
+      await loadHolidays();
+      await onRefresh();
+    } catch (err: any) {
+      setFormError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteHoliday = async (day: string) => {
+    try {
+      await apiRequest(`/api/holidays/${encodeURIComponent(day)}`, {}, 'DELETE');
+      notify('Đã xóa ngày nghỉ lễ.');
+      await loadHolidays();
+      await onRefresh();
+    } catch (err: any) {
+      notify(err.message, true);
+    }
+  };
 
   const handleChangePassword = async (values: Record<string, any>) => {
     setFormError('');
@@ -234,6 +291,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     },
   ];
 
+  const holidayColumns = [
+    {
+      title: 'Ngày lễ (Ngay)',
+      dataIndex: 'Ngay',
+      key: 'Ngay',
+      render: (d: string) => <Text code>{formatDate(d)} ({d})</Text>,
+    },
+    {
+      title: 'Tên ngày nghỉ lễ (TenNgayLe)',
+      dataIndex: 'TenNgayLe',
+      key: 'TenNgayLe',
+      render: (name: string) => <strong>{name}</strong>,
+    },
+    {
+      title: 'Năm',
+      key: 'year',
+      render: (_: unknown, r: HolidayRow) => <Tag color="blue">{r.Ngay.slice(0, 4)}</Tag>,
+    },
+    ...(canManageHolidays
+      ? [
+          {
+            title: 'Thao tác',
+            key: 'actions',
+            align: 'right' as const,
+            render: (_: unknown, r: HolidayRow) => (
+              <Popconfirm
+                title={`Xóa ngày lễ "${r.TenNgayLe}" (${formatDate(r.Ngay)})?`}
+                onConfirm={() => handleDeleteHoliday(r.Ngay)}
+                okText="Xóa"
+                cancelText="Hủy"
+              >
+                <Button size="small" type="link" danger icon={<DeleteOutlined />}>
+                  Xóa
+                </Button>
+              </Popconfirm>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -244,7 +342,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               : 'Tài khoản của tôi'}
           </Title>
           <Text type="secondary">
-            Quản lý mật khẩu, phân quyền tài khoản và theo dõi nhật ký hoạt động.
+            Quản lý mật khẩu, phân quyền tài khoản, lịch ngày nghỉ lễ và theo dõi nhật ký hoạt động.
           </Text>
         </div>
 
@@ -259,6 +357,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           >
             Đổi mật khẩu
           </Button>
+          {canManageHolidays && (
+            <Button
+              icon={<CalendarOutlined />}
+              onClick={() => {
+                setFormError('');
+                holidayForm.resetFields();
+                holidayForm.setFieldsValue({ Ngay: state.today });
+                setAddHolidayOpen(true);
+              }}
+            >
+              Thêm ngày lễ
+            </Button>
+          )}
           {state.user.VaiTro === 'admin' && (
             <Button
               type="primary"
@@ -282,32 +393,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       </div>
 
       {state.user.VaiTro !== 'admin' ? (
-        <Card bordered={false} className="shadow-xs">
-          <Descriptions
-            title="Thông tin tài khoản cá nhân"
-            bordered
-            column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
-          >
-            <Descriptions.Item label="Họ và tên">
-              <strong>{state.user.HoTen}</strong>
-            </Descriptions.Item>
-            <Descriptions.Item label="Tên đăng nhập">
-              <Text code>{state.user.TenDangNhap}</Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Vai trò">
-              <Tag color="processing">{ROLE_NAMES[state.user.VaiTro]}</Tag>
-            </Descriptions.Item>
-          </Descriptions>
-        </Card>
+        <div className="space-y-6">
+          <Card bordered={false} className="shadow-xs">
+            <Descriptions
+              title="Thông tin tài khoản cá nhân"
+              bordered
+              column={{ xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
+            >
+              <Descriptions.Item label="Họ và tên">
+                <strong>{state.user.HoTen}</strong>
+              </Descriptions.Item>
+              <Descriptions.Item label="Tên đăng nhập">
+                <Text code>{state.user.TenDangNhap}</Text>
+              </Descriptions.Item>
+              <Descriptions.Item label="Vai trò">
+                <Tag color="processing">{ROLE_NAMES[state.user.VaiTro]}</Tag>
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          {canManageHolidays && (
+            <Card
+              bordered={false}
+              className="shadow-xs"
+              title={`Quản lý ngày lễ (${holidays.length}) — Bảng NGAYLE`}
+            >
+              <Table
+                rowKey="Ngay"
+                columns={holidayColumns}
+                dataSource={holidays}
+                pagination={{ pageSize: 10, showSizeChanger: false }}
+                size="middle"
+              />
+            </Card>
+          )}
+        </div>
       ) : (
         <Card bordered={false} className="shadow-xs">
           <Tabs
             activeKey={tab}
-            onChange={(k) => setTab(k as 'users' | 'audit')}
+            onChange={(k) => setTab(k as 'users' | 'holidays' | 'audit')}
             items={[
               {
                 key: 'users',
                 label: `Tài khoản người dùng (${state.users.length})`,
+              },
+              {
+                key: 'holidays',
+                label: `Quản lý ngày lễ (${holidays.length})`,
               },
               {
                 key: 'audit',
@@ -324,6 +457,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               pagination={false}
               size="middle"
               scroll={{ x: 650 }}
+            />
+          ) : tab === 'holidays' ? (
+            <Table
+              rowKey="Ngay"
+              columns={holidayColumns}
+              dataSource={holidays}
+              pagination={{ pageSize: 10, showSizeChanger: false }}
+              size="middle"
+              scroll={{ x: 550 }}
             />
           ) : (
             <Table
@@ -425,6 +567,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <Button onClick={() => setAddUserOpen(false)}>Đóng</Button>
             <Button type="primary" htmlType="submit" loading={submitting}>
               Tạo tài khoản
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Modal Thêm / Cập nhật ngày lễ (6.3 Quản lý ngày lễ) */}
+      <Modal
+        open={addHolidayOpen}
+        title="Thêm / Cập nhật ngày nghỉ lễ (Bảng NGAYLE)"
+        onCancel={() => setAddHolidayOpen(false)}
+        footer={null}
+      >
+        <Form form={holidayForm} layout="vertical" onFinish={handleSaveHoliday}>
+          {formError && (
+            <Alert type="error" showIcon message={formError} className="mb-4" />
+          )}
+          <Form.Item
+            name="Ngay"
+            label="Ngày nghỉ lễ (YYYY-MM-DD)"
+            rules={[{ required: true, message: 'Chọn ngày nghỉ lễ' }]}
+          >
+            <Input type="date" />
+          </Form.Item>
+          <Form.Item
+            name="TenNgayLe"
+            label="Tên ngày nghỉ lễ"
+            rules={[{ required: true, message: 'Nhập tên ngày nghỉ lễ' }]}
+          >
+            <Input placeholder="Ví dụ: Giỗ Tổ Hùng Vương, Tết Nguyên Đán..." />
+          </Form.Item>
+          <div className="flex justify-end gap-2">
+            <Button onClick={() => setAddHolidayOpen(false)}>Đóng</Button>
+            <Button type="primary" htmlType="submit" loading={submitting}>
+              Lưu ngày lễ
             </Button>
           </div>
         </Form>
